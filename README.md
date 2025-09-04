@@ -223,4 +223,5 @@ Para suporte técnico:
 
 ---
 
+
 **Desenvolvido para o projeto Tem Aki no Bairro** 🏪
