@@ -1,0 +1,627 @@
+<% 
+  const currentPage = 'businesses';
+%>
+
+<div class="container-fluid">
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><a href="/dashboard">Dashboard</a></li>
+          <li class="breadcrumb-item"><a href="/businesses">Negócios</a></li>
+          <li class="breadcrumb-item active"><%= business.name %></li>
+        </ol>
+      </nav>
+      <h1 class="h3 mb-0 text-gray-800">
+        <i class="fas fa-store mr-2"></i><%= business.name %>
+      </h1>
+    </div>
+    <div class="d-flex gap-2">
+                <a href="/businesses" class="btn btn-secondary btn-sm" style="text-decoration: none;">
+                     <i class="fas fa-arrow-left mr-1"></i>Voltar aos Negócios
+                 </a>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- Informações Principais -->
+    <div class="col-lg-8">
+      <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-info-circle mr-2"></i>Informações do Negócio
+          </h6>
+          <div>
+            <% if (business.status === 'pending') { %>
+              <span class="badge badge-warning badge-lg">Pendente de Aprovação</span>
+            <% } else if (business.status === 'approved') { %>
+              <span class="badge badge-success badge-lg">Aprovado</span>
+            <% } else if (business.status === 'rejected') { %>
+              <span class="badge badge-danger badge-lg">Rejeitado</span>
+            <% } %>
+            <% if (business.featured) { %>
+              <span class="badge badge-info badge-lg ml-2">Destacado</span>
+            <% } %>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6">
+              <h5 class="text-primary mb-3">Dados Básicos</h5>
+              <table class="table table-borderless">
+                <tr>
+                  <td class="font-weight-bold" width="30%">Nome:</td>
+                  <td><%= business.name %></td>
+                </tr>
+                <tr>
+                  <td class="font-weight-bold">Categoria:</td>
+                  <td>
+                    <%= business.category_name || 'Não informado' %>
+                    <% if (business.subcategory_name) { %>
+                      <br><small class="text-muted"><%= business.subcategory_name %></small>
+                    <% } %>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="font-weight-bold">Descrição:</td>
+                  <td><%= business.description || 'Não informado' %></td>
+                </tr>
+                <tr>
+                  <td class="font-weight-bold">Visualizações:</td>
+                  <td><span class="badge badge-light"><%= business.views || 0 %></span></td>
+                </tr>
+              </table>
+            </div>
+            <div class="col-md-6">
+              <h5 class="text-primary mb-3">Contato</h5>
+              <table class="table table-borderless">
+                <tr>
+                  <td class="font-weight-bold" width="30%">Telefone:</td>
+                  <td>
+                    <% if (business.phone) { %>
+                      <i class="fas fa-phone mr-1"></i><%= business.phone %>
+                    <% } else { %>
+                      <span class="text-muted">Não informado</span>
+                    <% } %>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="font-weight-bold">WhatsApp:</td>
+                  <td>
+                    <% if (business.whatsapp) { %>
+                      <i class="fab fa-whatsapp mr-1"></i><%= business.whatsapp %>
+                    <% } else { %>
+                      <span class="text-muted">Não informado</span>
+                    <% } %>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="font-weight-bold">Email:</td>
+                  <td>
+                    <% if (business.email) { %>
+                      <i class="fas fa-envelope mr-1"></i><%= business.email %>
+                    <% } else { %>
+                      <span class="text-muted">Não informado</span>
+                    <% } %>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="font-weight-bold">Website:</td>
+                  <td>
+                    <% if (business.website) { %>
+                      <a href="<%= business.website %>" target="_blank" class="text-decoration-none">
+                        <i class="fas fa-external-link-alt mr-1"></i><%= business.website %>
+                      </a>
+                    <% } else { %>
+                      <span class="text-muted">Não informado</span>
+                    <% } %>
+                  </td>
+                </tr>
+              </table>
+            </div>
+          </div>
+          
+          <hr>
+          
+          <div class="row">
+            <div class="col-12">
+              <h5 class="text-primary mb-3">Localização</h5>
+              <table class="table table-borderless">
+                <tr>
+                  <td class="font-weight-bold" width="15%">Endereço:</td>
+                  <td><%= business.address || 'Não informado' %></td>
+                </tr>
+                <tr>
+                  <td class="font-weight-bold">Bairro:</td>
+                  <td><%= business.neighborhood || 'Não informado' %></td>
+                </tr>
+                <tr>
+                  <td class="font-weight-bold">Cidade:</td>
+                  <td><%= business.city || 'Não informado' %></td>
+                </tr>
+                <tr>
+                  <td class="font-weight-bold">Estado:</td>
+                  <td><%= business.state || 'Não informado' %></td>
+                </tr>
+              </table>
+            </div>
+          </div>
+          
+          <hr>
+          
+          <div class="row">
+            <div class="col-md-6">
+              <h5 class="text-primary mb-3">Datas</h5>
+              <table class="table table-borderless">
+                <tr>
+                  <td class="font-weight-bold" width="40%">Criado em:</td>
+                  <td><%= new Date(business.created_at).toLocaleString('pt-BR') %></td>
+                </tr>
+                <tr>
+                  <td class="font-weight-bold">Atualizado em:</td>
+                  <td><%= new Date(business.updated_at).toLocaleString('pt-BR') %></td>
+                </tr>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Imagens -->
+      <% if (images && images.length > 0) { %>
+        <div class="card shadow mb-4">
+          <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+              <i class="fas fa-images mr-2"></i>Imagens (<%= images.length %>)
+            </h6>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <% images.forEach(image => { %>
+                <div class="col-md-4 mb-3">
+                  <div class="card">
+                    <img src="/uploads/businesses/<%= image.filename %>" class="card-img-top" 
+                         alt="Imagem do negócio" style="height: 200px; object-fit: cover;">
+                    <div class="card-body p-2">
+                      <% if (image.is_primary) { %>
+                        <span class="badge badge-primary">Principal</span>
+                      <% } %>
+                      <small class="text-muted d-block">
+                        <%= new Date(image.created_at).toLocaleDateString('pt-BR') %>
+                      </small>
+                    </div>
+                  </div>
+                </div>
+              <% }); %>
+            </div>
+          </div>
+        </div>
+      <% } %>
+    </div>
+
+    <!-- Ações de Moderação -->
+    <div class="col-lg-4">
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-cogs mr-2"></i>Ações de Moderação
+          </h6>
+        </div>
+        <div class="card-body">
+          <% if (business.status === 'pending') { %>
+            <div class="alert alert-warning">
+              <i class="fas fa-exclamation-triangle mr-2"></i>
+              Este negócio está <strong>pendente de aprovação</strong>.
+            </div>
+            
+            <button class="btn btn-success btn-block mb-2" onclick="approveBusiness(<%= business.id %>)">
+              <i class="fas fa-check mr-2"></i>Aprovar Negócio
+            </button>
+            
+            <button class="btn btn-danger btn-block mb-3" onclick="rejectBusiness(<%= business.id %>)">
+              <i class="fas fa-times mr-2"></i>Rejeitar Negócio
+            </button>
+          <% } else if (business.status === 'approved') { %>
+            <div class="alert alert-success">
+              <i class="fas fa-check-circle mr-2"></i>
+              Este negócio está <strong>aprovado</strong> e visível no aplicativo.
+            </div>
+            
+            <button class="btn btn-<%= business.featured ? 'warning' : 'info' %> btn-block mb-2" 
+                    onclick="toggleFeature(<%= business.id %>, <%= !business.featured %>)">
+              <i class="fas fa-star mr-2"></i>
+              <%= business.featured ? 'Remover Destaque' : 'Destacar Negócio' %>
+            </button>
+            
+            <button class="btn btn-warning btn-block mb-3" onclick="rejectBusiness(<%= business.id %>)">
+              <i class="fas fa-ban mr-2"></i>Suspender Negócio
+            </button>
+          <% } else if (business.status === 'rejected') { %>
+            <div class="alert alert-danger">
+              <i class="fas fa-times-circle mr-2"></i>
+              Este negócio foi <strong>rejeitado</strong> e não está visível no aplicativo.
+            </div>
+            
+            <button class="btn btn-success btn-block mb-3" onclick="approveBusiness(<%= business.id %>)">
+              <i class="fas fa-check mr-2"></i>Aprovar Negócio
+            </button>
+          <% } %>
+          
+          <hr>
+          
+          <button class="btn btn-danger btn-block" onclick="deleteBusiness(<%= business.id %>)">
+            <i class="fas fa-trash mr-2"></i>Excluir Negócio
+          </button>
+        </div>
+      </div>
+
+      <!-- Estatísticas -->
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-chart-bar mr-2"></i>Estatísticas
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="row text-center">
+            <div class="col-6">
+              <div class="border-right">
+                <div class="h4 font-weight-bold text-primary"><%= business.views || 0 %></div>
+                <div class="small text-gray-500">Visualizações</div>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="h4 font-weight-bold text-success"><%= images ? images.length : 0 %></div>
+              <div class="small text-gray-500">Imagens</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Histórico de Atividades -->
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-history mr-2"></i>Histórico
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="timeline">
+            <div class="timeline-item">
+              <div class="timeline-marker bg-primary"></div>
+              <div class="timeline-content">
+                <h6 class="timeline-title">Negócio Criado</h6>
+                <p class="timeline-text">O negócio foi cadastrado no sistema.</p>
+                <span class="timeline-date"><%= new Date(business.created_at).toLocaleString('pt-BR') %></span>
+              </div>
+            </div>
+            
+            <% if (business.updated_at !== business.created_at) { %>
+              <div class="timeline-item">
+                <div class="timeline-marker bg-info"></div>
+                <div class="timeline-content">
+                  <h6 class="timeline-title">Última Atualização</h6>
+                  <p class="timeline-text">Informações do negócio foram atualizadas.</p>
+                  <span class="timeline-date"><%= new Date(business.updated_at).toLocaleString('pt-BR') %></span>
+                </div>
+              </div>
+            <% } %>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Histórico de Moderação -->
+<% if (history && history.length > 0) { %>
+<div class="row mt-4">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="card-title mb-0">
+          <i class="fas fa-history"></i> Histórico de Moderação
+        </h5>
+      </div>
+      <div class="card-body">
+        <div class="timeline">
+          <% history.forEach((item, index) => { %>
+          <div class="timeline-item <%= index === 0 ? 'timeline-item-latest' : '' %>">
+            <div class="timeline-marker">
+              <% if (item.action === 'approve') { %>
+                <i class="fas fa-check text-success"></i>
+              <% } else if (item.action === 'reject') { %>
+                <i class="fas fa-times text-danger"></i>
+              <% } else { %>
+                <i class="fas fa-edit text-info"></i>
+              <% } %>
+            </div>
+            <div class="timeline-content">
+              <div class="timeline-header">
+                <strong>
+                  <% if (item.action === 'approve') { %>
+                    Negócio Aprovado
+                  <% } else if (item.action === 'reject') { %>
+                    Negócio Rejeitado
+                  <% } else { %>
+                    Status Alterado
+                  <% } %>
+                </strong>
+                <small class="text-muted ms-2">
+                  <%= new Date(item.created_at).toLocaleString('pt-BR') %>
+                </small>
+              </div>
+              <div class="timeline-body">
+                <p class="mb-1">
+                  Status alterado de <span class="badge bg-secondary"><%= item.previous_status %></span> 
+                  para <span class="badge bg-primary"><%= item.new_status %></span>
+                </p>
+                <% if (item.reason) { %>
+                  <p class="mb-1"><strong>Motivo:</strong> <%= item.reason %></p>
+                <% } %>
+                <% if (item.notes) { %>
+                  <p class="mb-1"><strong>Observações:</strong> <%= item.notes %></p>
+                <% } %>
+                <small class="text-muted">
+                  Por: <%= item.username || 'Sistema' %>
+                </small>
+              </div>
+            </div>
+          </div>
+          <% }); %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<% } %>
+
+<!-- Modal de Rejeição -->
+<div class="modal fade" id="rejectModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Rejeitar/Suspender Negócio</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="rejectForm">
+          <div class="mb-3">
+            <label for="rejectReason" class="form-label">Motivo da rejeição/suspensão:</label>
+            <textarea class="form-control" id="rejectReason" name="reason" rows="4" 
+                      placeholder="Descreva o motivo da rejeição ou suspensão..."></textarea>
+            <div class="form-text">Este motivo será registrado no sistema para referência futura.</div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-danger" onclick="confirmReject()">Confirmar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentBusinessId = null;
+
+function approveBusiness(id) {
+  if (confirm('Tem certeza que deseja aprovar este negócio?')) {
+    fetch(`/business/${id}/approve`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        showAlert('success', data.message);
+        setTimeout(() => location.reload(), 1500);
+      } else {
+        showAlert('danger', data.error || 'Erro ao aprovar negócio');
+      }
+    })
+    .catch(error => {
+      console.error('Erro:', error);
+      showAlert('danger', 'Erro ao aprovar negócio');
+    });
+  }
+}
+
+function rejectBusiness(id) {
+  currentBusinessId = id;
+  const modal = new bootstrap.Modal(document.getElementById('rejectModal'));
+  modal.show();
+}
+
+function confirmReject() {
+  const reason = document.getElementById('rejectReason').value;
+  
+  fetch(`/business/${currentBusinessId}/reject`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ reason: reason })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      showAlert('success', data.message);
+      const modal = bootstrap.Modal.getInstance(document.getElementById('rejectModal'));
+      modal.hide();
+      setTimeout(() => location.reload(), 1500);
+    } else {
+      showAlert('danger', data.error || 'Erro ao rejeitar negócio');
+    }
+  })
+  .catch(error => {
+    console.error('Erro:', error);
+    showAlert('danger', 'Erro ao rejeitar negócio');
+  });
+}
+
+function toggleFeature(id, featured) {
+  const action = featured ? 'destacar' : 'remover destaque do';
+  if (confirm(`Tem certeza que deseja ${action} este negócio?`)) {
+    fetch(`/business/${id}/feature`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ featured: featured })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        showAlert('success', data.message);
+        setTimeout(() => location.reload(), 1500);
+      } else {
+        showAlert('danger', data.error || 'Erro ao atualizar destaque');
+      }
+    })
+    .catch(error => {
+      console.error('Erro:', error);
+      showAlert('danger', 'Erro ao atualizar destaque');
+    });
+  }
+}
+
+function deleteBusiness(id) {
+  if (confirm('Tem certeza que deseja excluir este negócio? Esta ação não pode ser desfeita.')) {
+    fetch(`/business/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        showAlert('success', data.message);
+        setTimeout(() => window.location.href = '/businesses', 2000);
+      } else {
+        showAlert('danger', data.error || 'Erro ao excluir negócio');
+      }
+    })
+    .catch(error => {
+      console.error('Erro:', error);
+      showAlert('danger', 'Erro ao excluir negócio');
+    });
+  }
+}
+
+function showAlert(type, message) {
+  const alertDiv = document.createElement('div');
+  alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+  alertDiv.innerHTML = `
+    ${message}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  `;
+  
+  const container = document.querySelector('.container-fluid');
+  container.insertBefore(alertDiv, container.firstChild);
+  
+  setTimeout(() => {
+    alertDiv.remove();
+  }, 5000);
+}
+</script>
+
+<style>
+.badge-lg {
+  font-size: 0.875rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.timeline {
+  position: relative;
+  padding-left: 30px;
+}
+
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 15px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #e9ecef;
+}
+
+.timeline-item {
+  position: relative;
+  margin-bottom: 30px;
+}
+
+.timeline-item:last-child {
+  margin-bottom: 0;
+}
+
+.timeline-marker {
+  position: absolute;
+  left: -22px;
+  top: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: white;
+  border: 2px solid #e9ecef;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+
+.timeline-item-latest .timeline-marker {
+  border-color: #007bff;
+  background: #007bff;
+  color: white;
+}
+
+.timeline-content {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 15px;
+  border-left: 3px solid #e9ecef;
+}
+
+.timeline-item-latest .timeline-content {
+  border-left-color: #007bff;
+}
+
+.timeline-header {
+  margin-bottom: 10px;
+}
+
+.timeline-body p {
+  margin-bottom: 5px;
+}
+
+.timeline-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+
+.timeline-text {
+  font-size: 0.8rem;
+  color: #6c757d;
+  margin-bottom: 5px;
+}
+
+.timeline-date {
+  font-size: 0.75rem;
+  color: #adb5bd;
+}
+
+.card-img-top {
+  transition: transform 0.2s;
+}
+
+.card-img-top:hover {
+  transform: scale(1.05);
+}
+</style>

@@ -1,0 +1,51 @@
+{
+  "name": "web-admin",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node app_supabase.js",
+    "build": "echo 'Build completed successfully'",
+    "dev": "nodemon app_supabase.js",
+    "start:sqlite": "DATABASE_TYPE=sqlite node app.js",
+    "dev:sqlite": "DATABASE_TYPE=sqlite nodemon app.js",
+    "start:supabase": "DATABASE_TYPE=supabase node app_supabase.js",
+    "dev:supabase": "DATABASE_TYPE=supabase nodemon app_supabase.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "setup": "node scripts/setup.js",
+    "backup": "node scripts/backup.js",
+    "restore": "node scripts/restore.js",
+    "migrate:supabase": "node scripts/migrate_to_supabase.js",
+    "check:supabase": "node -e \"console.log('Supabase URL:', process.env.SUPABASE_URL); console.log('Configurado:', !!process.env.SUPABASE_URL);\"",
+    "switch:sqlite": "node -e \"const fs=require('fs'); const env=fs.readFileSync('.env','utf8').replace(/DATABASE_TYPE=.*/,'DATABASE_TYPE=sqlite'); fs.writeFileSync('.env',env); console.log('✅ Configurado para SQLite');\"",
+    "switch:supabase": "node -e \"const fs=require('fs'); const env=fs.readFileSync('.env','utf8').replace(/DATABASE_TYPE=.*/,'DATABASE_TYPE=supabase'); fs.writeFileSync('.env',env); console.log('✅ Configurado para Supabase');\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.56.0",
+    "axios": "^1.11.0",
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "ejs": "^3.1.10",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.0.1",
+    "express-session": "^1.18.2",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.1",
+    "multer": "^2.0.2",
+    "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "clean-css-cli": "^5.6.3",
+    "imagemin": "^9.0.1",
+    "imagemin-mozjpeg": "^10.0.0",
+    "imagemin-pngquant": "^10.0.0",
+    "imagemin-svgo": "^11.0.1",
+    "nodemon": "^3.1.10",
+    "terser": "^5.44.0"
+  }
+}

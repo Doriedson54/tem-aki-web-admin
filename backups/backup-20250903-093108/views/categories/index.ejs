@@ -1,0 +1,317 @@
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">
+        <i class="fas fa-tags text-primary me-2"></i>
+        Categorias
+    </h1>
+    <div class="btn-group">
+        <a href="/businesses" class="btn btn-outline-primary">
+            <i class="fas fa-building me-2"></i>
+            Voltar para Negócios
+        </a>
+        <a href="/categories/new" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>
+            Nova Categoria
+        </a>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-6">
+                <label for="search" class="form-label">Buscar</label>
+                <input type="text" class="form-control" id="search" name="search" 
+                       value="<%= filters.search %>" placeholder="Nome ou descrição da categoria">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">&nbsp;</label>
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-outline-primary">
+                        <i class="fas fa-search me-2"></i>
+                        Buscar
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">&nbsp;</label>
+                <div class="d-grid">
+                    <a href="/categories" class="btn btn-outline-secondary">
+                        <i class="fas fa-times me-2"></i>
+                        Limpar
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Estatísticas -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="stats-card card">
+            <div class="card-body text-center">
+                <i class="fas fa-tags fa-2x mb-3"></i>
+                <h3><%= categories.length %></h3>
+                <p class="mb-0">Total de Categorias</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card card">
+            <div class="card-body text-center">
+                <i class="fas fa-check-circle fa-2x mb-3"></i>
+                <h3><%= categories.filter(c => c.active).length %></h3>
+                <p class="mb-0">Ativas</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card card">
+            <div class="card-body text-center">
+                <i class="fas fa-pause-circle fa-2x mb-3"></i>
+                <h3><%= categories.filter(c => !c.active).length %></h3>
+                <p class="mb-0">Inativas</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card card">
+            <div class="card-body text-center">
+                <i class="fas fa-sitemap fa-2x mb-3"></i>
+                <h3><%= categories.reduce((sum, c) => sum + (c.subcategories ? c.subcategories.length : 0), 0) %></h3>
+                <p class="mb-0">Subcategorias</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Grid de Categorias -->
+<% if (categories && categories.length > 0) { %>
+    <div class="row">
+        <% categories.forEach(category => { %>
+            <div class="col-lg-4 col-md-6 mb-4">
+                <div class="card category-card h-100" style="border-left: 5px solid <%= category.color || '#007bff' %>">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div class="d-flex align-items-center">
+                                <% if (category.icon) { %>
+                                    <i class="<%= category.icon %> fa-2x me-3" style="color: <%= category.color || '#007bff' %>"></i>
+                                <% } else { %>
+                                    <i class="fas fa-tag fa-2x me-3" style="color: <%= category.color || '#007bff' %>"></i>
+                                <% } %>
+                                <div>
+                                    <h5 class="card-title mb-1"><%= category.name %></h5>
+                                    <% if (category.active) { %>
+                                        <span class="badge bg-success">Ativa</span>
+                                    <% } else { %>
+                                        <span class="badge bg-secondary">Inativa</span>
+                                    <% } %>
+                                </div>
+                            </div>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="dropdown">
+                                    <i class="fas fa-ellipsis-v"></i>
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="/categories/<%= category.id %>">
+                                        <i class="fas fa-eye me-2"></i>Visualizar
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="/categories/<%= category.id %>/edit">
+                                        <i class="fas fa-edit me-2"></i>Editar
+                                    </a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item text-danger btn-delete" href="#" 
+                                           onclick="deleteCategory('<%= category.id %>')">
+                                        <i class="fas fa-trash me-2"></i>Excluir
+                                    </a></li>
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <% if (category.description) { %>
+                            <p class="card-text text-muted mb-3"><%= category.description %></p>
+                        <% } %>
+                        
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <div class="border-end">
+                                    <h6 class="mb-1"><%= category.subcategories ? category.subcategories.length : 0 %></h6>
+                                    <small class="text-muted">Subcategorias</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <h6 class="mb-1"><%= category.subcategories ? category.subcategories.filter(s => s.active).length : 0 %></h6>
+                                <small class="text-muted">Ativas</small>
+                            </div>
+                        </div>
+                        
+                        <% if (category.subcategories && category.subcategories.length > 0) { %>
+                            <div class="mt-3">
+                                <h6 class="mb-2">Subcategorias:</h6>
+                                <div class="d-flex flex-wrap gap-1">
+                                    <% category.subcategories.slice(0, 3).forEach(sub => { %>
+                                        <span class="badge <%= sub.active ? 'bg-light text-dark' : 'bg-secondary' %> border">
+                                            <%= sub.name %>
+                                        </span>
+                                    <% }); %>
+                                    <% if (category.subcategories.length > 3) { %>
+                                        <span class="badge bg-light text-dark border">+<%= category.subcategories.length - 3 %></span>
+                                    <% } %>
+                                </div>
+                            </div>
+                        <% } %>
+                    </div>
+                    
+                    <div class="card-footer bg-transparent">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">
+                                <i class="fas fa-calendar me-1"></i>
+                                <%= new Date(category.created_at).toLocaleDateString('pt-BR') %>
+                            </small>
+                            <div>
+                                <a href="/categories/<%= category.id %>" class="btn btn-sm btn-outline-primary me-2">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="/categories/<%= category.id %>/edit" class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        <% }); %>
+    </div>
+<% } else { %>
+    <div class="text-center py-5">
+        <i class="fas fa-tags fa-4x text-muted mb-3"></i>
+        <h4 class="text-muted">Nenhuma categoria encontrada</h4>
+        <p class="text-muted mb-4">Comece criando sua primeira categoria.</p>
+        <a href="/categories/new" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>
+            Criar Primeira Categoria
+        </a>
+    </div>
+<% } %>
+
+<!-- Paginação -->
+<% if (pagination.totalPages > 1) { %>
+    <nav aria-label="Paginação de categorias">
+        <ul class="pagination justify-content-center">
+            <% if (pagination.hasPrev) { %>
+                <li class="page-item">
+                    <a class="page-link" href="?page=<%= pagination.prevPage %>&search=<%= filters.search %>">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+                </li>
+            <% } %>
+            
+            <% for (let i = Math.max(1, pagination.currentPage - 2); i <= Math.min(pagination.totalPages, pagination.currentPage + 2); i++) { %>
+                <li class="page-item <%= i === pagination.currentPage ? 'active' : '' %>">
+                    <a class="page-link" href="?page=<%= i %>&search=<%= filters.search %>"><%= i %></a>
+                </li>
+            <% } %>
+            
+            <% if (pagination.hasNext) { %>
+                <li class="page-item">
+                    <a class="page-link" href="?page=<%= pagination.nextPage %>&search=<%= filters.search %>">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                </li>
+            <% } %>
+        </ul>
+    </nav>
+<% } %>
+
+<style>
+.category-card {
+    transition: all 0.3s ease;
+    animation: fadeInUp 0.6s ease-out;
+}
+
+.category-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+}
+
+.category-card .card-body {
+    position: relative;
+}
+
+.category-card .card-body::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 0 20px 20px 0;
+    border-color: transparent var(--bs-primary) transparent transparent;
+    opacity: 0.1;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.stats-card {
+    background: linear-gradient(135deg, #2c5530 0%, #4a7c59 100%);
+    color: white;
+    border: none;
+    transition: all 0.3s ease;
+}
+
+.stats-card:hover {
+    transform: translateY(-5px) scale(1.02);
+    box-shadow: 0 15px 40px rgba(44, 85, 48, 0.3);
+}
+</style>
+
+<script>
+function deleteCategory(categoryId) {
+    if (confirm('Tem certeza que deseja excluir esta categoria? Esta ação não pode ser desfeita.')) {
+        fetch(`/categories/${categoryId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert(data.error || 'Erro ao excluir categoria');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Erro ao excluir categoria');
+        });
+    }
+}
+
+// Adicionar animação de entrada escalonada
+document.addEventListener('DOMContentLoaded', function() {
+    const cards = document.querySelectorAll('.category-card');
+    cards.forEach((card, index) => {
+        card.style.animationDelay = `${index * 0.1}s`;
+    });
+});
+</script>
+
+<% 
+// Definir currentPage para o layout
+if (typeof currentPage === 'undefined') {
+    var currentPage = 'categories';
+}
+%>
