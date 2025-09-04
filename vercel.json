@@ -4,14 +4,14 @@
   "rewrites": [
     {
       "source": "/(.*)",
-      "destination": "/app_supabase.js"
+      "destination": "/api/app_supabase"
     }
   ],
   "env": {
     "NODE_ENV": "production"
   },
   "functions": {
-    "app_supabase.js": {
+    "api/app_supabase.js": {
       "maxDuration": 30
     }
   },
