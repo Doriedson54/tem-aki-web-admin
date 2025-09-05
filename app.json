@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "Tem Aki no Bairro",
+    "slug": "tem-aki-no-bairro",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Este aplicativo precisa acessar a câmera para permitir que você tire fotos do seu estabelecimento.",
+        "NSPhotoLibraryUsageDescription": "Este aplicativo precisa acessar sua galeria de fotos para permitir que você selecione imagens do seu estabelecimento."
+      }
+    },
+    "android": {
+      "package": "com.doriedson54.temakinobairro",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "781db7bb-128b-4b9d-90d9-51f934e456e5"
+      }
+    },
+    "owner": "doriedson54"
+  }
+}

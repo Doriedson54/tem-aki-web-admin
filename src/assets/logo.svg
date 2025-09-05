@@ -1,0 +1,13 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- Casa estilizada -->
+  <path d="M40,100 L100,50 L160,100 L160,150 L120,150 L120,120 L100,120 L100,150 L40,150 Z" fill="#A0522D" />
+  
+  <!-- Chaminé -->
+  <rect x="110" y="60" width="15" height="20" fill="#A0522D" />
+  
+  <!-- Texto "Tem Aki" -->
+  <text x="100" y="130" font-family="Arial" font-size="18" font-weight="bold" text-anchor="middle" fill="#A0522D">Tem Aki</text>
+  
+  <!-- Texto "no Bairro" -->
+  <text x="100" y="150" font-family="Arial" font-size="16" font-weight="bold" text-anchor="middle" fill="#DAA520">no Bairro</text>
+</svg>

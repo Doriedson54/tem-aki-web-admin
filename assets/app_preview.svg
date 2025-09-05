@@ -1,0 +1,28 @@
+<svg width="400" height="600" viewBox="0 0 400 600" xmlns="http://www.w3.org/2000/svg">
+  <!-- Fundo gradiente -->
+  <defs>
+    <linearGradient id="backgroundGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8B4513;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#A0522D;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#CD853F;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Fundo -->
+  <rect width="100%" height="100%" fill="url(#backgroundGradient)"/>
+  
+  <!-- Elementos decorativos -->
+  <circle cx="80" cy="120" r="30" fill="rgba(255,255,255,0.1)"/>
+  <circle cx="320" cy="200" r="25" fill="rgba(255,255,255,0.08)"/>
+  <circle cx="150" cy="350" r="20" fill="rgba(255,255,255,0.06)"/>
+  <circle cx="300" cy="450" r="35" fill="rgba(255,255,255,0.1)"/>
+  
+  <!-- Formas geométricas sutis -->
+  <polygon points="50,500 100,480 80,530" fill="rgba(255,255,255,0.05)"/>
+  <polygon points="350,100 380,80 370,130" fill="rgba(255,255,255,0.07)"/>
+  
+  <!-- Texto central -->
+  <text x="200" y="300" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-family="Arial, sans-serif" font-size="24" font-weight="bold">
+    Negócios do Bairro
+  </text>
+</svg>

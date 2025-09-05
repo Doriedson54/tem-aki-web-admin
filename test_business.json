@@ -1,0 +1,30 @@
+{
+  "name": "Teste Negócio",
+  "category": "Comércio",
+  "subcategory": "Alimentação",
+  "description": "Negócio de teste",
+  "phone": "11999999999",
+  "address": "Rua Teste, 123",
+  "neighborhood": "Centro",
+  "city": "São Paulo",
+  "state": "SP",
+  "zipCode": "01000-000",
+  "email": "teste@teste.com",
+  "website": "https://teste.com",
+  "socialMedia": {
+    "facebook": "",
+    "instagram": "",
+    "whatsapp": "11999999999"
+  },
+  "operatingHours": {
+    "monday": "08:00-18:00",
+    "tuesday": "08:00-18:00",
+    "wednesday": "08:00-18:00",
+    "thursday": "08:00-18:00",
+    "friday": "08:00-18:00",
+    "saturday": "08:00-12:00",
+    "sunday": "Fechado"
+  },
+  "images": [],
+  "isActive": true
+}
