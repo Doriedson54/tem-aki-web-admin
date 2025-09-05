@@ -20,6 +20,7 @@
     "expo-font": "~11.4.0",
     "expo-image-picker": "~14.3.2",
     "expo-linear-gradient": "~12.3.0",
+    "expo-modules-autolinking": "~1.5.0",
     "expo-splash-screen": "~0.20.5",
     "expo-status-bar": "~1.6.0",
     "metro": "^0.76.8",

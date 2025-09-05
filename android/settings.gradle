@@ -1,6 +1,13 @@
 rootProject.name = 'TemAkinoBairro'
 
-apply from: new File(["node", "--print", "require.resolve('expo/package.json')"].execute(null, rootDir).text.trim(), "../scripts/autolinking.gradle");
+// Direct path approach for autolinking
+def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
+def autolinkingFile = new File(projectRoot, "node_modules/expo/scripts/autolinking.gradle")
+if (autolinkingFile.exists()) {
+    apply from: autolinkingFile.getAbsolutePath()
+} else {
+    throw new GradleException("Expo autolinking file not found at: ${autolinkingFile.getAbsolutePath()}")
+}
 useExpoModules()
 
 apply from: new File(["node", "--print", "require.resolve('@react-native-community/cli-platform-android/package.json')"].execute(null, rootDir).text.trim(), "../native_modules.gradle");
