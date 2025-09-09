@@ -4,6 +4,10 @@ require('dotenv').config();
 
 // Importar rotas do Supabase
 const publicRoutes = require('../routes/public');
+const authRoutes = require('../routes/auth_supabase');
+const dashboardRoutes = require('../routes/dashboard_supabase');
+const businessRoutes = require('../routes/business_supabase');
+const categoriesRoutes = require('../routes/categories_supabase');
 
 const app = express();
 
@@ -26,6 +30,18 @@ app.use((req, res, next) => {
 
 // Rotas do Site Público (sem autenticação)
 app.use('/', publicRoutes);
+
+// Rotas de Autenticação
+app.use('/auth', authRoutes);
+
+// Rotas do Dashboard (com autenticação)
+app.use('/dashboard', dashboardRoutes);
+
+// Rotas de Negócios (com autenticação)
+app.use('/business', businessRoutes);
+
+// Rotas de Categorias (com autenticação)
+app.use('/categories', categoriesRoutes);
 
 // Rota de saúde da aplicação
 app.get('/health', (req, res) => {
