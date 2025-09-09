@@ -14,7 +14,7 @@ router.get('/login', redirectIfAuthenticated, (req, res) => {
 });
 
 // Processar login
-router.post('/login', redirectIfAuthenticated, async (req, res) => {
+router.post('/login', async (req, res) => {
   const { username, password } = req.body;
 
   if (!username || !password) {
@@ -66,7 +66,7 @@ router.post('/login', redirectIfAuthenticated, async (req, res) => {
       userAgent: req.get('User-Agent')
     }, req.ip);
 
-    res.redirect('/businesses');
+    res.redirect('/admin/dashboard');
 
   } catch (err) {
     console.error('Erro ao fazer login:', err.message);

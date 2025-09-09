@@ -5,16 +5,16 @@ const cors = require('cors');
 require('dotenv').config();
 
 // Importar rotas do Supabase
-const authRoutes = require('./routes/auth_supabase');
-const dashboardRoutes = require('./routes/dashboard_supabase');
-const businessRoutes = require('./routes/business_supabase');
-const categoriesRoutes = require('./routes/categories_supabase');
-const reportsRoutes = require('./routes/reports_supabase');
-const settingsRoutes = require('./routes/settings_supabase');
-const publicRoutes = require('./routes/public');
+const authRoutes = require('../routes/auth_supabase');
+const dashboardRoutes = require('../routes/dashboard_supabase');
+const businessRoutes = require('../routes/business_supabase');
+const categoriesRoutes = require('../routes/categories_supabase');
+const reportsRoutes = require('../routes/reports_supabase');
+const settingsRoutes = require('../routes/settings_supabase');
+const publicRoutes = require('../routes/public');
 
 // Importar middlewares
-const { requireAuth } = require('./middleware/auth_supabase');
+const { requireAuth } = require('../middleware/auth_supabase');
 const {
   setupSecurityHeaders,
   setupRateLimiting,
@@ -24,7 +24,7 @@ const {
   securityLogger,
   validateOrigin,
   secureHealthCheck
-} = require('./middleware/security');
+} = require('../middleware/security');
 
 const app = express();
 
@@ -63,11 +63,11 @@ app.use(cors({
 
 // Configurações do Express
 app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
+app.set('views', path.join(__dirname, '../views'));
 
 // Configurar layout padrão
 app.locals.layout = 'layout';
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, '../public')));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -102,9 +102,9 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 // API Routes para aplicativo móvel (com rate limiting específico)
-app.use('/api/auth', rateLimiters.login, require('./routes/api_auth'));
-app.use('/api/businesses', rateLimiters.api, require('./routes/api_businesses'));
-app.use('/api/categories', rateLimiters.api, require('./routes/api_categories'));
+app.use('/api/auth', rateLimiters.login, require('../routes/api_auth'));
+app.use('/api/businesses', rateLimiters.api, require('../routes/api_businesses'));
+app.use('/api/categories', rateLimiters.api, require('../routes/api_categories'));
 
 // Rotas do Site Público (sem autenticação)
 app.use('/', publicRoutes);
