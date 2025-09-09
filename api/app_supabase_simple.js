@@ -1,5 +1,6 @@
 const express = require('express');
 const path = require('path');
+const session = require('express-session');
 require('dotenv').config();
 
 // Importar rotas do Supabase
@@ -17,6 +18,17 @@ app.set('views', path.join(__dirname, '../views'));
 app.use(express.static(path.join(__dirname, '../public')));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Configuração de sessão
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'tem-aki-secret-key-2024',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 24 * 60 * 60 * 1000 // 24 horas
+  }
+}));
 
 // Middleware básico para disponibilizar informações globais nas views
 app.use((req, res, next) => {
