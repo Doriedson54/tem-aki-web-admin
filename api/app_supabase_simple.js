@@ -3,7 +3,7 @@ const path = require('path');
 require('dotenv').config();
 
 // Importar rotas do Supabase
-const publicRoutes = require('./routes/public');
+const publicRoutes = require('../routes/public');
 
 const app = express();
 
