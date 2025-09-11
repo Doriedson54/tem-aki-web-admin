@@ -3,15 +3,31 @@
   "name": "temakinobairro",
   "rewrites": [
     {
+      "source": "/logo.gif",
+      "destination": "/public/logo.gif"
+    },
+    {
+      "source": "/public/(.*)",
+      "destination": "/public/$1"
+    },
+    {
       "source": "/(.*)",
-      "destination": "/api/app_supabase_simple.js"
+      "destination": "/api/index.js"
     }
   ],
   "env": {
-    "NODE_ENV": "production"
+    "NODE_ENV": "production",
+    "SUPABASE_URL": "@supabase_url",
+    "SUPABASE_ANON_KEY": "@supabase_anon_key",
+    "SUPABASE_SERVICE_ROLE_KEY": "@supabase_service_role_key",
+    "SESSION_SECRET": "@session_secret",
+    "JWT_SECRET": "@jwt_secret"
   },
   "functions": {
-    "api/app_supabase.js": {
+    "api/index.js": {
+      "maxDuration": 30
+    },
+    "api/app_supabase_simple.js": {
       "maxDuration": 30
     }
   },
@@ -22,6 +38,19 @@
         {
           "key": "Cache-Control",
           "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/(.*\\.(gif|png|jpg|jpeg|svg|ico))",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        },
+        {
+          "key": "Content-Type",
+          "value": "image/*"
         }
       ]
     },
