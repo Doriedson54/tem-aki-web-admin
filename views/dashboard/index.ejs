@@ -1,0 +1,975 @@
+<% 
+  const currentPage = 'dashboard';
+%>
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4">
+    <div>
+        <h1 class="h2 mb-1">
+            <i class="fas fa-tachometer-alt text-success"></i>
+            Dashboard
+        </h1>
+        <p class="text-muted mb-0">Visão geral dos negócios do bairro</p>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="/admin/businesses" class="btn btn-sm btn-primary">
+                <i class="fas fa-building"></i>
+                Voltar para Negócios
+            </a>
+        </div>
+        <div class="btn-group me-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="refreshDashboard()">
+                <i class="fas fa-sync-alt"></i>
+                Atualizar
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="exportReport()">
+                <i class="fas fa-download"></i>
+                Exportar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-4" data-aos="fade-up" data-aos-delay="100">
+        <div class="card dashboard-stat-card h-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);">
+            <div class="card-body position-relative overflow-hidden">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-uppercase mb-2 opacity-75">Total de Negócios</div>
+                        <div class="h2 mb-0 font-weight-bold counter" data-target="<%= stats.totalBusinesses || 0 %>">0</div>
+                        <div class="progress mt-2" style="height: 4px; background: rgba(255,255,255,0.2);">
+                            <div class="progress-bar" style="width: 100%; background: rgba(255,255,255,0.8);"></div>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <div class="icon-wrapper">
+                            <i class="fas fa-building fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-decoration"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-4" data-aos="fade-up" data-aos-delay="200">
+        <div class="card dashboard-stat-card h-100" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border: none; box-shadow: 0 10px 30px rgba(40, 167, 69, 0.3);">
+            <div class="card-body position-relative overflow-hidden">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-uppercase mb-2 opacity-75">Negócios Ativos</div>
+                        <div class="h2 mb-0 font-weight-bold counter" data-target="<%= stats.activeBusinesses || 0 %>">0</div>
+                        <div class="progress mt-2" style="height: 4px; background: rgba(255,255,255,0.2);">
+                            <div class="progress-bar" style="width: <%= stats.totalBusinesses > 0 ? Math.round((stats.activeBusinesses / stats.totalBusinesses) * 100) : 0 %>%; background: rgba(255,255,255,0.8);"></div>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <div class="icon-wrapper">
+                            <i class="fas fa-check-circle fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-decoration"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-4" data-aos="fade-up" data-aos-delay="300">
+        <div class="card dashboard-stat-card h-100" style="background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%); color: white; border: none; box-shadow: 0 10px 30px rgba(255, 193, 7, 0.3);">
+            <div class="card-body position-relative overflow-hidden">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-uppercase mb-2 opacity-75">Aguardando Aprovação</div>
+                        <div class="h2 mb-0 font-weight-bold counter" data-target="<%= stats.pendingBusinesses || 0 %>">0</div>
+                        <div class="progress mt-2" style="height: 4px; background: rgba(255,255,255,0.2);">
+                            <div class="progress-bar" style="width: <%= stats.totalBusinesses > 0 ? Math.round((stats.pendingBusinesses / stats.totalBusinesses) * 100) : 0 %>%; background: rgba(255,255,255,0.8);"></div>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <div class="icon-wrapper">
+                            <i class="fas fa-clock fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-decoration"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-4" data-aos="fade-up" data-aos-delay="400">
+        <div class="card dashboard-stat-card h-100" style="background: linear-gradient(135deg, #17a2b8 0%, #6f42c1 100%); color: white; border: none; box-shadow: 0 10px 30px rgba(23, 162, 184, 0.3);">
+            <div class="card-body position-relative overflow-hidden">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-uppercase mb-2 opacity-75">Categorias</div>
+                        <div class="h2 mb-0 font-weight-bold counter" data-target="<%= stats.totalCategories || 0 %>">0</div>
+                        <div class="progress mt-2" style="height: 4px; background: rgba(255,255,255,0.2);">
+                            <div class="progress-bar" style="width: 100%; background: rgba(255,255,255,0.8);"></div>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <div class="icon-wrapper">
+                            <i class="fas fa-tags fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-decoration"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabelas de Negócios -->
+<div class="row mb-4">
+    <div class="col-lg-8" data-aos="fade-right" data-aos-delay="500">
+        <div class="card modern-card h-100" style="border: none; box-shadow: 0 8px 25px rgba(0,0,0,0.1); border-radius: 15px;">
+            <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 15px 15px 0 0; border: none;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-table me-2"></i>
+                        Negócios Cadastrados Recentemente
+                    </h5>
+                    <a href="/business" class="btn btn-sm btn-light" style="border-radius: 20px;">Ver Todos</a>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>Categoria</th>
+                                <th>Status</th>
+                                <th>Data</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if (recentBusinesses && recentBusinesses.length > 0) { %>
+                                <% recentBusinesses.slice(0, 8).forEach(function(business) { %>
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="avatar-sm bg-light rounded-circle d-flex align-items-center justify-content-center me-2">
+                                                    <i class="fas fa-store text-muted"></i>
+                                                </div>
+                                                <div>
+                                                    <h6 class="mb-0"><%= business.name %></h6>
+                                                    <small class="text-muted"><%= business.phone || 'Sem telefone' %></small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-light text-dark"><%= business.category_name || 'Sem categoria' %></span>
+                                        </td>
+                                        <td>
+                                            <% if (business.status === 'approved') { %>
+                                                <span class="badge bg-success">Aprovado</span>
+                                            <% } else if (business.status === 'pending') { %>
+                                                <span class="badge bg-warning">Pendente</span>
+                                            <% } else if (business.status === 'rejected') { %>
+                                                <span class="badge bg-danger">Rejeitado</span>
+                                            <% } else { %>
+                                                <span class="badge bg-secondary"><%= business.status %></span>
+                                            <% } %>
+                                        </td>
+                                        <td>
+                                            <small class="text-muted">
+                                                <%= new Date(business.created_at).toLocaleDateString('pt-BR') %>
+                                            </small>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="/business/<%= business.id %>" class="btn btn-outline-primary btn-sm">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                <% if (business.status === 'pending') { %>
+                                                    <button class="btn btn-outline-success btn-sm" onclick="approveBusinessQuick(<%= business.id %>)">
+                                                        <i class="fas fa-check"></i>
+                                                    </button>
+                                                <% } %>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <% }); %>
+                            <% } else { %>
+                                <tr>
+                                    <td colspan="5" class="text-center py-4">
+                                        <i class="fas fa-store fa-2x text-muted mb-2"></i>
+                                        <p class="text-muted mb-0">Nenhum negócio cadastrado ainda.</p>
+                                    </td>
+                                </tr>
+                            <% } %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4" data-aos="fade-left" data-aos-delay="600">
+        <div class="card modern-card h-100" style="border: none; box-shadow: 0 8px 25px rgba(0,0,0,0.1); border-radius: 15px;">
+            <div class="card-header" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border-radius: 15px 15px 0 0; border: none;">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-pie me-2"></i>
+                    Distribuição por Categoria
+                </h5>
+            </div>
+            <div class="card-body">
+                <% if (businessesByCategory && businessesByCategory.length > 0) { %>
+                    <div class="category-stats">
+                        <% 
+                        // Função para gerar cores das categorias no servidor
+                        function getCategoryColor(index) {
+                            const colors = [
+                                '#2c5530', '#4a7c59', '#28a745', '#20c997', 
+                                '#17a2b8', '#6f42c1', '#e83e8c', '#fd7e14',
+                                '#ffc107', '#dc3545', '#6c757d', '#343a40'
+                            ];
+                            return colors[index % colors.length];
+                        }
+                        %>
+                        <% businessesByCategory.slice(0, 6).forEach(function(category, index) { %>
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div class="d-flex align-items-center">
+                                    <div class="category-color me-2" style="width: 12px; height: 12px; border-radius: 50%; background-color: <%= getCategoryColor(index) %>;"></div>
+                                    <span class="fw-medium"><%= category.name %></span>
+                                </div>
+                                <div class="text-end">
+                                    <span class="fw-bold"><%= category.count %></span>
+                                    <div class="progress mt-1" style="height: 4px; width: 60px;">
+                                        <div class="progress-bar" style="width: <%= Math.min((category.count / Math.max(...businessesByCategory.map(c => c.count))) * 100, 100) %>%; background-color: <%= getCategoryColor(index) %>;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        <% }); %>
+                    </div>
+                <% } else { %>
+                    <div class="text-center py-3">
+                        <i class="fas fa-chart-pie fa-2x text-muted mb-2"></i>
+                        <p class="text-muted mb-0">Nenhuma categoria com negócios.</p>
+                    </div>
+                <% } %>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row mb-4">
+    <div class="col-xl-6 col-lg-6" data-aos="zoom-in" data-aos-delay="700">
+        <div class="card modern-card h-100" style="border: none; box-shadow: 0 8px 25px rgba(0,0,0,0.1); border-radius: 15px;">
+            <div class="card-header" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border-radius: 15px 15px 0 0; border: none;">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-line me-2"></i>
+                    Crescimento de Negócios
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="businessesChart" width="400" height="250"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-6 col-lg-6" data-aos="zoom-in" data-aos-delay="800">
+        <div class="card modern-card h-100" style="border: none; box-shadow: 0 8px 25px rgba(0,0,0,0.1); border-radius: 15px;">
+            <div class="card-header" style="background: linear-gradient(135deg, #17a2b8 0%, #6f42c1 100%); color: white; border-radius: 15px 15px 0 0; border: none;">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-doughnut me-2"></i>
+                    Tipos de Negócios Cadastrados
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="categoriesChart" width="400" height="250"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Status e Análises -->
+<div class="row mb-4">
+    <div class="col-xl-4 col-lg-4" data-aos="fade-up" data-aos-delay="900">
+        <div class="card modern-card h-100" style="border: none; box-shadow: 0 8px 25px rgba(0,0,0,0.1); border-radius: 15px;">
+            <div class="card-header" style="background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%); color: white; border-radius: 15px 15px 0 0; border: none;">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-pie me-2"></i>
+                    Status dos Negócios
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="statusChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-8 col-lg-8" data-aos="fade-up" data-aos-delay="1000">
+        <div class="card modern-card h-100" style="border: none; box-shadow: 0 8px 25px rgba(0,0,0,0.1); border-radius: 15px;">
+            <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 15px 15px 0 0; border: none;">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-bar me-2"></i>
+                    Análise Detalhada por Categoria
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="categoryAnalysisChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activities and Quick Actions -->
+<div class="row">
+    <div class="col-xl-8 col-lg-7" data-aos="fade-right" data-aos-delay="1100">
+        <div class="card modern-card h-100" style="border: none; box-shadow: 0 8px 25px rgba(0,0,0,0.1); border-radius: 15px;">
+            <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 15px 15px 0 0; border: none;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-history me-2"></i>
+                        Atividades Recentes
+                    </h5>
+                    <a href="/activities" class="btn btn-sm btn-light" style="border-radius: 20px;">Ver Todas</a>
+                </div>
+            </div>
+            <div class="card-body">
+                <% if (recentActivities && recentActivities.length > 0) { %>
+                    <div class="list-group list-group-flush">
+                        <% recentActivities.forEach(function(activity) { %>
+                            <div class="list-group-item d-flex justify-content-between align-items-start">
+                                <div class="ms-2 me-auto">
+                                    <div class="fw-bold">
+                                        <% if (activity.action === 'create_business') { %>
+                                            <i class="fas fa-plus text-success"></i>
+                                            Novo negócio cadastrado
+                                        <% } else if (activity.action === 'approve_business') { %>
+                                            <i class="fas fa-check text-success"></i>
+                                            Negócio aprovado
+                                        <% } else if (activity.action === 'reject_business') { %>
+                                            <i class="fas fa-times text-danger"></i>
+                                            Negócio rejeitado
+                                        <% } else if (activity.action === 'login') { %>
+                                            <i class="fas fa-sign-in-alt text-info"></i>
+                                            Login realizado
+                                        <% } else { %>
+                                            <i class="fas fa-info-circle text-secondary"></i>
+                                            <%= activity.action %>
+                                        <% } %>
+                                    </div>
+                                    <small class="text-muted">
+                                        <%= activity.details || 'Sem detalhes' %>
+                                    </small>
+                                </div>
+                                <small class="text-muted">
+                                    <%= new Date(activity.created_at).toLocaleString('pt-BR') %>
+                                </small>
+                            </div>
+                        <% }); %>
+                    </div>
+                <% } else { %>
+                    <div class="text-center py-4">
+                        <i class="fas fa-history fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">Nenhuma atividade recente encontrada.</p>
+                    </div>
+                <% } %>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-4 col-lg-5" data-aos="fade-left" data-aos-delay="1200">
+        <div class="card modern-card h-100" style="border: none; box-shadow: 0 8px 25px rgba(0,0,0,0.1); border-radius: 15px;">
+            <div class="card-header" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border-radius: 15px 15px 0 0; border: none;">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-bolt me-2"></i>
+                    Ações Rápidas
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="/businesses/new" class="btn btn-primary">
+                        <i class="fas fa-plus"></i>
+                        Adicionar Negócio
+                    </a>
+                    <a href="/categories/new" class="btn btn-outline-primary">
+                        <i class="fas fa-tag"></i>
+                        Nova Categoria
+                    </a>
+                    <a href="/businesses?status=pending" class="btn btn-outline-warning">
+                        <i class="fas fa-clock"></i>
+                        Aprovar Negócios (<%= stats.pendingBusinesses || 0 %>)
+                    </a>
+                    <a href="/reports" class="btn btn-outline-info">
+                        <i class="fas fa-chart-bar"></i>
+                        Gerar Relatório
+                    </a>
+                </div>
+                
+                <hr>
+                
+                <h6 class="card-subtitle mb-2 text-muted">
+                    <i class="fas fa-search"></i>
+                    Busca Rápida
+                </h6>
+                <form id="quickSearchForm">
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="quickSearch" placeholder="Buscar negócios...">
+                        <button class="btn btn-outline-secondary" type="submit">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </form>
+                
+                <div id="searchResults" class="mt-2"></div>
+            </div>
+        </div>
+        
+        <!-- System Info Card -->
+        <div class="card modern-card mt-4" style="border: none; box-shadow: 0 8px 25px rgba(0,0,0,0.1); border-radius: 15px;" data-aos="fade-up" data-aos-delay="1300">
+            <div class="card-header" style="background: linear-gradient(135deg, #17a2b8 0%, #6f42c1 100%); color: white; border-radius: 15px 15px 0 0; border: none;">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Informações do Sistema
+                </h5>
+            </div>
+            <div class="card-body">
+                <small class="text-muted">
+                    <div class="mb-2">
+                        <strong>Versão:</strong> 1.0.0
+                    </div>
+                    <div class="mb-2">
+                        <strong>Último backup:</strong> 
+                        <span class="text-success">Hoje às 03:00</span>
+                    </div>
+                    <div class="mb-2">
+                        <strong>Status:</strong> 
+                        <span class="badge bg-success">Online</span>
+                    </div>
+                    <div>
+                        <strong>Uptime:</strong> 24h 15m
+                    </div>
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Dashboard Modern Styles */
+.dashboard-stat-card {
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.dashboard-stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 40px rgba(0,0,0,0.2) !important;
+}
+
+.dashboard-stat-card .card-decoration {
+    position: absolute;
+    top: -50%;
+    right: -20%;
+    width: 100px;
+    height: 100px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 50%;
+    transition: all 0.3s ease;
+}
+
+.dashboard-stat-card:hover .card-decoration {
+    transform: scale(1.2);
+    background: rgba(255,255,255,0.15);
+}
+
+.dashboard-stat-card .icon-wrapper {
+    transition: all 0.3s ease;
+}
+
+.dashboard-stat-card:hover .icon-wrapper {
+    transform: rotate(10deg) scale(1.1);
+}
+
+.modern-card {
+    transition: all 0.3s ease;
+}
+
+.modern-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 35px rgba(0,0,0,0.15) !important;
+}
+
+.counter {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-weight: 700;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes countUp {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.animate-counter {
+    animation: countUp 0.5s ease-out;
+}
+
+.btn {
+    transition: all 0.3s ease;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+.list-group-item {
+    transition: all 0.3s ease;
+    border: none;
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+}
+
+.list-group-item:hover {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    transform: translateX(5px);
+}
+
+.table-hover tbody tr:hover {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    transform: scale(1.01);
+    transition: all 0.3s ease;
+}
+
+.progress-bar {
+    transition: width 1.5s ease-in-out;
+}
+
+.category-stats .d-flex:hover {
+    background: rgba(0,0,0,0.05);
+    border-radius: 8px;
+    padding: 8px;
+    transition: all 0.3s ease;
+}
+</style>
+
+<script>
+// Função para gerar cores das categorias
+function getCategoryColor(index) {
+    const colors = [
+        '#2c5530', '#4a7c59', '#28a745', '#20c997', 
+        '#17a2b8', '#6f42c1', '#e83e8c', '#fd7e14',
+        '#ffc107', '#dc3545', '#6c757d', '#343a40'
+    ];
+    return colors[index % colors.length];
+}
+
+// Função para animar contadores
+function animateCounter(element, target, duration = 2000) {
+    const start = 0;
+    const increment = target / (duration / 16);
+    let current = start;
+    
+    const timer = setInterval(() => {
+        current += increment;
+        if (current >= target) {
+            element.textContent = target;
+            clearInterval(timer);
+            element.classList.add('animate-counter');
+        } else {
+            element.textContent = Math.floor(current);
+        }
+    }, 16);
+}
+
+// Inicializar contadores animados
+function initCounters() {
+    const counters = document.querySelectorAll('.counter');
+    
+    const observerOptions = {
+        threshold: 0.5,
+        rootMargin: '0px 0px -50px 0px'
+    };
+    
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const counter = entry.target;
+                const target = parseInt(counter.getAttribute('data-target'));
+                animateCounter(counter, target);
+                observer.unobserve(counter);
+            }
+        });
+    }, observerOptions);
+    
+    counters.forEach(counter => {
+        observer.observe(counter);
+    });
+}
+
+// Dashboard Charts
+function initCharts() {
+    // Business Growth Chart
+    const businessCtx = document.getElementById('businessesChart').getContext('2d');
+    new Chart(businessCtx, {
+        type: 'line',
+        data: {
+            labels: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'],
+            datasets: [{
+                label: 'Negócios Cadastrados',
+                data: [12, 19, 15, 25, 22, 30, 28, 35, 32, 40, 38, 45],
+                borderColor: '#2c5530',
+                backgroundColor: 'rgba(44, 85, 48, 0.1)',
+                tension: 0.4,
+                fill: true,
+                pointBackgroundColor: '#2c5530',
+                pointBorderColor: '#ffffff',
+                pointBorderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(0,0,0,0.1)'
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
+    
+    // Categories Doughnut Chart
+    const categoriesCtx = document.getElementById('categoriesChart').getContext('2d');
+    const categoryData = <%- JSON.stringify(businessesByCategory || []) %>;
+    const categoryLabels = categoryData.map(cat => cat.name);
+    const categoryValues = categoryData.map(cat => cat.count);
+    const categoryColors = categoryData.map((cat, index) => getCategoryColor(index));
+    
+    new Chart(categoriesCtx, {
+        type: 'doughnut',
+        data: {
+            labels: categoryLabels,
+            datasets: [{
+                data: categoryValues,
+                backgroundColor: categoryColors,
+                borderWidth: 3,
+                borderColor: '#ffffff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 20,
+                        usePointStyle: true
+                    }
+                }
+            }
+        }
+    });
+    
+    // Status Pie Chart
+    const statusCtx = document.getElementById('statusChart').getContext('2d');
+    new Chart(statusCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Aprovados', 'Pendentes', 'Rejeitados'],
+            datasets: [{
+                data: [<%= stats.approvedBusinesses || 0 %>, <%= stats.pendingBusinesses || 0 %>, <%= (stats.totalBusinesses || 0) - (stats.approvedBusinesses || 0) - (stats.pendingBusinesses || 0) %>],
+                backgroundColor: [
+                    '#28a745',
+                    '#ffc107',
+                    '#dc3545'
+                ],
+                borderWidth: 3,
+                borderColor: '#ffffff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 15,
+                        usePointStyle: true
+                    }
+                }
+            }
+        }
+    });
+    
+    // Category Analysis Bar Chart
+    const categoryAnalysisCtx = document.getElementById('categoryAnalysisChart').getContext('2d');
+    new Chart(categoryAnalysisCtx, {
+        type: 'bar',
+        data: {
+            labels: categoryLabels,
+            datasets: [{
+                label: 'Negócios por Categoria',
+                data: categoryValues,
+                backgroundColor: categoryColors.map(color => color + '80'),
+                borderColor: categoryColors,
+                borderWidth: 2,
+                borderRadius: 8,
+                borderSkipped: false
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(0,0,0,0.1)'
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Quick Search
+document.getElementById('quickSearchForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const query = document.getElementById('quickSearch').value;
+    
+    if (query.length < 2) {
+        document.getElementById('searchResults').innerHTML = '';
+        return;
+    }
+    
+    fetch(`/dashboard/search?q=${encodeURIComponent(query)}`)
+        .then(response => response.json())
+        .then(data => {
+            const resultsDiv = document.getElementById('searchResults');
+            
+            if (data.length === 0) {
+                resultsDiv.innerHTML = '<small class="text-muted">Nenhum resultado encontrado.</small>';
+                return;
+            }
+            
+            let html = '<div class="list-group list-group-flush">';
+            data.forEach(item => {
+                html += `
+                    <a href="/${item.type}s/${item.id}" class="list-group-item list-group-item-action py-2">
+                        <div class="d-flex w-100 justify-content-between">
+                            <small><strong>${item.name}</strong></small>
+                            <small class="text-muted">${item.type === 'business' ? 'Negócio' : 'Categoria'}</small>
+                        </div>
+                    </a>
+                `;
+            });
+            html += '</div>';
+            
+            resultsDiv.innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+});
+
+// Refresh Dashboard
+function refreshDashboard() {
+    location.reload();
+}
+
+// Export Report
+function exportReport() {
+    window.open('/reports/export', '_blank');
+}
+
+// Aprovação rápida de negócio
+function approveBusinessQuick(businessId) {
+    if (confirm('Tem certeza que deseja aprovar este negócio?')) {
+        fetch(`/business/${businessId}/approve`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Atualizar a página para refletir as mudanças
+                location.reload();
+            } else {
+                alert('Erro ao aprovar negócio: ' + (data.message || 'Erro desconhecido'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Erro ao aprovar negócio.');
+        });
+    }
+}
+
+// Função para formatar números
+function formatNumber(num) {
+    return new Intl.NumberFormat('pt-BR').format(num);
+}
+
+// Função para animar contadores
+function animateCounters() {
+    const counters = document.querySelectorAll('.stats-card h3');
+    counters.forEach(counter => {
+        const target = parseInt(counter.innerText);
+        const increment = target / 50;
+        let current = 0;
+        
+        const timer = setInterval(() => {
+            current += increment;
+            if (current >= target) {
+                counter.innerText = target;
+                clearInterval(timer);
+            } else {
+                counter.innerText = Math.floor(current);
+            }
+        }, 30);
+    });
+}
+
+// Adicionar efeitos de hover nos botões de ação
+function addButtonEffects() {
+    const actionButtons = document.querySelectorAll('.btn');
+    actionButtons.forEach(button => {
+        button.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-2px)';
+            this.style.boxShadow = '0 5px 15px rgba(0,0,0,0.2)';
+        });
+        
+        button.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0)';
+            this.style.boxShadow = '';
+        });
+    });
+}
+
+// Adicionar animação de carregamento aos links de paginação
+function addLoadingAnimation() {
+    const links = document.querySelectorAll('a[href]');
+    links.forEach(link => {
+        link.addEventListener('click', function(e) {
+            if (!this.href.includes('#') && !this.href.includes('javascript:')) {
+                this.innerHTML += ' <i class="fas fa-spinner fa-spin"></i>';
+            }
+        });
+    });
+}
+
+// Função para rolagem suave
+function enableSmoothScroll() {
+    document.documentElement.style.scrollBehavior = 'smooth';
+}
+
+// Adicionar efeito de pulso ao primeiro cartão de estatísticas
+function addPulseEffect() {
+    const firstCard = document.querySelector('.dashboard-stat-card');
+    if (firstCard) {
+        setTimeout(() => {
+            firstCard.style.animation = 'pulse 2s infinite';
+        }, 3000);
+    }
+}
+
+// Função para aguardar o carregamento das bibliotecas
+function waitForLibraries() {
+    return new Promise((resolve) => {
+        const checkLibraries = () => {
+            if (typeof Chart !== 'undefined' && typeof AOS !== 'undefined') {
+                resolve();
+            } else {
+                setTimeout(checkLibraries, 100);
+            }
+        };
+        checkLibraries();
+    });
+}
+
+// Initialize charts when page loads
+document.addEventListener('DOMContentLoaded', async function() {
+    // Aguardar o carregamento das bibliotecas
+    await waitForLibraries();
+    
+    // Inicializar AOS (Animate On Scroll)
+    AOS.init({
+        duration: 800,
+        easing: 'ease-in-out',
+        once: true,
+        offset: 100
+    });
+    
+    // Inicializar contadores animados
+    setTimeout(initCounters, 500);
+    
+    // Inicializar gráficos
+    initCharts();
+    
+    // Adicionar efeitos interativos
+    addButtonEffects();
+    addLoadingAnimation();
+    enableSmoothScroll();
+    addPulseEffect();
+    
+    // Adicionar animação de entrada para os cartões
+    const cards = document.querySelectorAll('.card');
+    cards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            card.style.transition = 'all 0.6s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+});
+
+// Adicionar CSS para animação de pulso
+const pulseStyle = document.createElement('style');
+pulseStyle.textContent = `
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+`;
+document.head.appendChild(pulseStyle);
+</script>

@@ -1,0 +1,262 @@
+<% layout('layout') %>
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+  <h1 class="h2">Backup e Restauração</h1>
+  <div class="btn-toolbar mb-2 mb-md-0">
+    <div class="btn-group me-2">
+      <a href="/businesses" class="btn btn-sm btn-outline-primary">
+        <i class="fas fa-building"></i> Voltar para Negócios
+      </a>
+      <a href="/reports" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> Voltar aos Relatórios
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- Backup do Sistema -->
+<div class="row mb-4">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header bg-primary text-white">
+        <h5 class="card-title mb-0">
+          <i class="fas fa-download"></i> Fazer Backup
+        </h5>
+      </div>
+      <div class="card-body">
+        <p class="card-text">
+          Faça o download de um backup completo do sistema incluindo todos os negócios, categorias, usuários e logs de atividade.
+        </p>
+        <div class="d-grid gap-2">
+          <a href="/reports/backup?format=json" class="btn btn-primary" id="backupBtn">
+            <i class="fas fa-download"></i> Baixar Backup (JSON)
+          </a>
+        </div>
+        <div class="mt-3">
+          <small class="text-muted">
+            <i class="fas fa-info-circle"></i>
+            O backup inclui: negócios, categorias, subcategorias, imagens, logs de atividade e histórico de moderação.
+          </small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header bg-warning text-dark">
+        <h5 class="card-title mb-0">
+          <i class="fas fa-upload"></i> Restaurar Backup
+        </h5>
+      </div>
+      <div class="card-body">
+        <p class="card-text">
+          Restaure o sistema a partir de um arquivo de backup. <strong>Atenção:</strong> Esta ação irá substituir todos os dados existentes.
+        </p>
+        <form id="restoreForm" enctype="multipart/form-data">
+          <div class="mb-3">
+            <label for="backupFile" class="form-label">Arquivo de Backup (JSON)</label>
+            <input type="file" class="form-control" id="backupFile" accept=".json" required>
+          </div>
+          <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" id="confirmRestore" required>
+            <label class="form-check-label" for="confirmRestore">
+              Eu entendo que esta ação irá substituir todos os dados existentes
+            </label>
+          </div>
+          <div class="d-grid gap-2">
+            <button type="submit" class="btn btn-warning" id="restoreBtn">
+              <i class="fas fa-upload"></i> Restaurar Backup
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Informações do Sistema -->
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="card-title mb-0">
+          <i class="fas fa-info-circle"></i> Informações do Sistema
+        </h5>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-4">
+            <div class="text-center p-3 border rounded">
+              <i class="fas fa-database fa-2x text-primary mb-2"></i>
+              <h6>Banco de Dados</h6>
+              <p class="text-muted mb-0">SQLite</p>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="text-center p-3 border rounded">
+              <i class="fas fa-calendar fa-2x text-success mb-2"></i>
+              <h6>Último Backup</h6>
+              <p class="text-muted mb-0" id="lastBackup">Nunca</p>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="text-center p-3 border rounded">
+              <i class="fas fa-shield-alt fa-2x text-warning mb-2"></i>
+              <h6>Status</h6>
+              <p class="text-success mb-0">Sistema Operacional</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="mt-4">
+          <h6>Recomendações de Backup:</h6>
+          <ul class="list-unstyled">
+            <li><i class="fas fa-check text-success"></i> Faça backups regulares (diário ou semanal)</li>
+            <li><i class="fas fa-check text-success"></i> Armazene backups em local seguro</li>
+            <li><i class="fas fa-check text-success"></i> Teste a restauração periodicamente</li>
+            <li><i class="fas fa-check text-success"></i> Mantenha múltiplas versões de backup</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de Confirmação -->
+<div class="modal fade" id="confirmModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title">
+          <i class="fas fa-exclamation-triangle"></i> Confirmar Restauração
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p><strong>ATENÇÃO:</strong> Esta ação irá:</p>
+        <ul>
+          <li>Remover todos os negócios existentes</li>
+          <li>Remover todas as categorias e subcategorias</li>
+          <li>Remover todo o histórico de moderação</li>
+          <li>Remover todos os logs de atividade</li>
+          <li>Substituir pelos dados do backup</li>
+        </ul>
+        <p class="text-danger"><strong>Esta ação não pode ser desfeita!</strong></p>
+        <p>Tem certeza que deseja continuar?</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-danger" id="confirmRestoreBtn">Sim, Restaurar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Backup
+document.getElementById('backupBtn').addEventListener('click', function() {
+  // Atualizar último backup
+  localStorage.setItem('lastBackup', new Date().toLocaleString('pt-BR'));
+  updateLastBackup();
+});
+
+// Restaurar backup
+document.getElementById('restoreForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  
+  const fileInput = document.getElementById('backupFile');
+  const file = fileInput.files[0];
+  
+  if (!file) {
+    alert('Por favor, selecione um arquivo de backup.');
+    return;
+  }
+  
+  // Mostrar modal de confirmação
+  const modal = new bootstrap.Modal(document.getElementById('confirmModal'));
+  modal.show();
+});
+
+// Confirmar restauração
+document.getElementById('confirmRestoreBtn').addEventListener('click', function() {
+  const fileInput = document.getElementById('backupFile');
+  const file = fileInput.files[0];
+  const restoreBtn = document.getElementById('restoreBtn');
+  
+  if (!file) return;
+  
+  // Mostrar loading
+  restoreBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Restaurando...';
+  restoreBtn.disabled = true;
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const backupData = JSON.parse(e.target.result);
+      
+      fetch('/reports/restore', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ backup_data: backupData })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          alert('Backup restaurado com sucesso!');
+          window.location.reload();
+        } else {
+          alert('Erro ao restaurar backup: ' + (data.error || 'Erro desconhecido'));
+        }
+      })
+      .catch(error => {
+        console.error('Erro:', error);
+        alert('Erro ao restaurar backup.');
+      })
+      .finally(() => {
+        restoreBtn.innerHTML = '<i class="fas fa-upload"></i> Restaurar Backup';
+        restoreBtn.disabled = false;
+        bootstrap.Modal.getInstance(document.getElementById('confirmModal')).hide();
+      });
+    } catch (error) {
+      alert('Arquivo de backup inválido.');
+      restoreBtn.innerHTML = '<i class="fas fa-upload"></i> Restaurar Backup';
+      restoreBtn.disabled = false;
+      bootstrap.Modal.getInstance(document.getElementById('confirmModal')).hide();
+    }
+  };
+  
+  reader.readAsText(file);
+});
+
+// Atualizar último backup
+function updateLastBackup() {
+  const lastBackup = localStorage.getItem('lastBackup');
+  if (lastBackup) {
+    document.getElementById('lastBackup').textContent = lastBackup;
+  }
+}
+
+// Carregar último backup ao inicializar
+updateLastBackup();
+</script>
+
+<style>
+.card {
+  transition: transform 0.2s;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+}
+
+.border {
+  border-color: #dee2e6 !important;
+}
+
+.text-break {
+  word-break: break-word;
+}
+</style>

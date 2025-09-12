@@ -1,0 +1,137 @@
+<% 
+  const currentPage = 'settings';
+%>
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4">
+    <div>
+        <h1 class="h2 mb-1">
+            <i class="fas fa-cog text-primary"></i>
+            Configurações
+        </h1>
+        <p class="text-muted mb-0">Gerencie as configurações do sistema</p>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="/admin/businesses" class="btn btn-sm btn-primary">
+                <i class="fas fa-building"></i>
+                Voltar para Negócios
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Configurações do Sistema -->
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-server"></i>
+                    Configurações do Sistema
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Nome da Aplicação</label>
+                            <input type="text" class="form-control" value="Tem Aki Admin" readonly>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Versão</label>
+                            <input type="text" class="form-control" value="2.0.0" readonly>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Ambiente</label>
+                            <input type="text" class="form-control" value="<%= environment %>" readonly>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Banco de Dados</label>
+                            <input type="text" class="form-control" value="Supabase PostgreSQL" readonly>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-user"></i>
+                    Perfil do Usuário
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">Nome de Usuário</label>
+                    <input type="text" class="form-control" value="<%= user.username %>" readonly>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Email</label>
+                    <input type="email" class="form-control" value="<%= user.email || 'Não informado' %>" readonly>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Último Login</label>
+                    <input type="text" class="form-control" value="<%= user.last_login ? new Date(user.last_login).toLocaleString('pt-BR') : 'Não disponível' %>" readonly>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Ações do Sistema -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-tools"></i>
+                    Ações do Sistema
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="d-grid">
+                            <a href="/reports" class="btn btn-outline-primary">
+                                <i class="fas fa-chart-bar"></i>
+                                Relatórios
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="d-grid">
+                            <a href="/health" class="btn btn-outline-info" target="_blank">
+                                <i class="fas fa-heartbeat"></i>
+                                Status da Aplicação
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="d-grid">
+                            <a href="/admin/auth/logout" class="btn btn-outline-danger">
+                                <i class="fas fa-sign-out-alt"></i>
+                                Sair do Sistema
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Adicionar funcionalidades futuras aqui
+console.log('Página de configurações carregada');
+</script>

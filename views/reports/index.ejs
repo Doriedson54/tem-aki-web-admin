@@ -1,0 +1,344 @@
+<% 
+  const currentPage = 'reports';
+%>
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+  <h1 class="h2">Relatórios e Analytics</h1>
+  <div class="btn-toolbar mb-2 mb-md-0">
+    <div class="btn-group me-2">
+      <a href="/admin/businesses" class="btn btn-sm btn-outline-primary">
+        <i class="fas fa-building"></i> Voltar para Negócios
+      </a>
+      <a href="/reports/export/businesses?format=csv" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-download"></i> Exportar Negócios
+      </a>
+      <a href="/reports/moderation" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-gavel"></i> Relatório de Moderação
+      </a>
+      <a href="/reports/backup-page" class="btn btn-sm btn-outline-warning">
+        <i class="fas fa-database"></i> Backup
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- Estatísticas Gerais -->
+<div class="row mb-4">
+  <div class="col-xl-3 col-md-6 mb-4">
+    <div class="card border-left-primary shadow h-100 py-2">
+      <div class="card-body">
+        <div class="row no-gutters align-items-center">
+          <div class="col mr-2">
+            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+              Total de Negócios
+            </div>
+            <div class="h5 mb-0 font-weight-bold text-gray-800"><%= totalBusinesses.count %></div>
+          </div>
+          <div class="col-auto">
+            <i class="fas fa-store fa-2x text-gray-300"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-md-6 mb-4">
+    <div class="card border-left-warning shadow h-100 py-2">
+      <div class="card-body">
+        <div class="row no-gutters align-items-center">
+          <div class="col mr-2">
+            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+              Pendentes
+            </div>
+            <div class="h5 mb-0 font-weight-bold text-gray-800"><%= pendingBusinesses.count %></div>
+          </div>
+          <div class="col-auto">
+            <i class="fas fa-clock fa-2x text-gray-300"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-md-6 mb-4">
+    <div class="card border-left-success shadow h-100 py-2">
+      <div class="card-body">
+        <div class="row no-gutters align-items-center">
+          <div class="col mr-2">
+            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+              Aprovados
+            </div>
+            <div class="h5 mb-0 font-weight-bold text-gray-800"><%= approvedBusinesses.count %></div>
+          </div>
+          <div class="col-auto">
+            <i class="fas fa-check fa-2x text-gray-300"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-md-6 mb-4">
+    <div class="card border-left-info shadow h-100 py-2">
+      <div class="card-body">
+        <div class="row no-gutters align-items-center">
+          <div class="col mr-2">
+            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+              Destacados
+            </div>
+            <div class="h5 mb-0 font-weight-bold text-gray-800"><%= featuredBusinesses.count %></div>
+          </div>
+          <div class="col-auto">
+            <i class="fas fa-star fa-2x text-gray-300"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Gráficos -->
+<div class="row mb-4">
+  <!-- Negócios por Status -->
+  <div class="col-xl-6 col-lg-6">
+    <div class="card shadow mb-4">
+      <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Negócios por Status</h6>
+      </div>
+      <div class="card-body">
+        <div class="chart-pie pt-4 pb-2">
+          <canvas id="statusChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Negócios por Categoria -->
+  <div class="col-xl-6 col-lg-6">
+    <div class="card shadow mb-4">
+      <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Top 5 Categorias</h6>
+      </div>
+      <div class="card-body">
+        <div class="chart-bar">
+          <canvas id="categoryChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Negócios por Mês -->
+<div class="row mb-4">
+  <div class="col-12">
+    <div class="card shadow mb-4">
+      <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Negócios Cadastrados por Mês (Últimos 6 Meses)</h6>
+      </div>
+      <div class="card-body">
+        <div class="chart-area">
+          <canvas id="monthChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Atividades Recentes de Moderação -->
+<div class="row">
+  <div class="col-12">
+    <div class="card shadow mb-4">
+      <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+        <h6 class="m-0 font-weight-bold text-primary">Atividades Recentes de Moderação</h6>
+        <a href="/reports/moderation" class="btn btn-sm btn-primary">
+          Ver Todas <i class="fas fa-arrow-right"></i>
+        </a>
+      </div>
+      <div class="card-body">
+        <% if (recentModerations && recentModerations.length > 0) { %>
+          <div class="table-responsive">
+            <table class="table table-bordered" width="100%" cellspacing="0">
+              <thead>
+                <tr>
+                  <th>Data/Hora</th>
+                  <th>Negócio</th>
+                  <th>Ação</th>
+                  <th>Status</th>
+                  <th>Moderador</th>
+                  <th>Motivo</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% recentModerations.forEach(moderation => { %>
+                <tr>
+                  <td><%= new Date(moderation.created_at).toLocaleString('pt-BR') %></td>
+                  <td>
+                    <a href="/business/<%= moderation.business_id %>" class="text-decoration-none">
+                      <%= moderation.business_name || 'N/A' %>
+                    </a>
+                  </td>
+                  <td>
+                    <% if (moderation.action === 'approve') { %>
+                      <span class="badge bg-success">Aprovado</span>
+                    <% } else if (moderation.action === 'reject') { %>
+                      <span class="badge bg-danger">Rejeitado</span>
+                    <% } else if (moderation.action === 'feature') { %>
+                      <span class="badge bg-warning">Destacado</span>
+                    <% } else if (moderation.action === 'unfeature') { %>
+                      <span class="badge bg-secondary">Destaque Removido</span>
+                    <% } else { %>
+                      <span class="badge bg-info"><%= moderation.action %></span>
+                    <% } %>
+                  </td>
+                  <td>
+                    <span class="badge bg-secondary"><%= moderation.previous_status %></span>
+                    <i class="fas fa-arrow-right mx-1"></i>
+                    <span class="badge bg-primary"><%= moderation.new_status %></span>
+                  </td>
+                  <td><%= moderation.username || 'Sistema' %></td>
+                  <td><%= moderation.reason || moderation.notes || '-' %></td>
+                </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          </div>
+        <% } else { %>
+          <div class="text-center py-4">
+            <i class="fas fa-info-circle fa-3x text-gray-300 mb-3"></i>
+            <p class="text-muted">Nenhuma atividade de moderação encontrada.</p>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .border-left-primary {
+    border-left: 0.25rem solid #4e73df !important;
+  }
+  .border-left-success {
+    border-left: 0.25rem solid #1cc88a !important;
+  }
+  .border-left-warning {
+    border-left: 0.25rem solid #f6c23e !important;
+  }
+  .border-left-info {
+    border-left: 0.25rem solid #36b9cc !important;
+  }
+  .text-xs {
+    font-size: 0.7rem;
+  }
+  .text-gray-800 {
+    color: #5a5c69 !important;
+  }
+  .text-gray-300 {
+    color: #dddfeb !important;
+  }
+</style>
+
+<script>
+// Dados para os gráficos
+const statusData = <%- JSON.stringify(businessesByStatus) %>;
+const categoryData = <%- JSON.stringify(topCategories) %>;
+const monthData = <%- JSON.stringify(businessesByMonth) %>;
+
+// Gráfico de Status (Pizza)
+const statusCtx = document.getElementById('statusChart').getContext('2d');
+new Chart(statusCtx, {
+  type: 'doughnut',
+  data: {
+    labels: statusData.map(item => {
+      switch(item.status) {
+        case 'pending': return 'Pendente';
+        case 'approved': return 'Aprovado';
+        case 'rejected': return 'Rejeitado';
+        default: return item.status;
+      }
+    }),
+    datasets: [{
+      data: statusData.map(item => item.count),
+      backgroundColor: ['#f6c23e', '#1cc88a', '#e74a3b', '#36b9cc'],
+      borderWidth: 2
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: {
+        position: 'bottom'
+      }
+    }
+  }
+});
+
+// Gráfico de Categorias (Barras)
+const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+new Chart(categoryCtx, {
+  type: 'bar',
+  data: {
+    labels: categoryData.map(item => item.name),
+    datasets: [{
+      label: 'Negócios',
+      data: categoryData.map(item => item.business_count),
+      backgroundColor: '#4e73df',
+      borderColor: '#4e73df',
+      borderWidth: 1
+    }]
+  },
+  options: {
+    responsive: true,
+    scales: {
+      y: {
+        beginAtZero: true,
+        ticks: {
+          stepSize: 1
+        }
+      }
+    },
+    plugins: {
+      legend: {
+        display: false
+      }
+    }
+  }
+});
+
+// Gráfico de Meses (Linha)
+const monthCtx = document.getElementById('monthChart').getContext('2d');
+new Chart(monthCtx, {
+  type: 'line',
+  data: {
+    labels: monthData.map(item => {
+      const [year, month] = item.month.split('-');
+      const date = new Date(year, month - 1);
+      return date.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' });
+    }).reverse(),
+    datasets: [{
+      label: 'Negócios Cadastrados',
+      data: monthData.map(item => item.count).reverse(),
+      borderColor: '#1cc88a',
+      backgroundColor: 'rgba(28, 200, 138, 0.1)',
+      borderWidth: 2,
+      fill: true,
+      tension: 0.3
+    }]
+  },
+  options: {
+    responsive: true,
+    scales: {
+      y: {
+        beginAtZero: true,
+        ticks: {
+          stepSize: 1
+        }
+      }
+    },
+    plugins: {
+      legend: {
+        display: false
+      }
+    }
+  }
+});
+</script>

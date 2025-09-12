@@ -1,0 +1,95 @@
+# Dockerfile para produção - Tem Aki Institucional
+# Multi-stage build para otimização
+
+# Estágio 1: Build
+FROM node:18-alpine AS builder
+
+# Instalar dependências do sistema
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    git
+
+# Criar usuário não-root
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nextjs -u 1001
+
+# Definir diretório de trabalho
+WORKDIR /app
+
+# Copiar arquivos de dependências
+COPY package*.json ./
+
+# Instalar dependências de produção
+RUN npm ci --only=production && npm cache clean --force
+
+# Copiar código fonte
+COPY . .
+
+# Remover arquivos desnecessários
+RUN rm -rf \
+    .git \
+    .gitignore \
+    .env.example \
+    .env.development \
+    README.md \
+    docs/ \
+    tests/ \
+    *.md
+
+# Estágio 2: Produção
+FROM node:18-alpine AS production
+
+# Instalar dependências de segurança
+RUN apk add --no-cache \
+    dumb-init \
+    curl \
+    && rm -rf /var/cache/apk/*
+
+# Criar usuário não-root
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001 -G nodejs
+
+# Definir diretório de trabalho
+WORKDIR /app
+
+# Copiar aplicação do estágio de build
+COPY --from=builder --chown=nodejs:nodejs /app .
+
+# Criar diretórios necessários
+RUN mkdir -p \
+    /app/logs \
+    /app/uploads \
+    /app/temp \
+    && chown -R nodejs:nodejs /app
+
+# Configurar variáveis de ambiente
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV NPM_CONFIG_LOGLEVEL=warn
+ENV NODE_OPTIONS="--max-old-space-size=1024"
+
+# Expor porta
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:3000/health || exit 1
+
+# Mudar para usuário não-root
+USER nodejs
+
+# Comando de inicialização com dumb-init
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["node", "app_supabase.js"]
+
+# Labels para metadados
+LABEL maintainer="Tem Aki Team" \
+      version="2.0.0" \
+      description="Tem Aki Institucional - Site institucional e admin" \
+      org.opencontainers.image.title="Tem Aki Institucional" \
+      org.opencontainers.image.description="Site institucional e painel administrativo" \
+      org.opencontainers.image.version="2.0.0" \
+      org.opencontainers.image.vendor="Tem Aki" \
+      org.opencontainers.image.licenses="MIT"
