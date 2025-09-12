@@ -42,6 +42,16 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
         
+    - name: 🏗 Setup Gradle Cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
+        
     - name: 🏗 Setup Expo CLI
       run: |
         npm install -g @expo/cli@latest
@@ -51,15 +61,36 @@ jobs:
       run: |
         npm ci
         
+    - name: 🔍 Environment Check
+      run: |
+        echo "Node version: $(node --version)"
+        echo "NPM version: $(npm --version)"
+        echo "Java version: $(java -version)"
+        echo "Expo CLI version: $(npx expo --version)"
+        echo "Current directory: $(pwd)"
+        echo "Directory contents:"
+        ls -la
+        
+    - name: 🔧 Setup Android SDK
+      uses: android-actions/setup-android@v3
+      
     - name: 🔧 Prebuild Android
       run: |
         npx expo prebuild --platform android --clear
+        
+    - name: 🔧 Setup Gradle Properties
+      run: |
+        mkdir -p android
+        echo "org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=512m" >> android/gradle.properties
+        echo "android.useAndroidX=true" >> android/gradle.properties
+        echo "android.enableJetifier=true" >> android/gradle.properties
+        echo "org.gradle.daemon=false" >> android/gradle.properties
         
     - name: 🚀 Build Android APK
       run: |
         cd android
         chmod +x gradlew
-        ./gradlew assembleRelease
+        ./gradlew assembleRelease --no-daemon --stacktrace
         
     - name: 📱 Upload Android APK
       uses: actions/upload-artifact@v4
