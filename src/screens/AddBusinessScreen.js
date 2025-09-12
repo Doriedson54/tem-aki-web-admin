@@ -106,7 +106,7 @@ const AddBusinessScreen = ({ route, navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar style="light" backgroundColor="#9b59b6" />
+      <StatusBar style="light" />
       
       {/* Header */}
       <View style={styles.header}>

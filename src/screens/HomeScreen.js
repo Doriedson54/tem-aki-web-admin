@@ -1,15 +1,33 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Image } from 'react-native';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Image, ImageBackground } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { Ionicons } from '@expo/vector-icons';
+// import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import temAkiLogo from '../assets/celularcomlogo.png';
-import logoGif from '../assets/logo.gif';
+const temAkiLogo = require('../assets/tem_aki_background.png');
+const tabSemFundo = require('../assets/TABsemfundo.png');
+const logoSemFundo = require('../assets/logosemfundo.png');
+const comercioBairro = require('../assets/comerciobairro.jpg');
 import SideMenu from '../components/SideMenu';
+import { syncService } from '../services/SyncService';
 
 const HomeScreen = ({ navigation }) => {
   const [isMenuVisible, setIsMenuVisible] = useState(false);
   const insets = useSafeAreaInsets();
+
+  // Inicializar sincronização quando o app carrega
+  useEffect(() => {
+    const initializeApp = async () => {
+      try {
+        console.log('Iniciando sincronização automática...');
+        await syncService.autoSync();
+        console.log('Sincronização inicial concluída');
+      } catch (error) {
+        console.error('Erro na sincronização inicial:', error);
+      }
+    };
+
+    initializeApp();
+  }, []);
 
   const toggleMenu = useCallback(() => {
     setIsMenuVisible(prev => !prev);
@@ -18,75 +36,85 @@ const HomeScreen = ({ navigation }) => {
   const closeMenu = useCallback(() => {
     setIsMenuVisible(false);
   }, []);
+
+  const navigateToCategories = useCallback(() => {
+    navigation.navigate('CategoriesMenu');
+  }, [navigation]);
+
+  const navigateToAdmin = useCallback(() => {
+    navigation.navigate('AdminLogin');
+  }, [navigation]);
+
+  const navigateToSearch = useCallback(() => {
+    navigation.navigate('Search');
+  }, [navigation]);
+
+  // Memoiza o estilo do botão para evitar re-criações
+  const buttonContainerStyle = useMemo(() => [
+    styles.buttonContainer, 
+    { paddingBottom: Math.max(insets.bottom, 20) }
+  ], [insets.bottom]);
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar style="light" backgroundColor="#4A90E2" translucent={false} />
+    <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
+      <StatusBar barStyle="light-content" />
+      <View style={styles.statusBarBackground} />
       
-      {/* Menu lateral */}
-      <SideMenu 
-        isVisible={isMenuVisible} 
-        onClose={closeMenu} 
-        navigation={navigation} 
-      />
-      
-      <View style={styles.whiteBackground}>
-        <StatusBar style="light" />
+      <ImageBackground 
+        source={comercioBairro} 
+        style={styles.backgroundImage}
+        imageStyle={styles.backgroundImageStyle}
+      >
+        <SideMenu 
+          isVisible={isMenuVisible} 
+          onClose={closeMenu}
+          navigation={navigation}
+        />
         
-        {/* Header com logo e configurações */}
         <View style={styles.header}>
-          {/* Botão hambúrguer */}
+        <TouchableOpacity style={styles.menuButton} onPress={toggleMenu}>
+          <View style={styles.hamburgerLine} />
+          <View style={styles.hamburgerLine} />
+          <View style={styles.hamburgerLine} />
+        </TouchableOpacity>
+        
+        <View style={styles.headerLogoContainer}>
+          <Image source={tabSemFundo} style={styles.headerLogoImage} />
+        </View>
+        
+        <View style={styles.rightButtons}>
           <TouchableOpacity 
-            style={styles.hamburgerButton}
-            onPress={toggleMenu}
+            style={styles.searchButton}
+            onPress={navigateToSearch}
           >
-            <View style={styles.hamburgerLine} />
-            <View style={styles.hamburgerLine} />
-            <View style={styles.hamburgerLine} />
+            <Text style={styles.searchButtonText}>🔍</Text>
           </TouchableOpacity>
           
-          {/* Logo no centro */}
-          <View style={styles.logoContainer}>
-            <Image source={logoGif} style={styles.logoImage} />
-          </View>
-          
-          {/* Botão de configurações no canto superior direito */}
           <TouchableOpacity 
             style={styles.adminButton}
-            onPress={() => navigation.navigate('AdminLogin')}
+            onPress={navigateToAdmin}
           >
-            <Ionicons name="settings-outline" size={28} color="#333" />
+            <Text style={styles.adminButtonText}>Admin</Text>
           </TouchableOpacity>
         </View>
+      </View>
+      
+      <View style={styles.content}>
+        <Image source={logoSemFundo} style={styles.centerImage} />
         
-        {/* Conteúdo principal */}
-        <View style={styles.mainContent}>
-          <View style={styles.topContent}>
-            {/* Imagem do smartphone com logo */}
-            <View style={styles.phoneContainer}>
-              <Image source={temAkiLogo} style={styles.phoneImage} />
-            </View>
-            
-            {/* Texto descritivo */}
-            <View style={styles.descriptionContainer}>
-              <Text style={styles.descriptionText}>
-                Os <Text style={styles.highlightText}>negócios</Text> do seu{' '}
-                <Text style={styles.accentText}>bairro</Text> na sua{' '}
-                <Text style={styles.emphasisText}>mão</Text>
-              </Text>
-            </View>
-          </View>
-          
-          {/* Botão de entrada */}
-          <View style={[styles.buttonContainer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
-            <TouchableOpacity
-              style={styles.enterButton}
-              onPress={() => navigation.navigate('CategoriesMenu')}
-            >
-              <Text style={styles.enterButtonText}>Clique para Entrar!</Text>
-            </TouchableOpacity>
-          </View>
+        <View style={styles.descriptionContainer}>
+          <Text style={styles.descriptionText}>
+            Tenha os negócios do seu bairro na sua mão
+          </Text>
         </View>
-       </View>
+        
+        <TouchableOpacity 
+          style={styles.enterButton}
+          onPress={navigateToCategories}
+        >
+          <Text style={styles.enterButtonText}>Entrar</Text>
+        </TouchableOpacity>
+      </View>
+      </ImageBackground>
     </SafeAreaView>
   );
 };
@@ -95,6 +123,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+  },
+  backgroundImage: {
+    flex: 1,
+  },
+  backgroundImageStyle: {
+    opacity: 0.3,
   },
   whiteBackground: {
     flex: 1,
@@ -108,14 +142,41 @@ const styles = StyleSheet.create({
     paddingTop: 40,
     paddingBottom: 15,
   },
-  logoContainer: {
+  headerLogoContainer: {
     justifyContent: 'center',
     alignItems: 'center',
+    flex: 1,
   },
-  logoImage: {
-    width: 80,
-    height: 80,
+  content: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
+  headerLogoImage: {
+    width: 120,
+    height: 120,
     resizeMode: 'contain',
+  },
+  centerImage: {
+    width: 300,
+    height: 400,
+    resizeMode: 'contain',
+    marginBottom: 20,
+  },
+  menuButton: {
+    backgroundColor: '#D2691E',
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   hamburgerButton: {
     backgroundColor: '#D2691E',
@@ -137,6 +198,28 @@ const styles = StyleSheet.create({
     marginVertical: 1.5,
     borderRadius: 1,
   },
+  rightButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  searchButton: {
+    backgroundColor: '#2E7D32',
+    borderRadius: 25,
+    width: 50,
+    height: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  searchButtonText: {
+    fontSize: 20,
+    textAlign: 'center',
+  },
   adminButton: {
     backgroundColor: '#FF8C42',
     borderRadius: 25,
@@ -149,6 +232,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  adminButtonText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
   mainContent: {
     flex: 1,
@@ -181,36 +270,26 @@ const styles = StyleSheet.create({
     marginBottom: 40,
     paddingHorizontal: 10,
   },
-  descriptionText: {
-     fontSize: 20,
-     color: '#2C3E50',
+  descriptionContainer: {
+     backgroundColor: 'rgba(139, 69, 19, 0.3)',
+     paddingHorizontal: 20,
+     paddingVertical: 15,
+     borderRadius: 15,
+     marginHorizontal: 20,
+     marginBottom: 20,
+     borderWidth: 1,
+     borderColor: 'rgba(139, 69, 19, 0.5)',
+   },
+   descriptionText: {
+     fontSize: 24,
      textAlign: 'center',
-     fontWeight: '600',
-     lineHeight: 28,
+     fontWeight: 'bold',
+     lineHeight: 32,
      letterSpacing: 0.5,
-     fontFamily: 'Comfortaa',
+     fontFamily: 'Caprasimo-Regular',
+     color: '#8B4513',
    },
-  highlightText: {
-     color: '#E67E22',
-     fontWeight: '700',
-     fontSize: 22,
-     fontFamily: 'Comfortaa',
-   },
-  accentText: {
-     color: '#3498DB',
-     fontWeight: '700',
-     fontSize: 22,
-     fontFamily: 'Comfortaa',
-   },
-  emphasisText: {
-     color: '#E74C3C',
-     fontWeight: '700',
-     fontSize: 22,
-     textShadowColor: 'rgba(231, 76, 60, 0.3)',
-     textShadowOffset: { width: 1, height: 1 },
-     textShadowRadius: 2,
-     fontFamily: 'Comfortaa',
-   },
+
   enterButton: {
     backgroundColor: '#8B4513',
     paddingVertical: 18,
@@ -221,12 +300,35 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 8,
+    marginTop: 30,
+    marginBottom: 20,
+    marginHorizontal: 20,
+    minWidth: 200,
   },
   enterButtonText: {
     color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
     textAlign: 'center',
+  },
+  settingsIcon: {
+    fontSize: 28,
+    color: '#333',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'center',
+  },
+  statusBarBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 50,
+    backgroundColor: '#4A90E2',
+    zIndex: -1,
   }
 
 });

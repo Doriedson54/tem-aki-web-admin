@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, Text, View, FlatList, TouchableOpacity, SafeAreaView, RefreshControl } from 'react-native';
+import { StyleSheet, Text, View, FlatList, TouchableOpacity, SafeAreaView, RefreshControl, Alert } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import businessApiService from '../services/BusinessApiService';
 import businessService from '../services/BusinessService';
@@ -99,10 +99,8 @@ const CategoryBusinessesScreen = ({ route, navigation }) => {
     try {
       const data = await businessApiService.getBusinessesByCategory(targetCategoryId);
       if (data && data.length > 0) {
-        showNotification(`${data.length} negócios encontrados`, 'success');
         return data;
       } else {
-        showNotification('Nenhum negócio encontrado nesta categoria', 'info');
         return [];
       }
     } catch (error) {
@@ -114,10 +112,8 @@ const CategoryBusinessesScreen = ({ route, navigation }) => {
         const filteredData = cachedData.filter(business => business.category_id === targetCategoryId);
         
         if (filteredData.length > 0) {
-          showNotification('Dados carregados do cache local', 'info');
           return filteredData;
         } else {
-          showNotification('Nenhum negócio encontrado no cache', 'warning');
           return [];
         }
       } catch (cacheError) {
@@ -127,10 +123,8 @@ const CategoryBusinessesScreen = ({ route, navigation }) => {
         try {
           const localData = await businessService.getBusinessesByCategory(targetCategoryId);
           if (localData && localData.length > 0) {
-            showNotification('Dados carregados do armazenamento local', 'info');
             return localData;
           } else {
-            showNotification('Nenhum negócio encontrado', 'warning');
             return [];
           }
         } catch (localError) {
@@ -170,7 +164,7 @@ const CategoryBusinessesScreen = ({ route, navigation }) => {
       <StatusBar style="auto" />
       <View style={[styles.header, { backgroundColor: currentColors.primary }]}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Text style={styles.backButtonText}>←</Text>
+          <Text style={styles.backButtonText}>◀</Text>
         </TouchableOpacity>
         <Text style={[styles.title, { color: '#ffffff' }]}>{categoryName || category?.name || 'Categoria'}</Text>
       </View>
@@ -242,9 +236,9 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   backButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
+    color: '#ffffff',
+    fontSize: 20,
+    fontWeight: '900',
   },
   title: {
     fontSize: 20,

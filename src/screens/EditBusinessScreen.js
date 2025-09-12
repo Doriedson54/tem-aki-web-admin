@@ -300,7 +300,7 @@ const EditBusinessScreen = ({ route, navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar style="light" backgroundColor="#f39c12" />
+      <StatusBar style="light" />
       
       {/* Header */}
       <View style={styles.header}>

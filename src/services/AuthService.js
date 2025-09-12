@@ -307,8 +307,10 @@ class AuthService {
     try {
       if (!this.authToken) return false;
 
-      const response = await this.apiService.get(API_ENDPOINTS.AUTH.VERIFY_TOKEN);
-      return response.status === 200;
+      const response = await this.apiService.post(API_ENDPOINTS.AUTH.VERIFY_TOKEN, {
+        token: this.authToken
+      });
+      return response.success === true;
     } catch (error) {
       console.error('Erro ao validar token:', error);
       return false;

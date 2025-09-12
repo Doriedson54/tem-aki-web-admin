@@ -1,185 +1,178 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
+  StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
-  Dimensions,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { privacyPolicy } from '../assets/privacy_policy';
-import { termsOfUse } from '../assets/terms_of_use';
-
-const { width, height } = Dimensions.get('window');
+// import { Ionicons } from '@expo/vector-icons';
 
 const PrivacyPolicyScreen = ({ navigation }) => {
-  const [activeTab, setActiveTab] = useState('privacy'); // 'privacy' ou 'terms'
-
-  const renderHeader = () => (
-    <View style={styles.header}>
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={() => navigation.goBack()}
-      >
-        <Text style={styles.backButtonText}>← Voltar</Text>
-      </TouchableOpacity>
-      <Text style={styles.headerTitle}>Documentos Legais</Text>
-    </View>
-  );
-
-  const renderTabButtons = () => (
-    <View style={styles.tabContainer}>
-      <TouchableOpacity
-        style={[
-          styles.tabButton,
-          activeTab === 'privacy' && styles.activeTabButton,
-        ]}
-        onPress={() => setActiveTab('privacy')}
-      >
-        <Text
-          style={[
-            styles.tabButtonText,
-            activeTab === 'privacy' && styles.activeTabButtonText,
-          ]}
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
         >
-          Política de Privacidade
-        </Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity
-        style={[
-          styles.tabButton,
-          activeTab === 'terms' && styles.activeTabButton,
-        ]}
-        onPress={() => setActiveTab('terms')}
-      >
-        <Text
-          style={[
-            styles.tabButtonText,
-            activeTab === 'terms' && styles.activeTabButtonText,
-          ]}
-        >
-          Termos de Uso
-        </Text>
-      </TouchableOpacity>
-    </View>
-  );
+          <Text style={styles.backButtonText}>◀</Text>
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Política de Privacidade e Termos de Uso</Text>
+      </View>
 
-  const renderContent = () => {
-    const content = activeTab === 'privacy' ? privacyPolicy : termsOfUse;
-    
-    return (
-      <ScrollView style={styles.contentContainer} showsVerticalScrollIndicator={false}>
-        <View style={styles.documentContainer}>
-          <Text style={styles.documentText}>{content}</Text>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>POLÍTICA DE PRIVACIDADE</Text>
+          
+          <Text style={styles.paragraph}>
+            O aplicativo "Negócios do Bairro" respeita a privacidade dos seus usuários e está comprometido em proteger as informações pessoais que você compartilha conosco.
+          </Text>
+
+          <Text style={styles.subTitle}>1. Coleta de Informações</Text>
+          <Text style={styles.paragraph}>
+            • Coletamos apenas as informações necessárias para o funcionamento do aplicativo{"\n"}
+            • Dados de localização para mostrar negócios próximos{"\n"}
+            • Informações de contato quando você se cadastra{"\n"}
+            • Dados de uso para melhorar a experiência do usuário
+          </Text>
+
+          <Text style={styles.subTitle}>2. Uso das Informações</Text>
+          <Text style={styles.paragraph}>
+            • Personalizar sua experiência no aplicativo{"\n"}
+            • Conectar você com negócios locais{"\n"}
+            • Enviar notificações relevantes{"\n"}
+            • Melhorar nossos serviços
+          </Text>
+
+          <Text style={styles.subTitle}>3. Compartilhamento de Dados</Text>
+          <Text style={styles.paragraph}>
+            • Não vendemos suas informações pessoais{"\n"}
+            • Compartilhamos dados apenas com negócios quando você interage com eles{"\n"}
+            • Podemos compartilhar dados agregados e anônimos para análises
+          </Text>
+
+          <Text style={styles.subTitle}>4. Segurança</Text>
+          <Text style={styles.paragraph}>
+            • Utilizamos medidas de segurança para proteger suas informações{"\n"}
+            • Dados são criptografados durante a transmissão{"\n"}
+            • Acesso restrito às informações pessoais
+          </Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>TERMOS DE USO</Text>
+          
+          <Text style={styles.subTitle}>1. Aceitação dos Termos</Text>
+          <Text style={styles.paragraph}>
+            Ao usar o aplicativo "Negócios do Bairro", você concorda com estes termos de uso.
+          </Text>
+
+          <Text style={styles.subTitle}>2. Uso Permitido</Text>
+          <Text style={styles.paragraph}>
+            • Use o aplicativo apenas para fins legais{"\n"}
+            • Não publique conteúdo ofensivo ou inadequado{"\n"}
+            • Respeite os direitos de outros usuários e negócios{"\n"}
+            • Não tente hackear ou comprometer a segurança do aplicativo
+          </Text>
+
+          <Text style={styles.subTitle}>3. Responsabilidades</Text>
+          <Text style={styles.paragraph}>
+            • Você é responsável pela veracidade das informações fornecidas{"\n"}
+            • O aplicativo não se responsabiliza por transações entre usuários e negócios{"\n"}
+            • Verificamos negócios, mas não garantimos a qualidade dos serviços
+          </Text>
+
+          <Text style={styles.subTitle}>4. Modificações</Text>
+          <Text style={styles.paragraph}>
+            • Podemos atualizar estes termos periodicamente{"\n"}
+            • Usuários serão notificados sobre mudanças importantes{"\n"}
+            • O uso continuado implica aceitação dos novos termos
+          </Text>
+
+          <Text style={styles.subTitle}>5. Contato</Text>
+          <Text style={styles.paragraph}>
+            Para dúvidas sobre esta política ou termos de uso, entre em contato:{"\n"}
+            • Email: dsdodo18@hotmail.com{"\n"}
+            • Telefone: (98) 99934-5232
+          </Text>
+        </View>
+
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>
+            Última atualização: Janeiro de 2024
+          </Text>
         </View>
       </ScrollView>
-    );
-  };
-
-  return (
-    <LinearGradient
-      colors={['#FF6B35', '#F7931E']}
-      style={styles.container}
-    >
-      <SafeAreaView style={styles.safeArea}>
-        {renderHeader()}
-        {renderTabButtons()}
-        <View style={styles.contentWrapper}>
-          {renderContent()}
-        </View>
-      </SafeAreaView>
-    </LinearGradient>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  safeArea: {
-    flex: 1,
+    backgroundColor: '#F5F5F5',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingTop: 50,
+    paddingBottom: 15,
     paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
   },
   backButton: {
-    padding: 5,
+    marginRight: 15,
   },
   backButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
+    color: '#FF8C00',
+    fontSize: 20,
+    fontWeight: '900',
   },
   headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333333',
     flex: 1,
-    textAlign: 'center',
-    color: '#FFFFFF',
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  section: {
+    marginVertical: 20,
+  },
+  sectionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    marginRight: 60, // Compensa o espaço do botão voltar
-  },
-  tabContainer: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    marginHorizontal: 20,
-    marginVertical: 10,
-    borderRadius: 25,
-    padding: 5,
-  },
-  tabButton: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 15,
-    borderRadius: 20,
-    alignItems: 'center',
-  },
-  activeTabButton: {
-    backgroundColor: '#FFFFFF',
-  },
-  tabButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
+    color: '#FF8C00',
+    marginBottom: 15,
     textAlign: 'center',
   },
-  activeTabButtonText: {
-    color: '#FF6B35',
-  },
-  contentWrapper: {
-    flex: 1,
-    marginHorizontal: 20,
-    marginBottom: 20,
-  },
-  contentContainer: {
-    flex: 1,
-  },
-  documentContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 15,
-    padding: 20,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  documentText: {
-    fontSize: 14,
-    lineHeight: 22,
+  subTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
     color: '#333333',
+    marginTop: 15,
+    marginBottom: 8,
+  },
+  paragraph: {
+    fontSize: 14,
+    color: '#666666',
+    lineHeight: 22,
+    marginBottom: 10,
     textAlign: 'justify',
-    fontFamily: 'Comfortaa',
+  },
+  footer: {
+    alignItems: 'center',
+    paddingVertical: 30,
+  },
+  footerText: {
+    fontSize: 12,
+    color: '#999999',
+    fontStyle: 'italic',
   },
 });
 

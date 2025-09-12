@@ -435,7 +435,7 @@ const GeneralRegistrationScreen = ({ navigation }) => {
   return (
     <ProtectedRoute navigation={navigation}>
     <SafeAreaView style={styles.container}>
-      <StatusBar style="light" backgroundColor="#2c3e50" />
+      <StatusBar style="light" />
       
       {/* Header */}
       <View style={[styles.header, { backgroundColor: currentColors.primary, borderBottomColor: currentColors.border }]}>

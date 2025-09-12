@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, FlatList, TouchableOpacity, SafeAreaView, Image } from 'react-native';
+import { StyleSheet, Text, View, FlatList, TouchableOpacity, SafeAreaView } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -95,7 +95,7 @@ const RegisteredBusinessesScreen = ({ navigation }) => {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.headerBackButton} onPress={() => navigation.goBack()}>
-          <Text style={styles.headerBackButtonText}>←</Text>
+          <Text style={styles.headerBackButtonText}>◀</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Negócios Cadastrados</Text>
         <View style={styles.placeholder} />
@@ -160,9 +160,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerBackButtonText: {
-    fontSize: 20,
-    fontWeight: 'bold',
     color: '#2c3e50',
+    fontSize: 20,
+    fontWeight: '900',
   },
   headerTitle: {
     fontSize: 20,

@@ -10,63 +10,42 @@ const CommerceScreen = ({ navigation }) => {
       title: 'Alimentação e Bebidas',
       icon: '🍽️',
       color: '#FF6B6B',
-      description: 'Restaurantes, bares, mercados'
+      description: 'Restaurantes, padarias, bares'
     },
     {
       id: 2,
-      title: 'Automotivo e Acessórios',
-      icon: '🚗',
+      title: 'Serviços',
+      icon: '🔧',
       color: '#4ECDC4',
-      description: 'Oficinas, peças, combustível'
+      description: 'Mecânicas, elétricas, limpeza'
     },
     {
       id: 3,
-      title: 'Beleza e Cuidados Pessoais',
-      icon: '💄',
+      title: 'Comércio',
+      icon: '🛒',
       color: '#45B7D1',
-      description: 'Salões, cosméticos, farmácias'
+      description: 'Supermercados, farmácias, roupas'
     },
     {
       id: 4,
-      title: 'Casa, Construção e Decoração',
-      icon: '🏠',
-      color: '#F7DC6F',
-      description: 'Materiais, móveis, decoração'
+      title: 'Saúde',
+      icon: '🏥',
+      color: '#F8C471',
+      description: 'Clínicas, dentistas, veterinários'
     },
     {
       id: 5,
-      title: 'Educação e Cultura',
-      icon: '📖',
-      color: '#BB8FCE',
-      description: 'Livrarias, papelarias, cursos'
-    },
-    {
-      id: 6,
-      title: 'Moda e Acessórios',
-      icon: '👗',
-      color: '#85C1E9',
-      description: 'Roupas, calçados, joias'
-    },
-    {
-      id: 7,
-      title: 'Pets e outros Animais',
-      icon: '🐕',
-      color: '#82E0AA',
-      description: 'Pet shops, veterinárias, rações'
-    },
-    {
-      id: 8,
-      title: 'Utilidades e Variedades',
-      icon: '🛒',
-      color: '#F8C471',
-      description: 'Lojas gerais, presentes, diversos'
+      title: 'Educação',
+      icon: '📚',
+      color: '#9B59B6',
+      description: 'Escolas, cursos, universidades'
     }
   ];
 
   const handleCommercePress = (commerce) => {
-    navigation.navigate('SubcategoryBusinesses', {
-      subcategory: commerce.title,
-      parentCategory: 'Comércio'
+    navigation.navigate('CategoryBusinesses', {
+      categoryName: commerce.title,
+      categoryId: commerce.id
     });
   };
 
@@ -76,7 +55,7 @@ const CommerceScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar style="light" backgroundColor="#27ae60" />
+      <StatusBar style="light" />
       
       {/* Header */}
       <View style={styles.header}>

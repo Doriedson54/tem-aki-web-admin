@@ -11,7 +11,7 @@ import {
   ScrollView,
   SafeAreaView,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+// import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -58,7 +58,7 @@ const AdminLoginScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar style="light" backgroundColor="#4CAF50" translucent={false} />
+      <StatusBar style="light" />
       
       {/* Header */}
       <View style={styles.header}>
@@ -66,7 +66,7 @@ const AdminLoginScreen = ({ navigation }) => {
           style={styles.headerBackButton} 
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="arrow-back" size={24} color="#fff" />
+          <Text style={styles.backButtonText}>◀</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>🔐 Acesso Administrativo</Text>
         <View style={styles.placeholder} />
@@ -81,7 +81,7 @@ const AdminLoginScreen = ({ navigation }) => {
         {/* Logo/Icon Section */}
         <View style={styles.logoSection}>
           <View style={styles.logoContainer}>
-            <Ionicons name="shield-checkmark" size={80} color="#4CAF50" />
+            <Text style={styles.logoIcon}>🛡️</Text>
           </View>
           <Text style={styles.logoText}>Área Restrita</Text>
           <Text style={styles.logoSubtext}>Acesso exclusivo para administradores</Text>
@@ -92,7 +92,7 @@ const AdminLoginScreen = ({ navigation }) => {
           <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>Usuário</Text>
             <View style={styles.inputWrapper}>
-              <Ionicons name="person-outline" size={20} color="#666" style={styles.inputIcon} />
+              <Text style={styles.inputIconText}>👤</Text>
               <TextInput
                 style={styles.textInput}
                 value={username}
@@ -108,7 +108,7 @@ const AdminLoginScreen = ({ navigation }) => {
           <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>Senha</Text>
             <View style={styles.inputWrapper}>
-              <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.inputIcon} />
+              <Text style={styles.inputIconText}>🔒</Text>
               <TextInput
                 style={styles.textInput}
                 value={password}
@@ -123,11 +123,9 @@ const AdminLoginScreen = ({ navigation }) => {
                 style={styles.eyeIcon}
                 onPress={() => setShowPassword(!showPassword)}
               >
-                <Ionicons 
-                  name={showPassword ? "eye-off-outline" : "eye-outline"} 
-                  size={20} 
-                  color="#666" 
-                />
+                <Text style={styles.eyeIconText}>
+                  {showPassword ? "🙈" : "👁️"}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -140,13 +138,13 @@ const AdminLoginScreen = ({ navigation }) => {
             <Text style={styles.loginButtonText}>
               {isLoading ? 'Verificando...' : 'Entrar'}
             </Text>
-            {!isLoading && <Ionicons name="log-in-outline" size={20} color="#fff" style={styles.buttonIcon} />}
+            {!isLoading && <Text style={styles.buttonIconText}>🔑</Text>}
           </TouchableOpacity>
         </View>
 
         {/* Security Notice */}
         <View style={styles.securityNotice}>
-          <Ionicons name="information-circle-outline" size={16} color="#666" />
+          <Text style={styles.infoIconText}>ℹ️</Text>
           <Text style={styles.securityText}>
             Esta área é protegida e monitorada. Apenas administradores autorizados podem acessar.
           </Text>
@@ -321,6 +319,29 @@ const styles = StyleSheet.create({
     color: '#666',
     marginLeft: 8,
     lineHeight: 16,
+  },
+  backButtonText: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  logoIcon: {
+    fontSize: 80,
+  },
+  inputIconText: {
+    fontSize: 20,
+    marginRight: 10,
+  },
+  eyeIconText: {
+    fontSize: 20,
+  },
+  buttonIconText: {
+    fontSize: 20,
+    marginLeft: 5,
+  },
+  infoIconText: {
+    fontSize: 16,
+    marginRight: 8,
   },
 });
 
