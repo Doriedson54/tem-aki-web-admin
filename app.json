@@ -1,11 +1,16 @@
 {
   "expo": {
-    "name": "Tem Aki no Bairro",
+    "name": "Negócios do Bairro",
     "slug": "tem-aki-no-bairro",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
@@ -14,28 +19,67 @@
     "assetBundlePatterns": [
       "**/*"
     ],
+    "updates": {
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/781db7bb-128b-4b9d-90d9-51f934e456e5"
+    },
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
     "ios": {
       "supportsTablet": true,
+      "jsEngine": "hermes",
+      "bundleIdentifier": "com.negociosdobairro.app",
+      "buildNumber": "1",
       "infoPlist": {
-        "NSCameraUsageDescription": "Este aplicativo precisa acessar a câmera para permitir que você tire fotos do seu estabelecimento.",
-        "NSPhotoLibraryUsageDescription": "Este aplicativo precisa acessar sua galeria de fotos para permitir que você selecione imagens do seu estabelecimento."
+        "NSCameraUsageDescription": "Este app precisa acessar a câmera para tirar fotos dos produtos.",
+        "NSPhotoLibraryUsageDescription": "Este app precisa acessar a galeria para selecionar fotos dos produtos."
       }
     },
     "android": {
-      "package": "com.doriedson54.temakinobairro",
+      "package": "com.negociosdobairro.app",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#FFFFFF"
       },
       "permissions": [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE",
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE"
-      ]
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "negociosdobairro"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ],
+      "jsEngine": "hermes"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro",
+      "jsEngine": "hermes"
     },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "O app acessa suas fotos para permitir que você selecione imagens dos produtos.",
+          "cameraPermission": "O app acessa sua câmera para permitir que você tire fotos dos produtos."
+        }
+      ]
+    ],
     "extra": {
       "eas": {
         "projectId": "781db7bb-128b-4b9d-90d9-51f934e456e5"

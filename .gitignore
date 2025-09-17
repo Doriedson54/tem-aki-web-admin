@@ -16,6 +16,8 @@ web-build/
 *.p12
 *.key
 *.mobileprovision
+android/
+ios/
 
 # Metro
 .metro-health-check*
@@ -34,26 +36,3 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
-
-# @generated expo typos
-expo-env.d.ts
-
-# Android
-android/app/build/
-android/build/
-android/.gradle/
-android/local.properties
-
-# iOS
-ios/build/
-ios/Pods/
-ios/*.xcworkspace
-ios/*.xcuserdata
-
-# Temporary files
-*.tmp
-*.temp
-
-# Logs
-logs
-*.log

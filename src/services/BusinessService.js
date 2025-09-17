@@ -17,15 +17,18 @@ const initialCategories = [
 
 // Mapeamento de nomes de categorias para IDs
 const categoryNameToId = {
-  'Restaurantes': '1',
-  'Mercados': '2', 
-  'Farmácias': '3',
-  'Serviços': '4',
-  'Lazer': '5',
-  'Saúde': '6',
-  'Educação': '7',
-  'Beleza': '8',
-  'Comércio': '2' // Mapeamento para subcategorias de comércio
+  'Alimentação e Bebidas': '1',
+  'Serviços': '2',
+  'Comércio': '3',
+  'Saúde': '4',
+  'Educação': '5',
+  'Instituições Religiosas': '6',
+  'Instituições Públicas': '7',
+  'Restaurantes': '1', // Alias para Alimentação e Bebidas
+  'Mercados': '2', // Alias para Serviços
+  'Farmácias': '3', // Alias para Comércio
+  'Lazer': '5', // Alias para Educação
+  'Beleza': '9'
 };
 
 // Função para obter ID da categoria pelo nome
@@ -60,13 +63,19 @@ const initialBusinesses = {
     { id: '601', name: 'Clínica Médica Vida', address: 'Rua da Saúde, 800', phone: '(11) 7890-1234' },
     { id: '602', name: 'Consultório Odontológico Sorriso', address: 'Av. dos Dentes, 900', phone: '(11) 2345-6789' },
   ],
-  '7': [ // Educação
-    { id: '701', name: 'Escola Futuro', address: 'Rua do Conhecimento, 1000', phone: '(11) 8901-2345' },
-    { id: '702', name: 'Curso de Idiomas Global', address: 'Av. das Línguas, 1100', phone: '(11) 3456-7890' },
+  '7': [ // Instituições Públicas
+    { id: '701', name: 'Prefeitura Municipal', address: 'Praça Central, 1', neighborhood: 'Centro', cityState: 'São Paulo, SP', phone: '(11) 3333-1000' },
+    { id: '702', name: 'Cartório de Registro Civil', address: 'Rua dos Documentos, 50', neighborhood: 'Centro', cityState: 'São Paulo, SP', phone: '(11) 3333-2000' },
+    { id: '703', name: 'Posto de Saúde Central', address: 'Av. da Saúde, 200', neighborhood: 'Vila Saúde', cityState: 'São Paulo, SP', phone: '(11) 3333-3000' },
+    { id: '704', name: 'Correios Central', address: 'Rua das Cartas, 100', neighborhood: 'Centro', cityState: 'São Paulo, SP', phone: '(11) 3333-4000' },
   ],
-  '8': [ // Beleza
-    { id: '801', name: 'Salão de Beleza Glamour', address: 'Rua da Beleza, 1200', phone: '(11) 9012-3456' },
-    { id: '802', name: 'Barbearia Estilo', address: 'Av. do Estilo, 1300', phone: '(11) 4567-8901' },
+  '8': [ // Educação
+    { id: '801', name: 'Escola Futuro', address: 'Rua do Conhecimento, 1000', neighborhood: 'Vila Educação', cityState: 'São Paulo, SP', phone: '(11) 8901-2345' },
+    { id: '802', name: 'Curso de Idiomas Global', address: 'Av. das Línguas, 1100', neighborhood: 'Centro', cityState: 'São Paulo, SP', phone: '(11) 3456-7890' },
+  ],
+  '9': [ // Beleza
+    { id: '901', name: 'Salão de Beleza Glamour', address: 'Rua da Beleza, 1200', neighborhood: 'Vila Beleza', cityState: 'São Paulo, SP', phone: '(11) 9012-3456' },
+    { id: '902', name: 'Barbearia Estilo', address: 'Av. do Estilo, 1300', neighborhood: 'Centro', cityState: 'São Paulo, SP', phone: '(11) 4567-8901' },
   ],
 };
 
@@ -403,27 +412,29 @@ const cleanupDuplicateData = async () => {
     const seenIds = new Set();
     const seenNamePhone = new Set();
     
-    registrations.forEach(business => {
-      const id = business.id;
-      const name = (business.establishmentName || business.name || '').toLowerCase().trim();
-      const phone = (business.phone || '').replace(/\D/g, '');
-      const namePhoneKey = `${name}_${phone}`;
-      
-      // Verifica se é um registro válido
-      const isValid = name && phone && name.length > 2 && phone.length >= 8;
-      
-      if (id && !seenIds.has(id) && isValid) {
-        seenIds.add(id);
-        uniqueRegistrations.push(business);
-      } else if (!id && name && phone && !seenNamePhone.has(namePhoneKey) && isValid) {
-        seenNamePhone.add(namePhoneKey);
-        uniqueRegistrations.push(business);
-      } else if (!isValid) {
-        console.log(`Registro inválido removido: ${JSON.stringify({name, phone, id})}`);
-      } else {
-        console.log(`Duplicata removida: ${JSON.stringify({name, phone, id})}`);
-      }
-    });
+    if (registrations && Array.isArray(registrations)) {
+      registrations.forEach(business => {
+        const id = business.id;
+        const name = (business.establishmentName || business.name || '').toLowerCase().trim();
+        const phone = (business.phone || '').replace(/\D/g, '');
+        const namePhoneKey = `${name}_${phone}`;
+        
+        // Verifica se é um registro válido
+        const isValid = name && phone && name.length > 2 && phone.length >= 8;
+        
+        if (id && !seenIds.has(id) && isValid) {
+          seenIds.add(id);
+          uniqueRegistrations.push(business);
+        } else if (!id && name && phone && !seenNamePhone.has(namePhoneKey) && isValid) {
+          seenNamePhone.add(namePhoneKey);
+          uniqueRegistrations.push(business);
+        } else if (!isValid) {
+          console.log(`Registro inválido removido: ${JSON.stringify({name, phone, id})}`);
+        } else {
+          console.log(`Duplicata removida: ${JSON.stringify({name, phone, id})}`);
+        }
+      });
+    }
     
     console.log(`Total de registros após limpeza: ${uniqueRegistrations.length}`);
     console.log(`Registros removidos: ${registrations.length - uniqueRegistrations.length}`);

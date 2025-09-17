@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, FlatList, TouchableOpacity, SafeAreaView, Image } from 'react-native';
+import { StyleSheet, Text, View, FlatList, TouchableOpacity, SafeAreaView, Image, Alert } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import businessApiService from '../services/BusinessApiService';
-import BusinessService from '../services/BusinessService';
+import businessService from '../services/BusinessService';
 import { useAuth } from '../contexts/AuthContext';
+import { useSmartCache } from '../hooks/useSmartCache';
 
 const BusinessItem = ({ business, onPress, colors }) => (
   <TouchableOpacity style={[styles.businessItem, { borderLeftColor: colors.border }]} onPress={() => onPress(business)}>
@@ -41,7 +42,19 @@ const SubcategoryBusinessesScreen = ({ route, navigation }) => {
   const { subcategory, parentCategory } = route.params || {};
   const [businesses, setBusinesses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [isRetrying, setIsRetrying] = useState(false);
+  const [dataSource, setDataSource] = useState(null); // 'api', 'cache', 'local'
   const { user } = useAuth();
+  
+  // Hook do cache inteligente
+  const { 
+    cacheStats, 
+    isSyncing, 
+    forceSync, 
+    formattedStats,
+    addToSyncQueue 
+  } = useSmartCache();
 
   // Função para obter cores baseadas na subcategoria específica
   const getSubcategoryColors = (subcategoryName, parentCategory) => {
@@ -424,43 +437,46 @@ const SubcategoryBusinessesScreen = ({ route, navigation }) => {
   const currentColors = getSubcategoryColors(subcategory, parentCategory);
 
   // Carrega os negócios da subcategoria
-  const loadBusinesses = async () => {
+  const loadBusinesses = async (isRetry = false) => {
     try {
       setLoading(true);
+      setError(null);
+      if (isRetry) {
+        setIsRetrying(true);
+      }
+      
       if (subcategory) {
         // Busca dados da API
         let apiBusinesses = [];
+        let apiError = null;
         try {
-          const allBusinesses = await businessApiService.getAllBusinesses();
-          apiBusinesses = allBusinesses.filter(business => 
-            business.subcategory === subcategory || 
-            business.mainProduct?.toLowerCase().includes(subcategory.toLowerCase())
-          );
-        } catch (apiError) {
-          console.log('Erro ao buscar da API, tentando cache:', apiError);
-          try {
-            const cachedData = await businessApiService.getCachedBusinesses();
-            apiBusinesses = cachedData.filter(business => 
-              business.subcategory === subcategory || 
-              business.mainProduct?.toLowerCase().includes(subcategory.toLowerCase())
-            );
-          } catch (cacheError) {
-            console.log('Erro ao buscar do cache:', cacheError);
+          apiBusinesses = await businessApiService.getBusinessesBySubcategory(subcategory);
+          console.log(`Encontrados ${apiBusinesses.length} negócios da API para subcategoria ${subcategory}`);
+          if (apiBusinesses.length > 0) {
+            setDataSource('api');
           }
+        } catch (error) {
+          console.log('Erro ao buscar da API:', error);
+          apiError = error;
+          apiBusinesses = [];
         }
         
         // Busca dados locais (salvos offline)
         let localBusinesses = [];
         try {
-          localBusinesses = await BusinessService.getBusinessesBySubcategory(subcategory);
+          localBusinesses = await businessService.getBusinessesBySubcategory(subcategory);
           console.log(`Encontrados ${localBusinesses.length} negócios locais para subcategoria ${subcategory}`);
+          if (apiBusinesses.length === 0 && localBusinesses.length > 0) {
+            setDataSource('local');
+          }
         } catch (localError) {
           console.log('Erro ao buscar dados locais:', localError);
         }
         
         // Combina dados da API e locais, removendo duplicatas
-        const allBusinesses = [...apiBusinesses];
-        localBusinesses.forEach(localBusiness => {
+        const allBusinesses = [...(apiBusinesses || [])];
+        if (localBusinesses && Array.isArray(localBusinesses)) {
+          localBusinesses.forEach(localBusiness => {
           // Verifica se o negócio local já existe na lista da API
           const exists = allBusinesses.some(apiBusiness => {
             // Compara por ID primeiro (mais confiável)
@@ -475,17 +491,19 @@ const SubcategoryBusinessesScreen = ({ route, navigation }) => {
             
             return apiName === localName && apiPhone === localPhone && apiName !== '' && apiPhone !== '';
           });
-          if (!exists) {
-            allBusinesses.push(localBusiness);
-          }
-        });
+            if (!exists) {
+              allBusinesses.push(localBusiness);
+            }
+          });
+        }
         
         // Remove duplicatas internas (caso existam)
         const uniqueBusinesses = [];
         const seenIds = new Set();
         const seenNamePhone = new Set();
         
-        allBusinesses.forEach(business => {
+        if (allBusinesses && Array.isArray(allBusinesses)) {
+          allBusinesses.forEach(business => {
           const id = business.id;
           const name = (business.establishmentName || business.name || '').toLowerCase().trim();
           const phone = (business.phone || '').replace(/\D/g, '');
@@ -501,16 +519,60 @@ const SubcategoryBusinessesScreen = ({ route, navigation }) => {
             // Para negócios sem ID e sem nome/telefone válidos, adiciona mesmo assim
             uniqueBusinesses.push(business);
           }
-        });
+          });
+        }
         
-        console.log(`Total de negócios encontrados: ${uniqueBusinesses.length} (${apiBusinesses.length} da API + ${localBusinesses.length} locais, ${allBusinesses.length - uniqueBusinesses.length} duplicatas removidas)`);
+        console.log(`Total de negócios encontrados: ${uniqueBusinesses.length} (${(apiBusinesses || []).length} da API + ${(localBusinesses || []).length} locais, ${allBusinesses.length - uniqueBusinesses.length} duplicatas removidas)`);
         setBusinesses(uniqueBusinesses);
+        
+        // Se não encontrou dados e houve erro na API, define erro
+        if (uniqueBusinesses.length === 0 && apiError) {
+          setError({
+            message: 'Não foi possível carregar os dados da internet. Verifique sua conexão.',
+            canRetry: true,
+            originalError: apiError
+          });
+          setDataSource('error');
+        } else if (uniqueBusinesses.length > 0 && apiError) {
+          // Tem dados locais mas API falhou
+          setError({
+            message: 'Exibindo dados salvos. Alguns dados podem estar desatualizados.',
+            canRetry: true,
+            isWarning: true
+          });
+        }
       }
     } catch (error) {
       console.error('Erro ao carregar negócios:', error);
+      setError({
+        message: 'Erro inesperado ao carregar dados. Tente novamente.',
+        canRetry: true,
+        originalError: error
+      });
       setBusinesses([]);
     } finally {
       setLoading(false);
+      setIsRetrying(false);
+    }
+  };
+  
+  // Função para tentar novamente
+  const handleRetry = () => {
+    loadBusinesses(true);
+  };
+  
+  const handleForceSync = async () => {
+    try {
+      setIsRetrying(true);
+      await forceSync();
+      // Adicionar esta subcategoria à fila de sincronização
+      addToSyncQueue('businesses/subcategory', { subcategoryId: subcategory });
+      // Recarregar dados após sincronização
+      await loadBusinesses();
+    } catch (error) {
+      console.error('Erro na sincronização forçada:', error);
+    } finally {
+      setIsRetrying(false);
     }
   };
 
@@ -541,7 +603,7 @@ const SubcategoryBusinessesScreen = ({ route, navigation }) => {
       {/* Header */}
       <View style={[styles.header, { backgroundColor: currentColors.primary }]}>
         <TouchableOpacity style={styles.headerBackButton} onPress={() => navigation.goBack()}>
-          <Text style={styles.headerBackButtonText}>←</Text>
+          <Text style={styles.headerBackButtonText}>◀</Text>
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
           <Text style={[styles.headerTitle, { color: '#ffffff' }]}>{subcategory}</Text>
@@ -563,9 +625,61 @@ const SubcategoryBusinessesScreen = ({ route, navigation }) => {
         <Text style={styles.addButtonText}>+ Cadastrar Novo Negócio</Text>
       </TouchableOpacity>
       
+      {/* Indicador de erro */}
+      {error && (
+        <View style={[styles.errorContainer, error.isWarning ? styles.warningContainer : null]}>
+          <Text style={[styles.errorText, error.isWarning ? styles.warningText : null]}>
+            {error.message}
+          </Text>
+          {error.canRetry && (
+            <TouchableOpacity 
+              style={[styles.retryButton, { backgroundColor: currentColors.primary }]}
+              onPress={handleRetry}
+              disabled={isRetrying}
+            >
+              <Text style={styles.retryButtonText}>
+                {isRetrying ? 'Tentando...' : 'Tentar Novamente'}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+      
+      {/* Indicador de fonte dos dados */}
+      {dataSource && !error && (
+        <View style={styles.dataSourceContainer}>
+          <Text style={styles.dataSourceText}>
+            {dataSource === 'api' ? '🌐 Dados atualizados' : 
+             dataSource === 'local' ? '💾 Dados salvos localmente' :
+             dataSource === 'cache' ? '⚡ Dados em cache' : ''}
+          </Text>
+          {/* Informações do cache inteligente */}
+          {cacheStats.totalItems > 0 && (
+            <TouchableOpacity 
+              style={styles.cacheInfoButton}
+              onPress={() => Alert.alert(
+                'Cache Inteligente',
+                `Itens: ${formattedStats.totalItems}\nTamanho: ${formattedStats.totalSize}\nMais antigo: ${formattedStats.oldestAge}\nMais recente: ${formattedStats.newestAge}`,
+                [
+                  { text: 'Sincronizar', onPress: handleForceSync },
+                  { text: 'OK' }
+                ]
+              )}
+            >
+              <Text style={styles.cacheInfoText}>ℹ️ Cache ({formattedStats.totalItems})</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+      
       {loading ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>Carregando...</Text>
+          <Text style={styles.emptyText}>
+            {isSyncing ? 'Sincronizando cache...' : isRetrying ? 'Tentando reconectar...' : 'Carregando...'}
+          </Text>
+          <Text style={styles.loadingSubtext}>
+            {isSyncing ? 'Atualizando dados em background' : isRetrying ? 'Aguarde enquanto tentamos buscar os dados novamente' : 'Buscando negócios da região'}
+          </Text>
         </View>
       ) : businesses.length > 0 ? (
         <FlatList
@@ -632,9 +746,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerBackButtonText: {
+    color: '#ffffff',
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#2c3e50',
+    fontWeight: '900',
   },
   headerTitleContainer: {
     flex: 1,
@@ -667,14 +781,69 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
-  addButtonText: {
+  registerButtonText: {
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
   },
-  listContainer: {
-    padding: 15,
+  // Estilos para indicadores de erro e status
+  errorContainer: {
+    backgroundColor: '#ffebee',
+    borderColor: '#f44336',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    margin: 15,
+    marginBottom: 10,
   },
+  warningContainer: {
+    backgroundColor: '#fff3e0',
+    borderColor: '#ff9800',
+  },
+  errorText: {
+    color: '#d32f2f',
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  warningText: {
+    color: '#f57c00',
+  },
+  retryButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+    alignSelf: 'center',
+  },
+  retryButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  dataSourceContainer: {
+    backgroundColor: '#e8f5e8',
+    borderRadius: 6,
+    padding: 8,
+    margin: 15,
+    marginTop: 0,
+    marginBottom: 10,
+  },
+  dataSourceText: {
+    color: '#2e7d32',
+    fontSize: 12,
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  loadingSubtext: {
+     color: '#666',
+     fontSize: 14,
+     textAlign: 'center',
+     marginTop: 8,
+     fontStyle: 'italic',
+   },
+   listContainer: {
+     padding: 15,
+   },
   businessItem: {
     backgroundColor: '#ffffff',
     borderRadius: 12,
@@ -776,6 +945,18 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  cacheInfoButton: {
+    marginTop: 8,
+    padding: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    borderRadius: 4,
+    alignSelf: 'center',
+  },
+  cacheInfoText: {
+    fontSize: 12,
+    color: '#2e7d32',
+    fontWeight: '500',
   },
 });
 

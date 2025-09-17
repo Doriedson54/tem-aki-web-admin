@@ -1,142 +1,59 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
-  Animated,
-  Dimensions,
   StyleSheet,
-  TouchableWithoutFeedback,
+  Modal,
   Linking
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
 
-const { width } = Dimensions.get('window');
-const MENU_WIDTH = width * 0.75; // 75% da largura da tela
-
-const SideMenu = React.memo(({ isVisible, onClose, navigation }) => {
-  const slideAnim = useRef(new Animated.Value(-MENU_WIDTH)).current;
-  const overlayOpacity = useRef(new Animated.Value(0)).current;
+const SideMenu = ({ isVisible, onClose, navigation }) => {
   const [contactsExpanded, setContactsExpanded] = useState(false);
-  const contactsHeight = useRef(new Animated.Value(0)).current;
-  const animationRef = useRef(null);
 
-  useEffect(() => {
-    // Limpar animação anterior se existir
-    if (animationRef.current) {
-      animationRef.current.stop();
-    }
-
-    if (isVisible) {
-      // Abrir menu
-      animationRef.current = Animated.parallel([
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.timing(overlayOpacity, {
-          toValue: 0.5,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]);
-      animationRef.current.start();
+  const handleMenuItemPress = (item) => {
+    if (item === 'Contatos') {
+      setContactsExpanded(!contactsExpanded);
     } else {
-      // Fechar menu e resetar estado dos contatos
-      setContactsExpanded(false);
-      contactsHeight.setValue(0);
-      
-      animationRef.current = Animated.parallel([
-        Animated.timing(slideAnim, {
-          toValue: -MENU_WIDTH,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.timing(overlayOpacity, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]);
-      animationRef.current.start();
+      onClose();
+      // Navegar para as telas correspondentes
+        if (item === 'privacy') {
+          navigation.navigate('PrivacyPolicy');
+        } else if (item === 'about') {
+          navigation.navigate('About');
+        }
     }
+  };
 
-    // Cleanup function
-    return () => {
-      if (animationRef.current) {
-        animationRef.current.stop();
-      }
-    };
-  }, [isVisible, slideAnim, overlayOpacity, contactsHeight]);
-
-  const handleMenuItemPress = useCallback((screenName) => {
-    onClose();
-    const timeoutId = setTimeout(() => {
-      navigation.navigate(screenName);
-    }, 300);
-    
-    // Cleanup timeout se o componente for desmontado
-    return () => clearTimeout(timeoutId);
-  }, [onClose, navigation]);
-
-  const handleContactPress = useCallback(() => {
-    const toValue = contactsExpanded ? 0 : 180;
+  const handleContactToggle = () => {
     setContactsExpanded(!contactsExpanded);
+  };
+
+  const handleContactAction = (action) => {
+    onClose();
     
-    Animated.timing(contactsHeight, {
-      toValue,
-      duration: 300,
-      useNativeDriver: false,
-    }).start();
-  }, [contactsExpanded, contactsHeight]);
-
-  const handleContactAction = useCallback((action) => {
-    switch(action) {
-      case 'phone':
-        Linking.openURL('tel:+5598999345232').catch(err => console.log('Erro ao abrir telefone:', err));
-        break;
-      case 'whatsapp':
-        Linking.openURL('https://wa.me/5598981470668').catch(err => console.log('Erro ao abrir WhatsApp:', err));
-        break;
-      case 'email':
-        Linking.openURL('mailto:dsdodo18@hotmail.com').catch(err => console.log('Erro ao abrir email:', err));
-        break;
+    if (action === 'phone') {
+      // Abrir discador com o número
+      Linking.openURL('tel:+5598999345232');
+    } else if (action === 'whatsapp') {
+      // Abrir WhatsApp
+      Linking.openURL('https://wa.me/5598981470668?text=Olá! Entrei em contato através do app Tem Aki no Bairro.');
+    } else if (action === 'email') {
+      // Abrir cliente de email
+      Linking.openURL('mailto:dsdodo18@hotmail.com?subject=Contato - Tem Aki no Bairro');
     }
-  }, []);
-
-  if (!isVisible && slideAnim._value === -MENU_WIDTH) {
-    return null;
-  }
+  };
 
   return (
-    <View style={styles.container}>
-      {/* Overlay escuro */}
-      <TouchableWithoutFeedback onPress={onClose}>
-        <Animated.View 
-          style={[
-            styles.overlay,
-            {
-              opacity: overlayOpacity,
-            }
-          ]} 
-        />
-      </TouchableWithoutFeedback>
-
-      {/* Menu lateral */}
-      <Animated.View
-        style={[
-          styles.menu,
-          {
-            transform: [{ translateX: slideAnim }],
-          }
-        ]}
-      >
-        <LinearGradient
-          colors={['rgba(255, 140, 0, 0.5)', 'rgba(255, 165, 0, 0.5)', 'rgba(255, 184, 77, 0.5)']}
-          style={styles.menuGradient}
-        >
+    <Modal
+      visible={isVisible}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <View style={styles.container}>
+        <TouchableOpacity style={styles.overlay} onPress={onClose} />
+        <View style={styles.menu}>
           {/* Cabeçalho do menu */}
           <View style={styles.menuHeader}>
             <Text style={styles.menuTitle}>Menu</Text>
@@ -152,7 +69,7 @@ const SideMenu = React.memo(({ isVisible, onClose, navigation }) => {
           <View style={styles.menuItems}>
             <TouchableOpacity 
               style={styles.menuItem}
-              onPress={() => handleMenuItemPress('PrivacyPolicy')}
+              onPress={() => handleMenuItemPress('privacy')}
             >
               <View style={styles.menuItemIcon}>
                 <Text style={styles.menuItemIconText}>📋</Text>
@@ -164,7 +81,7 @@ const SideMenu = React.memo(({ isVisible, onClose, navigation }) => {
 
             <TouchableOpacity 
               style={styles.menuItem}
-              onPress={() => handleMenuItemPress('AboutApp')}
+              onPress={() => handleMenuItemPress('about')}
             >
               <View style={styles.menuItemIcon}>
                 <Text style={styles.menuItemIconText}>ℹ</Text>
@@ -176,7 +93,7 @@ const SideMenu = React.memo(({ isVisible, onClose, navigation }) => {
 
             <TouchableOpacity 
               style={styles.menuItem}
-              onPress={handleContactPress}
+              onPress={handleContactToggle}
             >
               <View style={styles.menuItemIcon}>
                 <Text style={styles.menuItemIconText}>📞</Text>
@@ -185,7 +102,8 @@ const SideMenu = React.memo(({ isVisible, onClose, navigation }) => {
               <Text style={[styles.expandIcon, { transform: [{ rotate: contactsExpanded ? '180deg' : '0deg' }] }]}>▼</Text>
             </TouchableOpacity>
 
-            <Animated.View style={[styles.contactsSubmenu, { height: contactsHeight }]}>
+            {contactsExpanded && (
+            <View style={styles.contactsSubmenu}>
               <TouchableOpacity 
                 style={styles.contactItem}
                 onPress={() => handleContactAction('phone')}
@@ -201,7 +119,7 @@ const SideMenu = React.memo(({ isVisible, onClose, navigation }) => {
                  onPress={() => handleContactAction('whatsapp')}
                >
                  <View style={styles.contactIcon}>
-                   <Ionicons name="logo-whatsapp" size={16} color="#25D366" />
+                   <Text style={styles.contactIconText}>💬</Text>
                  </View>
                  <Text style={styles.contactText}>WhatsApp: (98) 98147-0668</Text>
                </TouchableOpacity>
@@ -215,7 +133,8 @@ const SideMenu = React.memo(({ isVisible, onClose, navigation }) => {
                 </View>
                 <Text style={styles.contactText}>E-mail: dsdodo18@hotmail.com</Text>
               </TouchableOpacity>
-            </Animated.View>
+            </View>
+            )}
           </View>
 
           {/* Rodapé do menu */}
@@ -223,38 +142,24 @@ const SideMenu = React.memo(({ isVisible, onClose, navigation }) => {
             <Text style={styles.footerText}>Tem Aki no Bairro</Text>
             <Text style={styles.footerVersion}>Versão 1.0.0</Text>
           </View>
-        </LinearGradient>
-      </Animated.View>
-    </View>
+        </View>
+      </View>
+    </Modal>
   );
-});
+};
 
 const styles = StyleSheet.create({
   container: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 1000,
+    flex: 1,
+    flexDirection: 'row',
   },
   overlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: '#000000',
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   menu: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    bottom: 0,
-    width: MENU_WIDTH,
-  },
-  menuGradient: {
-    flex: 1,
+    width: '75%',
+    backgroundColor: '#FF8C00',
     paddingTop: 50,
   },
   menuHeader: {

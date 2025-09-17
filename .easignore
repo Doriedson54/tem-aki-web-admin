@@ -1,0 +1,43 @@
+# Arquivos e pastas a serem ignorados no build EAS
+
+# Pasta de backup com caracteres especiais
+backup-20250908-225608/
+
+# Logs e arquivos temporários
+*.log
+*.tmp
+temp/
+logs/
+
+# Arquivos de desenvolvimento
+.env.local
+.env.development
+
+# Cache e node_modules
+node_modules/
+.expo/
+.expo-shared/
+
+# Arquivos do sistema
+.DS_Store
+Thumbs.db
+
+# Arquivos de backup
+*.backup
+*.bak
+
+# Arquivos com caracteres especiais que podem causar problemas
+web-admin/ecosystem.config.js
+
+# Pasta de imagens com problemas de permissão
+src/assets/Imagens/
+
+# Arquivos específicos com caracteres especiais
+**/desktop.ini
+**/*Camera Roll*/
+**/*Capturas de tela*/
+**/*Imagens salvas*/
+**/*Mobile uploads*/
+**/*Saved Pictures*/
+**/*Screenshots*/
+**/*Tem Aki no Bairro*/

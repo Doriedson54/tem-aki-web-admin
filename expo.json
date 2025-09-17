@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "web": {
+      "bundler": "metro",
+      "jsEngine": "jsc",
+      "build": {
+        "babel": {
+          "include": ["@expo/vector-icons"]
+        }
+      }
+    },
+    "jsEngine": "jsc"
+  }
+}

@@ -1,6 +1,7 @@
 import apiService from './ApiService';
 import { API_ENDPOINTS, CACHE_CONFIG } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { CacheService } from './CacheService';
 
 // Classe personalizada para erros da API
 class ApiError extends Error {
@@ -146,9 +147,9 @@ class BusinessApiService {
         return cached;
       }
 
-      // Se não há cache, busca da API
+      // Se não há cache, busca da API com retry
       console.log('Cache não encontrado, buscando da API...');
-      const response = await this.apiService.get(API_ENDPOINTS.CATEGORIES.LIST);
+      const response = await this.apiService.requestWithRetry(API_ENDPOINTS.CATEGORIES.LIST, { method: 'GET' });
       const categories = response.data || response;
 
       if (!Array.isArray(categories)) {
@@ -213,11 +214,13 @@ class BusinessApiService {
         // Se os dados estão organizados por categoria, converte para array plano
         if (typeof cached === 'object' && !Array.isArray(cached)) {
           const allBusinesses = [];
-          Object.values(cached).forEach(categoryBusinesses => {
-            if (Array.isArray(categoryBusinesses)) {
-              allBusinesses.push(...categoryBusinesses);
-            }
-          });
+          if (cached) {
+            Object.values(cached).forEach(categoryBusinesses => {
+              if (Array.isArray(categoryBusinesses)) {
+                allBusinesses.push(...categoryBusinesses);
+              }
+            });
+          }
           return allBusinesses;
         }
         return cached;
@@ -237,25 +240,33 @@ class BusinessApiService {
         // Se os dados estão organizados por categoria, converte para array plano
         if (typeof cached === 'object' && !Array.isArray(cached)) {
           const allBusinesses = [];
-          Object.values(cached).forEach(categoryBusinesses => {
-            if (Array.isArray(categoryBusinesses)) {
-              allBusinesses.push(...categoryBusinesses);
-            }
-          });
+          if (cached) {
+            Object.values(cached).forEach(categoryBusinesses => {
+              if (Array.isArray(categoryBusinesses)) {
+                allBusinesses.push(...categoryBusinesses);
+              }
+            });
+          }
           return allBusinesses;
         }
         return cached;
       }
 
-      // Se não há cache, busca da API
-      const response = await this.apiService.get(API_ENDPOINTS.BUSINESSES.LIST);
+      // Se não há cache, busca da API com retry
+      console.log('🔄 Fazendo requisição para API:', API_ENDPOINTS.BUSINESSES.LIST);
+      const response = await this.apiService.requestWithRetry(API_ENDPOINTS.BUSINESSES.LIST, { method: 'GET' });
+      console.log('📡 Resposta da API recebida:', response);
+      
       const businesses = response.data || response;
+      console.log('📊 Negócios extraídos da resposta:', businesses?.length || 0, 'itens');
 
       // Organiza os negócios por categoria
       const businessesByCategory = this.organizeBusinessesByCategory(businesses);
+      console.log('🗂️ Negócios organizados por categoria:', Object.keys(businessesByCategory).length, 'categorias');
 
       // Salva no cache
       await this.setCachedData(CACHE_KEYS.BUSINESSES, businessesByCategory);
+      console.log('💾 Cache atualizado com sucesso');
 
       // Retorna array plano para getAllBusinesses
       return businesses;
@@ -282,9 +293,9 @@ class BusinessApiService {
         }
       }
 
-      // Se não há cache, busca da API
-      const response = await this.apiService.get(
-        API_ENDPOINTS.BUSINESSES.BY_CATEGORY(categoryId)
+      // Se não há cache, busca da API com retry
+      const response = await this.apiService.requestWithRetry(
+        API_ENDPOINTS.BUSINESSES.BY_CATEGORY(categoryId), { method: 'GET' }
       );
       const businesses = response.data || response;
       
@@ -306,22 +317,112 @@ class BusinessApiService {
   }
 
   async getBusinessesBySubcategory(subcategory) {
+    const cacheKey = `${CACHE_KEYS.BUSINESSES}_subcategory_${subcategory}`;
+    
     try {
-      const response = await this.apiService.get(
-        API_ENDPOINTS.BUSINESSES.BY_SUBCATEGORY(subcategory)
-      );
-      return response.data || response;
+      // 1. Verificar cache inteligente primeiro
+      const cacheResult = await CacheService.getCache('businesses/subcategory', { subcategory });
+      
+      if (cacheResult && cacheResult.data && Array.isArray(cacheResult.data) && cacheResult.data.length > 0) {
+        console.log(`Dados encontrados no cache inteligente para subcategoria ${subcategory}: ${cacheResult.data.length} negócios (stale: ${cacheResult.isStale})`);
+        
+        // Se os dados estão stale, adicionar à fila de sincronização
+        if (cacheResult.isStale) {
+          CacheService.addToSyncQueue('businesses/subcategory', { subcategory });
+        }
+        
+        return cacheResult.data;
+      }
+      
+      // 2. Fallback para cache legado
+      const cachedData = await this.getCachedData(cacheKey);
+      if (cachedData && Array.isArray(cachedData)) {
+        console.log(`Dados em cache legado encontrados para subcategoria ${subcategory}: ${cachedData.length} negócios`);
+      }
+      
+      // 3. Tenta buscar dados atualizados da API
+      let apiError = null;
+      try {
+        console.log(`Buscando dados da API para subcategoria: ${subcategory}`);
+        const response = await this.apiService.requestWithRetry(
+          API_ENDPOINTS.BUSINESSES.BY_SUBCATEGORY(subcategory), 
+          { method: 'GET' }
+        );
+        
+        const apiData = response.data || response || [];
+        console.log(`API retornou ${apiData.length} negócios para subcategoria ${subcategory}`);
+        
+        // Salva no cache inteligente e legado se obteve dados válidos
+        if (apiData && Array.isArray(apiData) && apiData.length > 0) {
+          await Promise.all([
+            CacheService.setCache('businesses/subcategory', { subcategory }, apiData),
+            this.setCachedData(cacheKey, apiData)
+          ]);
+          console.log('Dados salvos nos caches inteligente e legado');
+          return apiData;
+        }
+      } catch (error) {
+        apiError = error;
+        console.log('Erro na API, tentando fallbacks...', error.message);
+      }
+      
+      // 4. Se API não retornou dados válidos, usa cache legado se disponível
+      if (cachedData && Array.isArray(cachedData)) {
+        console.log(`Usando dados em cache legado para subcategoria ${subcategory}`);
+        return cachedData;
+      }
+      
+      return [];
     } catch (error) {
-      console.error('Erro ao obter negócios por subcategoria:', error);
+      console.error(`Erro ao obter negócios por subcategoria ${subcategory}:`, error);
+      
+      // Fallback: tenta usar dados em cache legado
+      try {
+        const cachedData = await this.getCachedData(cacheKey);
+        if (cachedData && Array.isArray(cachedData)) {
+          console.log(`Fallback: usando dados em cache legado para subcategoria ${subcategory} (${cachedData.length} negócios)`);
+          return cachedData;
+        }
+      } catch (cacheError) {
+        console.error('Erro ao acessar cache no fallback:', cacheError);
+      }
+      
+      // Último fallback: busca em todos os negócios em cache
+      try {
+        const allBusinesses = await this.getAllBusinesses();
+        if (allBusinesses && typeof allBusinesses === 'object') {
+          // Busca em todas as categorias
+          const matchingBusinesses = [];
+          Object.values(allBusinesses).forEach(categoryBusinesses => {
+            if (Array.isArray(categoryBusinesses)) {
+              const filtered = categoryBusinesses.filter(business => 
+                business.subcategory === subcategory ||
+                business.subCategory === subcategory ||
+                business.sub_category === subcategory
+              );
+              matchingBusinesses.push(...filtered);
+            }
+          });
+          
+          if (matchingBusinesses.length > 0) {
+            console.log(`Fallback final: encontrados ${matchingBusinesses.length} negócios para subcategoria ${subcategory}`);
+            return matchingBusinesses;
+          }
+        }
+      } catch (fallbackError) {
+        console.error('Erro no fallback final:', fallbackError);
+      }
+      
+      console.log(`Nenhum dado encontrado para subcategoria ${subcategory}`);
       return [];
     }
   }
 
   async searchBusinesses(query) {
     try {
-      const response = await this.apiService.get(API_ENDPOINTS.BUSINESSES.SEARCH, {
-        q: query,
-      });
+      const queryString = new URLSearchParams({ q: query }).toString();
+      const url = `${API_ENDPOINTS.BUSINESSES.SEARCH}?${queryString}`;
+      const response = await this.apiService.requestWithRetry(url, { method: 'GET' });
       return response.data || response;
     } catch (error) {
       console.error('Erro ao buscar negócios:', error);
@@ -334,9 +435,9 @@ class BusinessApiService {
       // Converte os dados do negócio para o formato esperado pela API
       const apiBusinessData = await this.convertBusinessDataForApi(businessData);
       
-      const response = await this.apiService.post(
+      const response = await this.apiService.requestWithRetry(
         API_ENDPOINTS.BUSINESSES.CREATE,
-        apiBusinessData
+        { method: 'POST', body: JSON.stringify(apiBusinessData) }
       );
       
       const newBusiness = response.data || response;
@@ -497,9 +598,9 @@ class BusinessApiService {
 
   async updateBusiness(businessId, businessData) {
     try {
-      const response = await this.apiService.put(
+      const response = await this.apiService.requestWithRetry(
         API_ENDPOINTS.BUSINESSES.UPDATE(businessId),
-        businessData
+        { method: 'PUT', body: JSON.stringify(businessData) }
       );
       
       // Limpa o cache para forçar atualização
@@ -514,8 +615,9 @@ class BusinessApiService {
 
   async deleteBusiness(businessId) {
     try {
-      const response = await this.apiService.delete(
-        API_ENDPOINTS.BUSINESSES.DELETE(businessId)
+      const response = await this.apiService.requestWithRetry(
+        API_ENDPOINTS.BUSINESSES.DELETE(businessId),
+        { method: 'DELETE' }
       );
       
       // Limpa o cache para forçar atualização
@@ -548,13 +650,35 @@ class BusinessApiService {
   organizeBusinessesByCategory(businesses) {
     const organized = {};
     
-    businesses.forEach(business => {
-      const categoryId = business.category_id || business.categoryId;
-      if (!organized[categoryId]) {
-        organized[categoryId] = [];
-      }
-      organized[categoryId].push(business);
-    });
+    // Mapeamento de categorias para IDs
+    const categoryToId = {
+      'Alimentação e Bebidas': '1',
+      'Serviços': '2', 
+      'Comércio': '3',
+      'Saúde': '4',
+      'Educação': '5',
+      'Instituições Religiosas': '6',
+      'Instituições Públicas': '7'
+    };
+    
+    if (businesses && Array.isArray(businesses)) {
+      businesses.forEach(business => {
+        // Tenta obter o ID da categoria de diferentes formas
+        let categoryId = business.category_id || business.categoryId;
+        
+        // Se não tem ID, tenta mapear pelo nome da categoria
+        if (!categoryId && business.category) {
+          categoryId = categoryToId[business.category] || business.category;
+        }
+        
+        if (categoryId) {
+          if (!organized[categoryId]) {
+            organized[categoryId] = [];
+          }
+          organized[categoryId].push(business);
+        }
+      });
+    }
     
     return organized;
   }
@@ -577,11 +701,13 @@ class BusinessApiService {
     
     // Converte para array plano
     const allBusinesses = [];
-    Object.values(fallbackData).forEach(categoryBusinesses => {
-      if (Array.isArray(categoryBusinesses)) {
-        allBusinesses.push(...categoryBusinesses);
-      }
-    });
+    if (fallbackData && typeof fallbackData === 'object') {
+      Object.values(fallbackData).forEach(categoryBusinesses => {
+        if (Array.isArray(categoryBusinesses)) {
+          allBusinesses.push(...categoryBusinesses);
+        }
+      });
+    }
     
     return allBusinesses;
   }
@@ -622,6 +748,9 @@ class BusinessApiService {
   async isOnline() {
     return await this.apiService.checkConnectivity();
   }
+
+  // Método para limpar todo o cache
+
 }
 
 // Instância singleton

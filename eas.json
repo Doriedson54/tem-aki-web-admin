@@ -1,25 +1,76 @@
 {
   "cli": {
-    "version": ">= 5.9.0"
+    "version": ">= 5.9.0",
+    "appVersionSource": "local"
   },
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "ios": {
+        "resourceClass": "m-medium"
+      },
+      "android": {
+        "resourceClass": "medium"
+      }
     },
     "preview": {
       "distribution": "internal",
+      "ios": {
+        "resourceClass": "m-medium"
+      },
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease",
+        "resourceClass": "medium"
+      },
+      "env": {
+        "NODE_ENV": "production"
       }
     },
     "production": {
+      "ios": {
+        "resourceClass": "m-medium"
+      },
       "android": {
-        "buildType": "apk"
+        "buildType": "app-bundle",
+        "resourceClass": "medium"
+      },
+      "env": {
+        "NODE_ENV": "production"
+      },
+      "cache": {
+        "disabled": false
+      }
+    },
+    "production-apk": {
+      "ios": {
+        "resourceClass": "m-medium"
+      },
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease",
+        "resourceClass": "medium"
+      },
+      "env": {
+        "NODE_ENV": "production"
+      },
+      "cache": {
+        "disabled": false
       }
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "appleId": "your-apple-id@email.com",
+        "ascAppId": "1234567890",
+        "appleTeamId": "ABCDEFGHIJ"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./path/to/api-key.json",
+        "track": "production"
+      }
+    }
   }
 }

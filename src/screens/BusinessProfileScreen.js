@@ -166,7 +166,7 @@ const BusinessProfileScreen = ({ route, navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar style="light" backgroundColor="#e74c3c" />
+      <StatusBar style="light" />
       
       {/* Header */}
       <View style={styles.header}>

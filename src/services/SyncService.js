@@ -216,6 +216,10 @@ class SyncService {
       // Sincronizar categorias
       await businessApiService.getCategories();
       
+      // Limpar cache antes de sincronizar
+      console.log('🗑️ Limpando cache de negócios...');
+      await businessApiService.clearCache();
+      
       // Sincronizar negócios
       await businessApiService.getAllBusinesses();
       

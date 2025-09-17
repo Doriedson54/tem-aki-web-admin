@@ -196,26 +196,59 @@ class ApiService {
     return error;
   }
 
-  // Método para fazer requisições com retry automático
+  // Método para fazer requisições com retry automático melhorado
   async requestWithRetry(endpoint, options = {}, retries = RETRY_CONFIG.MAX_RETRIES) {
+    const maxRetries = RETRY_CONFIG.MAX_RETRIES;
+    const attempt = maxRetries - retries + 1;
+    
     try {
+      console.log(`Tentativa ${attempt}/${maxRetries} para ${endpoint}`);
       return await this.request(endpoint, options);
     } catch (error) {
+      console.error(`Erro na tentativa ${attempt}/${maxRetries} para ${endpoint}:`, error.message);
+      
       if (retries > 0 && this.shouldRetry(error)) {
-        const delay = RETRY_CONFIG.RETRY_DELAY * (RETRY_CONFIG.MAX_RETRIES - retries + 1);
+        // Backoff exponencial com jitter para evitar thundering herd
+        const baseDelay = RETRY_CONFIG.RETRY_DELAY;
+        const exponentialDelay = baseDelay * Math.pow(RETRY_CONFIG.BACKOFF_MULTIPLIER, attempt - 1);
+        const jitter = Math.random() * 1000; // Adiciona até 1s de jitter
+        const delay = Math.min(exponentialDelay + jitter, RETRY_CONFIG.MAX_DELAY || 10000);
+        
+        console.log(`Aguardando ${Math.round(delay)}ms antes da próxima tentativa...`);
         await this.sleep(delay);
         return this.requestWithRetry(endpoint, options, retries - 1);
       }
+      
+      console.error(`Falha definitiva após ${attempt} tentativas para ${endpoint}`);
       throw error;
     }
   }
 
   // Verifica se deve tentar novamente a requisição
   shouldRetry(error) {
-    // Retry em casos de timeout ou erro de rede
-    return error.message.includes('Timeout') || 
-           error.message.includes('Network request failed') ||
-           error.message.includes('HTTP 500');
+    // Retry em casos de timeout, erro de rede ou erros temporários do servidor
+    const retryableErrors = [
+      'Timeout',
+      'Network request failed',
+      'HTTP 500', // Internal Server Error
+      'HTTP 502', // Bad Gateway
+      'HTTP 503', // Service Unavailable
+      'HTTP 504', // Gateway Timeout
+      'HTTP 408', // Request Timeout
+      'HTTP 429', // Too Many Requests
+      'AbortError', // Timeout do AbortController
+      'TypeError: Network request failed', // Erro de rede específico
+      'TypeError: Failed to fetch', // Erro de fetch
+      'Connection refused',
+      'ECONNRESET',
+      'ETIMEDOUT'
+    ];
+    
+    return retryableErrors.some(errorType => 
+      error.message.includes(errorType) || 
+      error.name === errorType ||
+      (error.originalError && error.originalError.message.includes(errorType))
+    );
   }
 
   // Método auxiliar para delay

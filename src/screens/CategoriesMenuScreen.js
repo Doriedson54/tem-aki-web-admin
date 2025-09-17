@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, ScrollView } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { Ionicons } from '@expo/vector-icons';
+// import { Ionicons } from '@expo/vector-icons';
 
 const CategoriesMenuScreen = ({ navigation }) => {
   const categories = [
@@ -27,7 +27,7 @@ const CategoriesMenuScreen = ({ navigation }) => {
       screen: 'Schools'
     },
     {
-      id: 4,
+      id: 7,
       title: 'Instituições Públicas',
       icon: '🏛️',
       color: '#D0021B',
@@ -58,12 +58,12 @@ const CategoriesMenuScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar style="light" backgroundColor="#8e44ad" />
+      <StatusBar style="light" />
       
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.headerBackButton} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#ffffff" />
+          <Text style={styles.backButtonText}>◀</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>🎯 Escolha o que precisa</Text>
         <View style={styles.placeholder} />
@@ -180,6 +180,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 8,
     lineHeight: 18,
+  },
+  backButtonText: {
+    fontSize: 24,
+    color: '#ffffff',
+    fontWeight: 'bold',
+  },
+  backButtonText: {
+    color: '#ffffff',
+    fontSize: 20,
+    fontWeight: '900',
   },
 });
 

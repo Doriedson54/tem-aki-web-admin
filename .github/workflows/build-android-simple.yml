@@ -1,0 +1,80 @@
+name: Build Android APK (Simple)
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Setup Java JDK
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Install EAS CLI
+      run: npm install -g @expo/cli@latest
+
+    - name: Create Expo account token file
+      run: |
+        mkdir -p ~/.expo
+        echo "${{ secrets.EXPO_TOKEN }}" > ~/.expo/token
+
+    - name: Prebuild Android
+      run: npx expo prebuild --platform android --clear
+
+    - name: Setup Gradle
+      uses: gradle/gradle-build-action@v2
+
+    - name: Make gradlew executable
+      run: chmod +x ./android/gradlew
+
+    - name: Build Android APK (Debug)
+      working-directory: ./android
+      run: ./gradlew assembleDebug
+
+    - name: Upload APK artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-debug
+        path: android/app/build/outputs/apk/debug/app-debug.apk
+        retention-days: 30
+
+    - name: Create Release
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: debug-v${{ github.run_number }}
+        name: Debug Release v${{ github.run_number }}
+        body: |
+          🚀 Nova versão de teste do aplicativo Negócios do Bairro
+          
+          📱 APK Android (Debug) disponível para download
+          ⚠️  Esta é uma versão de teste não assinada
+          
+          Alterações incluídas nesta versão:
+          ${{ github.event.head_commit.message }}
+        files: android/app/build/outputs/apk/debug/app-debug.apk
+        draft: false
+        prerelease: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

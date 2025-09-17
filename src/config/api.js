@@ -1,17 +1,27 @@
 // Configurações da API para integração com o web-admin
+import Constants from 'expo-constants';
+// Importar constantes de API do arquivo centralizado
+import { HTTP_STATUS, RETRY_CONFIG } from '../constants/api';
 
 // URL base da API do web-admin
 const isDev = typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV !== 'production';
 
-export const API_BASE_URL = isDev
-  ? 'http://192.168.3.195:3000/api' // Desenvolvimento - IP da máquina para Expo Go
-  : 'https://temakinobairro.com.br/api'; // Produção
+// Obter configurações do .env através do Expo Constants
+const getEnvVar = (key, defaultValue) => {
+  return Constants.expoConfig?.extra?.[key] || process.env[key] || defaultValue;
+};
+
+export const API_BASE_URL = getEnvVar('API_BASE_URL', 
+  isDev
+    ? 'http://localhost:3000/api' // Desenvolvimento - servidor backend local
+    : 'https://temakinobairro.com.br/api' // Produção
+);
 
 // Versão da API
 export const API_VERSION = 'v1';
 
-// Timeout para requisições (em milissegundos)
-export const API_TIMEOUT = 10000;
+// Timeout para requisições (60 segundos para melhor estabilidade)
+export const API_TIMEOUT = parseInt(getEnvVar('API_TIMEOUT', '60000'), 10);
 
 // Headers padrão para todas as requisições
 export const DEFAULT_HEADERS = {
@@ -56,23 +66,8 @@ export const API_ENDPOINTS = {
   },
 };
 
-// Códigos de status HTTP
-export const HTTP_STATUS = {
-  OK: 200,
-  CREATED: 201,
-  BAD_REQUEST: 400,
-  UNAUTHORIZED: 401,
-  FORBIDDEN: 403,
-  NOT_FOUND: 404,
-  INTERNAL_SERVER_ERROR: 500,
-};
-
-// Configurações de retry para requisições falhadas
-export const RETRY_CONFIG = {
-  MAX_RETRIES: 3,
-  RETRY_DELAY: 1000, // 1 segundo
-  RETRY_MULTIPLIER: 2, // Dobra o delay a cada retry
-};
+// Re-exportar para compatibilidade
+export { HTTP_STATUS, RETRY_CONFIG };
 
 // Configurações de cache
 export const CACHE_CONFIG = {
