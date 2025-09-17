@@ -40,7 +40,7 @@ jobs:
         echo "${{ secrets.EXPO_TOKEN }}" > ~/.expo/token
 
     - name: Prebuild Android
-      run: npx expo prebuild --platform android --clear
+      run: npx expo prebuild --platform android --clean
 
     - name: Setup Gradle
       uses: gradle/gradle-build-action@v2
