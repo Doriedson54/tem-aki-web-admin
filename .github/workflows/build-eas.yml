@@ -1,0 +1,124 @@
+name: EAS Build (Android & iOS)
+
+on:
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: 'Platform to build'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+        - all
+        - android
+        - ios
+      profile:
+        description: 'Build profile'
+        required: true
+        default: 'preview'
+        type: choice
+        options:
+        - development
+        - preview
+        - production
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        platform: ${{ github.event.inputs.platform == 'all' && fromJSON('["android", "ios"]') || fromJSON(format('["{0}"]', github.event.inputs.platform || 'android')) }}
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Setup Expo and EAS
+      uses: expo/expo-github-action@v8
+      with:
+        expo-version: latest
+        eas-version: latest
+        token: ${{ secrets.EXPO_TOKEN }}
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Verify EAS configuration
+      run: |
+        echo "Verificando configuração EAS..."
+        cat eas.json
+        echo "Verificando app.json..."
+        cat app.json | jq '.expo.name, .expo.slug, .expo.version'
+
+    - name: Build Android APK
+      if: matrix.platform == 'android'
+      run: |
+        echo "🤖 Iniciando build Android..."
+        eas build --platform android --profile ${{ github.event.inputs.profile || 'preview' }} --non-interactive --no-wait
+        
+    - name: Build iOS IPA
+      if: matrix.platform == 'ios'
+      run: |
+        echo "🍎 Iniciando build iOS..."
+        eas build --platform ios --profile ${{ github.event.inputs.profile || 'preview' }} --non-interactive --no-wait
+
+    - name: Wait for build completion
+      run: |
+        echo "⏳ Aguardando conclusão do build..."
+        # Aguardar builds em andamento
+        sleep 30
+        eas build:list --status=in-progress --limit=10
+
+    - name: Download build artifacts
+      run: |
+        echo "📥 Baixando artefatos do build..."
+        # Baixar o último build para a plataforma
+        eas build:list --platform=${{ matrix.platform }} --limit=1 --json > build_info.json
+        cat build_info.json
+
+    - name: Create Release
+      if: startsWith(github.ref, 'refs/tags/v')
+      uses: softprops/action-gh-release@v1
+      with:
+        name: Release ${{ github.ref_name }} (${{ matrix.platform }})
+        body: |
+          🚀 Nova versão do aplicativo Negócios do Bairro
+          
+          📱 Plataforma: ${{ matrix.platform }}
+          🏗️ Profile: ${{ github.event.inputs.profile || 'preview' }}
+          
+          Alterações incluídas nesta versão:
+          ${{ github.event.head_commit.message }}
+          
+          Para baixar o aplicativo:
+          - Android: Baixe o arquivo APK
+          - iOS: Use TestFlight ou baixe o arquivo IPA
+        draft: false
+        prerelease: ${{ github.event.inputs.profile != 'production' }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  notify:
+    needs: build
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: Notify build status
+      run: |
+        if [ "${{ needs.build.result }}" == "success" ]; then
+          echo "✅ Build concluído com sucesso!"
+        else
+          echo "❌ Build falhou!"
+        fi

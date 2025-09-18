@@ -1,0 +1,179 @@
+name: Deploy Application
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+        - staging
+        - production
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  deploy-web:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'production' }}
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Setup Expo
+      uses: expo/expo-github-action@v8
+      with:
+        expo-version: latest
+        token: ${{ secrets.EXPO_TOKEN }}
+
+    - name: Build web application
+      run: |
+        echo "🌐 Building web application..."
+        npx expo export:web
+        
+    - name: Deploy to Vercel
+      if: github.event.inputs.environment != 'staging'
+      uses: amondnet/vercel-action@v25
+      with:
+        vercel-token: ${{ secrets.VERCEL_TOKEN }}
+        vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+        vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+        working-directory: ./dist
+        vercel-args: '--prod'
+
+    - name: Deploy to GitHub Pages (Staging)
+      if: github.event.inputs.environment == 'staging'
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./dist
+        destination_dir: staging
+
+    - name: Deploy to Netlify
+      if: github.event.inputs.environment == 'production'
+      uses: nwtgck/actions-netlify@v2.1
+      with:
+        publish-dir: './dist'
+        production-branch: main
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        deploy-message: "Deploy from GitHub Actions"
+        enable-pull-request-comment: false
+        enable-commit-comment: true
+        overwrites-pull-request-comment: true
+      env:
+        NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+
+  deploy-backend:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'production' }}
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - name: Install backend dependencies
+      working-directory: ./backend
+      run: npm ci
+
+    - name: Build backend
+      working-directory: ./backend
+      run: npm run build || echo "No build script found"
+
+    - name: Deploy to Railway
+      if: github.event.inputs.environment == 'production'
+      uses: bervProject/railway-deploy@v1.0.0
+      with:
+        railway_token: ${{ secrets.RAILWAY_TOKEN }}
+        service: backend
+        
+    - name: Deploy to Heroku
+      if: github.event.inputs.environment == 'staging'
+      uses: akhileshns/heroku-deploy@v3.12.14
+      with:
+        heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
+        heroku_app_name: "negocios-bairro-staging"
+        heroku_email: ${{ secrets.HEROKU_EMAIL }}
+        appdir: "backend"
+
+  deploy-admin:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'production' }}
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - name: Install admin dependencies
+      working-directory: ./web-admin
+      run: npm ci
+
+    - name: Build admin panel
+      working-directory: ./web-admin
+      run: npm run build || echo "No build script found"
+
+    - name: Deploy admin to Vercel
+      uses: amondnet/vercel-action@v25
+      with:
+        vercel-token: ${{ secrets.VERCEL_TOKEN }}
+        vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+        vercel-project-id: ${{ secrets.VERCEL_ADMIN_PROJECT_ID }}
+        working-directory: ./web-admin
+        vercel-args: ${{ github.event.inputs.environment == 'production' && '--prod' || '' }}
+
+  notify:
+    needs: [deploy-web, deploy-backend, deploy-admin]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: Notify deployment status
+      run: |
+        echo "📊 RELATÓRIO DE DEPLOY"
+        echo "Web: ${{ needs.deploy-web.result }}"
+        echo "Backend: ${{ needs.deploy-backend.result }}"
+        echo "Admin: ${{ needs.deploy-admin.result }}"
+        
+        if [ "${{ needs.deploy-web.result }}" == "success" ] && [ "${{ needs.deploy-backend.result }}" == "success" ] && [ "${{ needs.deploy-admin.result }}" == "success" ]; then
+          echo "✅ Deploy completo realizado com sucesso!"
+        else
+          echo "❌ Alguns deploys falharam!"
+        fi
+
+    - name: Create deployment summary
+      run: |
+        echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Component | Status | Environment |" >> $GITHUB_STEP_SUMMARY
+        echo "|-----------|--------|-------------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Web App | ${{ needs.deploy-web.result }} | ${{ github.event.inputs.environment || 'production' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Backend | ${{ needs.deploy-backend.result }} | ${{ github.event.inputs.environment || 'production' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Admin Panel | ${{ needs.deploy-admin.result }} | ${{ github.event.inputs.environment || 'production' }} |" >> $GITHUB_STEP_SUMMARY

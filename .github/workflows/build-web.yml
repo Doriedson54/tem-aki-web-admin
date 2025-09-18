@@ -1,0 +1,71 @@
+name: Build Web App
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-web:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Install Expo CLI
+      run: npm install -g @expo/cli@latest
+
+    - name: Create Expo account token file
+      run: |
+        mkdir -p ~/.expo
+        echo "${{ secrets.EXPO_TOKEN }}" > ~/.expo/token
+
+    - name: Build web app
+      run: npx expo export:web
+
+    - name: Upload web build artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: web-build
+        path: dist/
+        retention-days: 30
+
+    - name: Deploy to GitHub Pages
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./dist
+        cname: negocios-do-bairro.com # Opcional: substitua pelo seu domínio
+
+    - name: Create Release
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: web-v${{ github.run_number }}
+        name: Web Release v${{ github.run_number }}
+        body: |
+          🌐 Nova versão web do aplicativo Negócios do Bairro
+          
+          🚀 Aplicação web disponível em: https://negocios-do-bairro.com
+          
+          Alterações incluídas nesta versão:
+          ${{ github.event.head_commit.message }}
+        files: |
+          dist/**/*
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

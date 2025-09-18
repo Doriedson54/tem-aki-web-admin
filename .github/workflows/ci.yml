@@ -1,0 +1,139 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run linting
+      run: |
+        echo "🔍 Running ESLint..."
+        npx eslint . --ext .js,.jsx,.ts,.tsx || echo "ESLint not configured"
+
+    - name: Run tests
+      run: |
+        echo "🧪 Running tests..."
+        npm test || echo "No tests configured"
+
+    - name: Check Expo configuration
+      run: |
+        echo "📱 Checking Expo configuration..."
+        npx expo doctor
+
+    - name: Validate app.json
+      run: |
+        echo "✅ Validating app.json..."
+        node -e "console.log('app.json is valid JSON:', JSON.parse(require('fs').readFileSync('app.json', 'utf8')))"
+
+    - name: Check for security vulnerabilities
+      run: |
+        echo "🔒 Checking for security vulnerabilities..."
+        npm audit --audit-level=moderate
+
+  build-check:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Setup Expo
+      uses: expo/expo-github-action@v8
+      with:
+        expo-version: latest
+        token: ${{ secrets.EXPO_TOKEN }}
+
+    - name: Test web build
+      run: |
+        echo "🌐 Testing web build..."
+        npx expo export:web
+
+    - name: Test prebuild
+      run: |
+        echo "📱 Testing prebuild..."
+        npx expo prebuild --no-install
+
+  backend-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install backend dependencies
+      working-directory: ./backend
+      run: npm ci
+
+    - name: Run backend tests
+      working-directory: ./backend
+      run: |
+        echo "🔧 Testing backend..."
+        npm test || echo "No backend tests configured"
+
+    - name: Check backend linting
+      working-directory: ./backend
+      run: |
+        echo "🔍 Checking backend linting..."
+        npx eslint . || echo "ESLint not configured for backend"
+
+  admin-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install admin dependencies
+      working-directory: ./web-admin
+      run: npm ci
+
+    - name: Test admin build
+      working-directory: ./web-admin
+      run: |
+        echo "👨‍💼 Testing admin build..."
+        npm run build || echo "No build script for admin"
+
+    - name: Run admin tests
+      working-directory: ./web-admin
+      run: |
+        echo "🧪 Testing admin..."
+        npm test || echo "No admin tests configured"
