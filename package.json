@@ -19,7 +19,7 @@
     "submit:ios": "eas submit --platform ios",
     "update": "eas update",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
-    "test": "jest",
+    "test": "jest --passWithNoTests",
     "eject": "expo eject"
   },
   "keywords": [
@@ -64,7 +64,9 @@
     "strip-ansi": "^7.1.2"
   },
   "devDependencies": {
-    "@babel/core": "^7.20.0"
+    "@babel/core": "^7.20.0",
+    "jest": "^29.7.0",
+    "jest-expo": "^55.0.16"
   },
   "private": true
 }
