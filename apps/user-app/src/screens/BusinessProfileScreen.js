@@ -1,0 +1,629 @@
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, Image, Linking, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { Ionicons } from '@expo/vector-icons';
+import AnimatedBackButton from '../components/AnimatedBackButton';
+import { API_BASE_URL } from '../config/api';
+import { getBusinessById } from '../services/businessService';
+import { getCategoryColors } from '../theme/categoryColors';
+import { getSubcategoryColors } from '../theme/subcategoryColors';
+
+const getApiHost = () => API_BASE_URL.replace(/\/api\/?$/i, '');
+
+const normalizeString = (value) => (typeof value === 'string' ? value.trim() : value);
+
+const normalizeImageUri = (value) => {
+  if (!value) return null;
+  if (typeof value === 'string') return value.trim() || null;
+  if (typeof value === 'object') {
+    const v = value.uri || value.url || value.path;
+    return typeof v === 'string' ? v.trim() || null : null;
+  }
+  return null;
+};
+
+const resolveUri = (uri) => {
+  if (!uri) return null;
+  if (/^https?:\/\//i.test(uri) || /^data:/i.test(uri)) return uri;
+  if (uri.startsWith('/')) return `${getApiHost()}${uri}`;
+  return `${API_BASE_URL}/${uri}`.replace(/\/{2,}/g, '/').replace(':/', '://');
+};
+
+const toArray = (value) => (Array.isArray(value) ? value : value ? [value] : []);
+
+const getImages = (business) => {
+  const raw = [
+    business?.profilePhoto,
+    business?.image,
+    business?.image_url,
+    business?.logo_url,
+    business?.photo,
+    business?.thumbnail,
+    ...toArray(business?.images),
+    ...toArray(business?.photos),
+    ...toArray(business?.galleryPhotos),
+  ];
+
+  const uris = [];
+  const seen = new Set();
+  for (const item of raw) {
+    const normalized = normalizeImageUri(item);
+    const resolved = resolveUri(normalized);
+    if (!resolved) continue;
+    if (seen.has(resolved)) continue;
+    seen.add(resolved);
+    uris.push(resolved);
+  }
+  return uris;
+};
+
+const openUrl = async (url) => {
+  try {
+    const supported = await Linking.canOpenURL(url);
+    if (!supported) throw new Error('URL não suportada');
+    await Linking.openURL(url);
+  } catch {
+    Alert.alert('Não foi possível abrir', 'Verifique se há um aplicativo compatível instalado.');
+  }
+};
+
+const BusinessProfileScreen = ({ route, navigation }) => {
+  const initialBusiness = route.params?.business || {};
+  const [business, setBusiness] = useState(initialBusiness);
+  const [loading, setLoading] = useState(false);
+  const { width } = useWindowDimensions();
+  const photoWidth = Math.min(width - 40, 380);
+  const photoHeight = Math.round(photoWidth * 0.63);
+
+  const reload = useCallback(async () => {
+    const id = business?.id ?? initialBusiness?.id;
+    if (!id) return;
+    try {
+      setLoading(true);
+      const data = await getBusinessById(id);
+      setBusiness(data || initialBusiness);
+    } catch {
+      setBusiness(initialBusiness);
+    } finally {
+      setLoading(false);
+    }
+  }, [business?.id, initialBusiness]);
+
+  useEffect(() => {
+    reload();
+  }, []);
+
+  const name = business?.name || business?.establishmentName || 'Negócio';
+  const routeParentCategory = route.params?.parentCategory || null;
+  const routeSubcategory = route.params?.subcategory || null;
+  const category =
+    routeParentCategory ||
+    business?.category?.name ||
+    business?.category_name ||
+    (typeof business?.category === 'string' ? business.category : null) ||
+    null;
+  const subcategory =
+    routeSubcategory ||
+    business?.subcategory?.name ||
+    business?.subcategory_name ||
+    (typeof business?.subcategory === 'string' ? business.subcategory : null) ||
+    null;
+  const formality = business?.formality || null;
+  const mainProduct = business?.main_product || business?.mainProduct || null;
+  const description = business?.description || null;
+  const address = business?.address || null;
+  const neighborhood = business?.neighborhood || null;
+  const cityState = business?.cityState || (business?.city && business?.state ? `${business.city}/${business.state}` : null);
+  const zipCode = business?.zipCode || business?.zip_code || null;
+  const phone = business?.phone || null;
+  const whatsapp = business?.whatsapp || null;
+  const email = business?.email || null;
+  const workingHours =
+    business?.opening_hours?.description ||
+    business?.working_hours ||
+    business?.openingHours ||
+    business?.workingHours ||
+    null;
+  const website = business?.website || business?.site || null;
+  const instagram = business?.instagram || null;
+  const facebook = business?.facebook || null;
+  const otherSocialMedia = business?.otherSocialMedia || business?.other_social_media || null;
+  const hasDelivery = Boolean(business?.hasDelivery || business?.has_delivery);
+  const rating = business?.rating ?? null;
+  const isOpen = typeof business?.isOpen === 'boolean' ? business.isOpen : null;
+
+  const images = useMemo(() => getImages(business), [business]);
+  const colors = useMemo(() => {
+    if (subcategory) return getSubcategoryColors(subcategory, category);
+    return getCategoryColors(category);
+  }, [category, subcategory]);
+
+  const mapUrl = useMemo(() => {
+    if (!address) return null;
+    const q = encodeURIComponent(address);
+    return `https://www.google.com/maps/search/?api=1&query=${q}`;
+  }, [address]);
+
+  const handlePhoneCall = useCallback(() => {
+    if (!phone) return;
+    const phoneNumber = String(phone).replace(/[^0-9]/g, '');
+    openUrl(`tel:${phoneNumber}`);
+  }, [phone]);
+
+  const handleWhatsApp = useCallback(() => {
+    if (!whatsapp) return;
+    const whatsappNumber = String(whatsapp).replace(/[^0-9]/g, '');
+    openUrl(`whatsapp://send?phone=55${whatsappNumber}`);
+  }, [whatsapp]);
+
+  const handleEmail = useCallback(() => {
+    if (!email) return;
+    openUrl(`mailto:${email}`);
+  }, [email]);
+
+  const handleWebsite = useCallback(() => {
+    if (!website) return;
+    const w = String(website);
+    const url = w.startsWith('http://') || w.startsWith('https://') ? w : `https://${w}`;
+    openUrl(url);
+  }, [website]);
+
+  const handleInstagram = useCallback(() => {
+    if (!instagram) return;
+    const handle = String(instagram).replace(/^@/, '');
+    openUrl(`https://instagram.com/${handle}`);
+  }, [instagram]);
+
+  const handleFacebook = useCallback(() => {
+    if (!facebook) return;
+    const f = String(facebook);
+    const url = f.startsWith('http://') || f.startsWith('https://') ? f : `https://facebook.com/${f}`;
+    openUrl(url);
+  }, [facebook]);
+
+  const handleOtherSocial = useCallback(() => {
+    if (!otherSocialMedia) return;
+    const o = String(otherSocialMedia);
+    const url = o.startsWith('http://') || o.startsWith('https://') ? o : `https://${o}`;
+    openUrl(url);
+  }, [otherSocialMedia]);
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar style="light" />
+
+      <View style={[styles.header, { backgroundColor: colors.primary, borderBottomColor: colors.secondary }]}>
+        <AnimatedBackButton onPress={() => navigation.goBack()} style={styles.headerBackButton} />
+        <Text style={styles.headerTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65}>
+          🏢 Perfil do Negócio
+        </Text>
+        <View style={styles.placeholder} />
+      </View>
+
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        <View style={styles.profileHeader}>
+          <View style={styles.photoContainer}>
+            {images.length > 0 ? (
+              <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}>
+                {images.map((uri) => (
+                  <Image key={uri} source={{ uri }} style={[styles.profilePhoto, { width: photoWidth, height: photoHeight }]} />
+                ))}
+              </ScrollView>
+            ) : (
+              <View style={[styles.placeholderPhoto, { width: photoWidth, height: photoHeight }]}>
+                <Text style={styles.placeholderPhotoText}>📷</Text>
+              </View>
+            )}
+          </View>
+
+          <Text style={styles.businessName} numberOfLines={2}>
+            {name}
+          </Text>
+          {subcategory && (
+            <Text style={[styles.subcategory, { color: colors.primary }]} numberOfLines={1}>
+              {subcategory}
+            </Text>
+          )}
+          {category && (
+            <Text style={styles.category} numberOfLines={1}>
+              {category}
+            </Text>
+          )}
+          {formality && (
+            <Text style={styles.formality}>
+              {formality === 'formal' ? '✅ Formal' : '🟡 Informal'}
+            </Text>
+          )}
+          {(rating !== null || isOpen !== null) && (
+            <View style={styles.badgesRow}>
+              {rating !== null && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>⭐ {Number(rating).toFixed(1)}</Text>
+                </View>
+              )}
+              {isOpen !== null && (
+                <View style={[styles.badge, isOpen ? styles.badgeOpen : styles.badgeClosed]}>
+                  <Text style={styles.badgeText}>{isOpen ? 'Aberto' : 'Fechado'}</Text>
+                </View>
+              )}
+              {loading && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>Atualizando…</Text>
+                </View>
+              )}
+            </View>
+          )}
+        </View>
+
+        {mainProduct && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Produto/Serviço Principal</Text>
+            <Text style={styles.sectionContent}>{normalizeString(mainProduct)}</Text>
+          </View>
+        )}
+
+        {description && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Sobre</Text>
+            <Text style={styles.sectionContent}>{normalizeString(description)}</Text>
+          </View>
+        )}
+
+        {(address || neighborhood || cityState || zipCode) && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Localização</Text>
+            {address && (
+              <View style={styles.locationItem}>
+                <Text style={styles.locationLabel}>Endereço:</Text>
+                <Text style={styles.sectionContent}>{normalizeString(address)}</Text>
+              </View>
+            )}
+            {neighborhood && (
+              <View style={styles.locationItem}>
+                <Text style={styles.locationLabel}>Bairro:</Text>
+                <Text style={styles.sectionContent}>{normalizeString(neighborhood)}</Text>
+              </View>
+            )}
+            {cityState && (
+              <View style={styles.locationItem}>
+                <Text style={styles.locationLabel}>Cidade/Estado:</Text>
+                <Text style={styles.sectionContent}>{normalizeString(cityState)}</Text>
+              </View>
+            )}
+            {zipCode && (
+              <View style={styles.locationItem}>
+                <Text style={styles.locationLabel}>CEP:</Text>
+                <Text style={styles.sectionContent}>{normalizeString(zipCode)}</Text>
+              </View>
+            )}
+            {mapUrl && (
+              <TouchableOpacity style={[styles.mapButton, { backgroundColor: colors.primary }]} onPress={() => openUrl(mapUrl)} activeOpacity={0.86}>
+                <Text style={styles.mapButtonIcon}>📍</Text>
+                <Text style={styles.mapButtonText}>Localizar no Mapa</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
+        {workingHours && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Horário de Funcionamento</Text>
+            <Text style={styles.sectionContent}>{normalizeString(workingHours)}</Text>
+          </View>
+        )}
+
+        {hasDelivery && (
+          <View style={styles.section}>
+            <View style={[styles.deliveryBadge, { backgroundColor: colors.primary }]}>
+              <Text style={styles.deliveryText}>🚚 Faz Delivery</Text>
+            </View>
+          </View>
+        )}
+
+        {(phone || whatsapp || email || website) && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Contatos</Text>
+
+            {phone && (
+              <TouchableOpacity style={styles.contactButton} onPress={handlePhoneCall} activeOpacity={0.86}>
+                <Text style={styles.contactIcon}>📞</Text>
+                <Text style={styles.contactText}>{normalizeString(phone)}</Text>
+              </TouchableOpacity>
+            )}
+
+            {whatsapp && (
+              <TouchableOpacity style={styles.contactButton} onPress={handleWhatsApp} activeOpacity={0.86}>
+                <Ionicons name="logo-whatsapp" size={20} color="#25D366" style={styles.contactIconIonicons} />
+                <Text style={styles.contactText}>{normalizeString(whatsapp)}</Text>
+              </TouchableOpacity>
+            )}
+
+            {email && (
+              <TouchableOpacity style={styles.contactButton} onPress={handleEmail} activeOpacity={0.86}>
+                <Text style={styles.contactIcon}>📧</Text>
+                <Text style={styles.contactText}>{normalizeString(email)}</Text>
+              </TouchableOpacity>
+            )}
+
+            {website && (
+              <TouchableOpacity style={styles.contactButton} onPress={handleWebsite} activeOpacity={0.86}>
+                <Text style={styles.contactIcon}>🌐</Text>
+                <Text style={styles.contactText} numberOfLines={1}>
+                  {normalizeString(website)}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
+        {(instagram || facebook || otherSocialMedia) && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Redes Sociais</Text>
+
+            {instagram && (
+              <TouchableOpacity style={styles.socialButton} onPress={handleInstagram} activeOpacity={0.86}>
+                <Ionicons name="logo-instagram" size={20} color="#E4405F" style={styles.socialIconIonicons} />
+                <Text style={styles.socialText} numberOfLines={1}>
+                  Instagram: {normalizeString(instagram)}
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {facebook && (
+              <TouchableOpacity style={styles.socialButton} onPress={handleFacebook} activeOpacity={0.86}>
+                <Ionicons name="logo-facebook" size={20} color="#1877F2" style={styles.socialIconIonicons} />
+                <Text style={styles.socialText} numberOfLines={1}>
+                  Facebook: {normalizeString(facebook)}
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {otherSocialMedia && (
+              <TouchableOpacity style={styles.socialButton} onPress={handleOtherSocial} activeOpacity={0.86}>
+                <Text style={styles.socialIcon}>🔗</Text>
+                <Text style={styles.socialText} numberOfLines={1}>
+                  {normalizeString(otherSocialMedia)}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
+        <View style={styles.bottomSpacing} />
+      </ScrollView>
+    </SafeAreaView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+    paddingTop: 0,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 50,
+    paddingBottom: 18,
+    borderBottomWidth: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  headerBackButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    textAlign: 'center',
+    flex: 1,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
+  },
+  placeholder: {
+    width: 44,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  profileHeader: {
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    paddingVertical: 15,
+    paddingHorizontal: 10,
+    marginBottom: 10,
+  },
+  photoContainer: {
+    marginBottom: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4.65,
+    elevation: 8,
+  },
+  profilePhoto: {
+    borderRadius: 15,
+    borderWidth: 3,
+    borderColor: '#ffffff',
+    resizeMode: 'cover',
+  },
+  placeholderPhoto: {
+    borderRadius: 15,
+    backgroundColor: '#e9ecef',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#ffffff',
+  },
+  placeholderPhotoText: {
+    fontSize: 50,
+    color: '#6c757d',
+  },
+  businessName: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  subcategory: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#3498db',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  category: {
+    fontSize: 16,
+    color: '#6c757d',
+    textAlign: 'center',
+  },
+  formality: {
+    marginTop: 6,
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#2c3e50',
+    textAlign: 'center',
+  },
+  badgesRow: {
+    marginTop: 10,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  badge: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    backgroundColor: '#f1f3f5',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  badgeOpen: {
+    backgroundColor: '#d1fae5',
+    borderColor: '#a7f3d0',
+  },
+  badgeClosed: {
+    backgroundColor: '#fee2e2',
+    borderColor: '#fecaca',
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#2c3e50',
+  },
+  section: {
+    backgroundColor: '#ffffff',
+    marginBottom: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    marginBottom: 12,
+  },
+  sectionContent: {
+    fontSize: 16,
+    color: '#495057',
+    lineHeight: 24,
+  },
+  locationItem: {
+    marginBottom: 8,
+  },
+  locationLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6c757d',
+    marginBottom: 2,
+  },
+  mapButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#28a745',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 25,
+    marginTop: 12,
+    alignSelf: 'flex-start',
+  },
+  mapButtonIcon: {
+    fontSize: 18,
+    marginRight: 8,
+  },
+  mapButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  deliveryBadge: {
+    backgroundColor: '#28a745',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    alignSelf: 'flex-start',
+  },
+  deliveryText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  contactButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f3f5',
+  },
+  contactIcon: {
+    fontSize: 18,
+    marginRight: 12,
+  },
+  contactIconIonicons: {
+    marginRight: 12,
+  },
+  contactText: {
+    fontSize: 16,
+    color: '#495057',
+    flex: 1,
+  },
+  socialButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f3f5',
+  },
+  socialIcon: {
+    fontSize: 18,
+    marginRight: 12,
+  },
+  socialIconIonicons: {
+    marginRight: 12,
+  },
+  socialText: {
+    fontSize: 16,
+    color: '#495057',
+    flex: 1,
+  },
+  bottomSpacing: {
+    height: 20,
+  },
+});
+
+export default BusinessProfileScreen;

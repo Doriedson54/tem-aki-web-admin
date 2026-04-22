@@ -1,0 +1,26 @@
+{
+  "name": "user-app",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "powershell -NoProfile -Command \"$sandboxHome=(Join-Path (Get-Location).Path '.sandbox-userprofile'); New-Item -ItemType Directory -Force -Path $sandboxHome | Out-Null; $drive=$sandboxHome.Substring(0,2); $path=$sandboxHome.Substring(2); [Environment]::SetEnvironmentVariable('USERPROFILE',$sandboxHome,'Process'); [Environment]::SetEnvironmentVariable('HOME',$sandboxHome,'Process'); [Environment]::SetEnvironmentVariable('HOMEDRIVE',$drive,'Process'); [Environment]::SetEnvironmentVariable('HOMEPATH',$path,'Process'); [Environment]::SetEnvironmentVariable('EXPO_HOME',(Join-Path (Get-Location).Path '.expo-home'),'Process'); [Environment]::SetEnvironmentVariable('METRO_CACHE_DIR',(Join-Path (Get-Location).Path '.metro-cache'),'Process'); [Environment]::SetEnvironmentVariable('EXPO_NO_DEPENDENCY_VALIDATION','1','Process'); $port=8081; $conn=(Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1); if ($conn) { Stop-Process -Id $conn.OwningProcess -Force }; expo start --lan --go --clear --port $port\"",
+    "start:api": "powershell -NoProfile -Command \"$sandboxHome=(Join-Path (Get-Location).Path '.sandbox-userprofile'); New-Item -ItemType Directory -Force -Path $sandboxHome | Out-Null; $drive=$sandboxHome.Substring(0,2); $path=$sandboxHome.Substring(2); [Environment]::SetEnvironmentVariable('USERPROFILE',$sandboxHome,'Process'); [Environment]::SetEnvironmentVariable('HOME',$sandboxHome,'Process'); [Environment]::SetEnvironmentVariable('HOMEDRIVE',$drive,'Process'); [Environment]::SetEnvironmentVariable('HOMEPATH',$path,'Process'); [Environment]::SetEnvironmentVariable('EXPO_HOME',(Join-Path (Get-Location).Path '.expo-home'),'Process'); [Environment]::SetEnvironmentVariable('METRO_CACHE_DIR',(Join-Path (Get-Location).Path '.metro-cache'),'Process'); [Environment]::SetEnvironmentVariable('EXPO_NO_DEPENDENCY_VALIDATION','1','Process'); [Environment]::SetEnvironmentVariable('EXPO_PUBLIC_API_BASE_URL','http://localhost:3000/api','Process'); $port=8081; $conn=(Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1); if ($conn) { Stop-Process -Id $conn.OwningProcess -Force }; expo start --clear --port $port\"",
+    "start:phone:api": "powershell -NoProfile -Command \"$sandboxHome=(Join-Path (Get-Location).Path '.sandbox-userprofile'); New-Item -ItemType Directory -Force -Path $sandboxHome | Out-Null; $drive=$sandboxHome.Substring(0,2); $path=$sandboxHome.Substring(2); [Environment]::SetEnvironmentVariable('USERPROFILE',$sandboxHome,'Process'); [Environment]::SetEnvironmentVariable('HOME',$sandboxHome,'Process'); [Environment]::SetEnvironmentVariable('HOMEDRIVE',$drive,'Process'); [Environment]::SetEnvironmentVariable('HOMEPATH',$path,'Process'); [Environment]::SetEnvironmentVariable('EXPO_HOME',(Join-Path (Get-Location).Path '.expo-home'),'Process'); [Environment]::SetEnvironmentVariable('METRO_CACHE_DIR',(Join-Path (Get-Location).Path '.metro-cache'),'Process'); [Environment]::SetEnvironmentVariable('EXPO_NO_DEPENDENCY_VALIDATION','1','Process'); $port=8081; $conn=(Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1); if ($conn) { Stop-Process -Id $conn.OwningProcess -Force }; $ip=(Get-NetIPAddress -AddressFamily IPv4 | Where-Object IPAddress -NotLike '127.*' | Where-Object IPAddress -NotLike '169.254*' | Select-Object -First 1 -ExpandProperty IPAddress); if (-not $ip) { throw 'IP local não encontrado' }; $api=('http://'+$ip+':3000/api'); $expo=('exp://'+$ip+':'+$port); [Environment]::SetEnvironmentVariable('EXPO_PUBLIC_API_BASE_URL',$api,'Process'); Write-Host ('API='+$api); Write-Host ('EXPO='+$expo); npx --yes qrcode-terminal@0.12.0 --small $expo; expo start --lan --go --clear --port $port\"",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web"
+  },
+  "dependencies": {
+    "@expo/vector-icons": "^14.1.0",
+    "@react-navigation/native": "^6.1.7",
+    "@react-navigation/native-stack": "^6.9.26",
+    "expo": "~54.0.33",
+    "expo-status-bar": "~3.0.9",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-gesture-handler": "~2.28.0",
+    "react-native-safe-area-context": "~5.6.0",
+    "react-native-screens": "~4.16.0"
+  },
+  "private": true
+}

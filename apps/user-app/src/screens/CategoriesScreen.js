@@ -62,7 +62,9 @@ const CategoriesScreen = ({ navigation }) => {
 
       <View style={styles.header}>
         <AnimatedBackButton onPress={() => navigation.goBack()} />
-        <Text style={styles.headerTitle}>Categorias</Text>
+        <Text style={styles.headerTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+          Categorias
+        </Text>
         <View style={styles.placeholder} />
       </View>
 
