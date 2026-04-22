@@ -2,7 +2,7 @@ export const termsOfUse = `
 TERMOS DE USO
 Tem Aki no Bairro
 
-Última atualização: ${new Date().toLocaleDateString('pt-BR')}
+Última atualização: 22/04/2026
 
 1. ACEITAÇÃO DOS TERMOS
 
@@ -15,11 +15,10 @@ O "Tem Aki no Bairro" é um aplicativo de diretório local que permite:
 • Visualizar negócios organizados por categorias
 • Buscar estabelecimentos por tipo de serviço
 • Acessar informações de contato e localização
-• Cadastrar novos negócios locais
 
 2.2 Natureza do Serviço
 • Aplicativo gratuito para uso pessoal
-• Funciona offline com dados armazenados localmente
+• Requer conexão com a internet para consultar o catálogo de negócios
 • Não requer cadastro de usuário
 • Focado em negócios de bairro e comunidade local
 
@@ -29,13 +28,11 @@ O "Tem Aki no Bairro" é um aplicativo de diretório local que permite:
 Concedemos uma licença limitada, não exclusiva e revogável para:
 • Usar o aplicativo para fins pessoais e não comerciais
 • Visualizar informações de negócios disponíveis
-• Cadastrar negócios legítimos e verdadeiros
 • Compartilhar informações de contato de estabelecimentos
 
 3.2 Restrições de Uso
 Você NÃO pode:
 • Usar o aplicativo para fins ilegais ou não autorizados
-• Cadastrar informações falsas ou enganosas
 • Tentar hackear, modificar ou interferir no funcionamento
 • Extrair dados em massa para uso comercial
 • Criar contas automatizadas ou usar bots
@@ -43,17 +40,11 @@ Você NÃO pode:
 
 4. CADASTRO DE NEGÓCIOS
 
-4.1 Responsabilidade do Usuário
-• Informações cadastradas devem ser verdadeiras e atualizadas
-• Usuário é responsável pela veracidade dos dados inseridos
-• Não cadastrar negócios inexistentes ou ilegais
-• Respeitar direitos de terceiros ao cadastrar estabelecimentos
+4.1 Observação
+Este aplicativo é destinado apenas à busca e consulta de negócios. O cadastro e a manutenção de negócios são feitos por administradores em um painel separado.
 
-4.2 Moderação de Conteúdo
-• Reservamos o direito de remover conteúdo inadequado
-• Negócios podem ser removidos sem aviso prévio
-• Não garantimos a veracidade de todas as informações
-• Usuários podem reportar informações incorretas
+4.2 Moderação
+Podemos corrigir, atualizar ou remover registros do catálogo quando necessário.
 
 5. PROPRIEDADE INTELECTUAL
 
@@ -64,7 +55,6 @@ Você NÃO pode:
 
 5.2 Conteúdo do Usuário
 • Informações de negócios cadastradas permanecem de propriedade dos respectivos donos
-• Ao cadastrar, você concede licença para exibir as informações no aplicativo
 • Não reivindicamos propriedade sobre dados de estabelecimentos
 
 6. ISENÇÃO DE RESPONSABILIDADE
@@ -89,7 +79,6 @@ Você NÃO pode:
 
 7.1 Coleta de Dados
 • Coletamos apenas dados necessários para o funcionamento
-• Dados são armazenados localmente no dispositivo
 • Consulte nossa Política de Privacidade para detalhes
 
 7.2 Proteção de Dados
@@ -131,15 +120,14 @@ Você NÃO pode:
 11. LEGISLAÇÃO APLICÁVEL
 
 • Estes termos são regidos pelas leis brasileiras
-• Foro da comarca de [Cidade] para resolução de disputas
+• Foro do domicílio do usuário, conforme legislação aplicável
 • Aplicam-se Código de Defesa do Consumidor e Marco Civil da Internet
 
 12. CONTATO
 
 Para dúvidas sobre estes Termos de Uso:
-• Email: suporte@temakinobairro.com.br
-• Endereço: [Endereço da empresa]
-• Telefone: [Telefone de contato]
+• Email: dsdodo18@hotmail.com
+• Telefone: (98) 99934-5232
 
 13. DISPOSIÇÕES GERAIS
 

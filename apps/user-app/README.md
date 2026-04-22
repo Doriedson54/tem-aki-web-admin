@@ -2,7 +2,7 @@
 
 App separado, somente leitura, para usuários pesquisarem e localizarem os negócios cadastrados.
 
-Ele usa a mesma base de dados do app de cadastro através do mesmo backend/API (`EXPO_PUBLIC_API_BASE_URL`).
+Ele usa a mesma base de dados do painel de cadastro (admin) através do mesmo backend/API (`EXPO_PUBLIC_API_BASE_URL`).
 
 ## Rodar
 

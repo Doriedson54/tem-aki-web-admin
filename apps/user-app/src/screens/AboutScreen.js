@@ -21,7 +21,7 @@ const AboutScreen = ({ navigation }) => {
           <View style={styles.logoContainer}>
             <Text style={styles.logoText}>🏪</Text>
           </View>
-          <Text style={styles.appName}>Negócios do Bairro</Text>
+          <Text style={styles.appName}>Tem Aki no Bairro</Text>
           <Text style={styles.version}>Versão 1.0.0</Text>
         </View>
 
@@ -38,9 +38,9 @@ const AboutScreen = ({ navigation }) => {
           <View style={styles.featureItem}>
             <Text style={styles.featureIcon}>📍</Text>
             <View style={styles.featureContent}>
-              <Text style={styles.featureTitle}>Localização Inteligente</Text>
+              <Text style={styles.featureTitle}>Localização</Text>
               <Text style={styles.featureDescription}>
-                Encontre negócios próximos a você com facilidade
+                Acesse endereço e abra no mapa para navegar até o local
               </Text>
             </View>
           </View>
@@ -48,19 +48,19 @@ const AboutScreen = ({ navigation }) => {
           <View style={styles.featureItem}>
             <Text style={styles.featureIcon}>🔍</Text>
             <View style={styles.featureContent}>
-              <Text style={styles.featureTitle}>Busca Avançada</Text>
+              <Text style={styles.featureTitle}>Busca</Text>
               <Text style={styles.featureDescription}>
-                Filtre por categoria, distância e avaliações
+                Busque por nome, descrição e endereço
               </Text>
             </View>
           </View>
 
           <View style={styles.featureItem}>
-            <Text style={styles.featureIcon}>⭐</Text>
+            <Text style={styles.featureIcon}>🗂️</Text>
             <View style={styles.featureContent}>
-              <Text style={styles.featureTitle}>Avaliações Reais</Text>
+              <Text style={styles.featureTitle}>Categorias</Text>
               <Text style={styles.featureDescription}>
-                Veja avaliações de outros usuários da comunidade
+                Navegue por categorias e subcategorias para encontrar o que precisa
               </Text>
             </View>
           </View>
@@ -88,9 +88,8 @@ const AboutScreen = ({ navigation }) => {
           <Text style={styles.techList}>
             • React Native{"\n"}
             • Expo{"\n"}
-            • Firebase{"\n"}
-            • Google Maps API{"\n"}
-            • Node.js
+            • Supabase{"\n"}
+            • API (Vercel)
           </Text>
         </View>
 
@@ -103,7 +102,7 @@ const AboutScreen = ({ navigation }) => {
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            © 2025 Negócios do Bairro{"\n"}
+            © 2026 Tem Aki no Bairro{"\n"}
             Todos os direitos reservados
           </Text>
           <Text style={styles.contactInfo}>
