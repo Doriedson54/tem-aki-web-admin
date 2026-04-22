@@ -1,10 +1,6 @@
 name: Build Web App
 
 on:
-  push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
@@ -20,38 +16,33 @@ jobs:
       with:
         node-version: '18'
         cache: 'npm'
+        cache-dependency-path: apps/user-app/package-lock.json
 
     - name: Install dependencies
+      working-directory: ./apps/user-app
       run: npm ci
 
-    - name: Install Expo CLI
-      run: npm install -g @expo/cli@latest
-
-    - name: Create Expo account token file
-      run: |
-        mkdir -p ~/.expo
-        echo "${{ secrets.EXPO_TOKEN }}" > ~/.expo/token
-
     - name: Build web app
-      run: npx expo export:web
+      working-directory: ./apps/user-app
+      run: npx expo export --platform web
 
     - name: Upload web build artifact
       uses: actions/upload-artifact@v4
       with:
         name: web-build
-        path: dist/
+        path: apps/user-app/dist/
         retention-days: 30
 
     - name: Deploy to GitHub Pages
-      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+      if: false
       uses: peaceiris/actions-gh-pages@v3
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./dist
+        publish_dir: ./apps/user-app/dist
         cname: negocios-do-bairro.com # Opcional: substitua pelo seu domínio
 
     - name: Create Release
-      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+      if: false
       uses: softprops/action-gh-release@v1
       with:
         tag_name: web-v${{ github.run_number }}
@@ -64,7 +55,7 @@ jobs:
           Alterações incluídas nesta versão:
           ${{ github.event.head_commit.message }}
         files: |
-          dist/**/*
+          apps/user-app/dist/**/*
         draft: false
         prerelease: false
       env:

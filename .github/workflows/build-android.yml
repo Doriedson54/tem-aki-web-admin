@@ -2,9 +2,9 @@ name: Build Android APK
 
 on:
   push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
+    tags: [ 'v*' ]
+    paths:
+      - 'apps/user-app/**'
   workflow_dispatch:
 
 jobs:
@@ -20,6 +20,7 @@ jobs:
       with:
         node-version: '18'
         cache: 'npm'
+        cache-dependency-path: apps/user-app/package-lock.json
 
     - name: Setup Java JDK
       uses: actions/setup-java@v4
@@ -31,6 +32,7 @@ jobs:
       uses: android-actions/setup-android@v3
 
     - name: Install dependencies
+      working-directory: ./apps/user-app
       run: npm ci
 
     - name: Install EAS CLI
@@ -42,23 +44,24 @@ jobs:
         echo "${{ secrets.EXPO_TOKEN }}" > ~/.expo/token
 
     - name: Prebuild Android
+      working-directory: ./apps/user-app
       run: npx expo prebuild --platform android --clean
 
     - name: Setup Gradle
       uses: gradle/gradle-build-action@v2
 
     - name: Make gradlew executable
-      run: chmod +x ./android/gradlew
+      run: chmod +x ./apps/user-app/android/gradlew
 
     - name: Build Android APK
-      working-directory: ./android
+      working-directory: ./apps/user-app/android
       run: ./gradlew assembleRelease
 
     - name: Sign APK
       if: success()
       uses: r0adkll/sign-android-release@v1
       with:
-        releaseDirectory: android/app/build/outputs/apk/release
+        releaseDirectory: apps/user-app/android/app/build/outputs/apk/release
         signingKeyBase64: ${{ secrets.ANDROID_SIGNING_KEY }}
         alias: ${{ secrets.ANDROID_KEY_ALIAS }}
         keyStorePassword: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -68,15 +71,15 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: app-release-signed
-        path: android/app/build/outputs/apk/release/app-release-unsigned.apk
+        path: apps/user-app/android/app/build/outputs/apk/release/app-release-unsigned.apk
         retention-days: 30
 
     - name: Create Release
-      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+      if: startsWith(github.ref, 'refs/tags/v')
       uses: softprops/action-gh-release@v1
       with:
-        tag_name: v${{ github.run_number }}
-        name: Release v${{ github.run_number }}
+        tag_name: ${{ github.ref_name }}
+        name: Release ${{ github.ref_name }}
         body: |
           🚀 Nova versão do aplicativo Negócios do Bairro
           
@@ -84,7 +87,7 @@ jobs:
           
           Alterações incluídas nesta versão:
           ${{ github.event.head_commit.message }}
-        files: android/app/build/outputs/apk/release/app-release-unsigned.apk
+        files: apps/user-app/android/app/build/outputs/apk/release/app-release-unsigned.apk
         draft: false
         prerelease: false
       env:

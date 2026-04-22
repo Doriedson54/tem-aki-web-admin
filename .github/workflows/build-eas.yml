@@ -1,11 +1,6 @@
 name: EAS Build (Android & iOS)
 
 on:
-  push:
-    branches: [ main, master ]
-    tags: [ 'v*' ]
-  pull_request:
-    branches: [ main, master ]
   workflow_dispatch:
     inputs:
       platform:
@@ -43,8 +38,19 @@ jobs:
       with:
         node-version: '18'
         cache: 'npm'
+        cache-dependency-path: apps/user-app/package-lock.json
+
+    - name: Detect EAS config
+      id: eas
+      run: |
+        if [ -f "apps/user-app/eas.json" ]; then
+          echo "has_eas=true" >> $GITHUB_OUTPUT
+        else
+          echo "has_eas=false" >> $GITHUB_OUTPUT
+        fi
 
     - name: Setup Expo and EAS
+      if: steps.eas.outputs.has_eas == 'true'
       uses: expo/expo-github-action@v8
       with:
         expo-version: latest
@@ -52,28 +58,34 @@ jobs:
         token: ${{ secrets.EXPO_TOKEN }}
 
     - name: Install dependencies
+      if: steps.eas.outputs.has_eas == 'true'
+      working-directory: ./apps/user-app
       run: npm ci
 
     - name: Verify EAS configuration
+      if: steps.eas.outputs.has_eas == 'true'
       run: |
         echo "Verificando configuração EAS..."
-        cat eas.json
+        cat apps/user-app/eas.json
         echo "Verificando app.json..."
-        cat app.json | jq '.expo.name, .expo.slug, .expo.version'
+        cat apps/user-app/app.json | jq '.expo.name, .expo.slug, .expo.version'
 
     - name: Build Android APK
-      if: matrix.platform == 'android'
+      if: steps.eas.outputs.has_eas == 'true' && matrix.platform == 'android'
       run: |
         echo "🤖 Iniciando build Android..."
+        cd apps/user-app
         eas build --platform android --profile ${{ github.event.inputs.profile || 'preview' }} --non-interactive --no-wait
         
     - name: Build iOS IPA
-      if: matrix.platform == 'ios'
+      if: steps.eas.outputs.has_eas == 'true' && matrix.platform == 'ios'
       run: |
         echo "🍎 Iniciando build iOS..."
+        cd apps/user-app
         eas build --platform ios --profile ${{ github.event.inputs.profile || 'preview' }} --non-interactive --no-wait
 
     - name: Wait for build completion
+      if: steps.eas.outputs.has_eas == 'true'
       run: |
         echo "⏳ Aguardando conclusão do build..."
         # Aguardar builds em andamento
@@ -81,6 +93,7 @@ jobs:
         eas build:list --status=in-progress --limit=10
 
     - name: Download build artifacts
+      if: steps.eas.outputs.has_eas == 'true'
       run: |
         echo "📥 Baixando artefatos do build..."
         # Baixar o último build para a plataforma
@@ -88,7 +101,7 @@ jobs:
         cat build_info.json
 
     - name: Create Release
-      if: startsWith(github.ref, 'refs/tags/v')
+      if: false
       uses: softprops/action-gh-release@v1
       with:
         name: Release ${{ github.ref_name }} (${{ matrix.platform }})

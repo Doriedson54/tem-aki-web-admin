@@ -3,8 +3,18 @@ name: Continuous Integration
 on:
   push:
     branches: [ main, master, develop ]
+    paths:
+      - 'apps/user-app/**'
+      - 'backend/**'
+      - 'web-admin/**'
+      - '.github/workflows/**'
   pull_request:
     branches: [ main, master, develop ]
+    paths:
+      - 'apps/user-app/**'
+      - 'backend/**'
+      - 'web-admin/**'
+      - '.github/workflows/**'
 
 jobs:
   test:
@@ -19,34 +29,41 @@ jobs:
       with:
         node-version: '18'
         cache: 'npm'
+        cache-dependency-path: apps/user-app/package-lock.json
 
     - name: Install dependencies
+      working-directory: ./apps/user-app
       run: npm ci
 
     - name: Run linting
       run: |
         echo "🔍 Running ESLint..."
         npx eslint . --ext .js,.jsx,.ts,.tsx || echo "ESLint not configured"
+      working-directory: ./apps/user-app
 
     - name: Run tests
       run: |
         echo "🧪 Running tests..."
         npm test || echo "No tests configured"
+      working-directory: ./apps/user-app
 
     - name: Check Expo configuration
       run: |
         echo "📱 Checking Expo configuration..."
         npx expo doctor
+      working-directory: ./apps/user-app
 
     - name: Validate app.json
       run: |
         echo "✅ Validating app.json..."
         node -e "console.log('app.json is valid JSON:', JSON.parse(require('fs').readFileSync('app.json', 'utf8')))"
+      working-directory: ./apps/user-app
 
     - name: Check for security vulnerabilities
       run: |
         echo "🔒 Checking for security vulnerabilities..."
         npm audit --audit-level=moderate
+      working-directory: ./apps/user-app
 
   build-check:
     runs-on: ubuntu-latest
@@ -60,25 +77,23 @@ jobs:
       with:
         node-version: '18'
         cache: 'npm'
+        cache-dependency-path: apps/user-app/package-lock.json
 
     - name: Install dependencies
+      working-directory: ./apps/user-app
       run: npm ci
-
-    - name: Setup Expo
-      uses: expo/expo-github-action@v8
-      with:
-        expo-version: latest
-        token: ${{ secrets.EXPO_TOKEN }}
 
     - name: Test web build
       run: |
         echo "🌐 Testing web build..."
-        npx expo export:web
+        npx expo export --platform web
+      working-directory: ./apps/user-app
 
     - name: Test prebuild
       run: |
         echo "📱 Testing prebuild..."
         npx expo prebuild --no-install
+      working-directory: ./apps/user-app
 
   backend-test:
     runs-on: ubuntu-latest

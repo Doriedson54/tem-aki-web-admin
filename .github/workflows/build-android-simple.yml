@@ -3,6 +3,8 @@ name: Build Android APK (Simple)
 on:
   push:
     branches: [ main, master ]
+    paths:
+      - 'apps/user-app/**'
   workflow_dispatch:
 
 jobs:
@@ -18,6 +20,7 @@ jobs:
       with:
         node-version: '18'
         cache: 'npm'
+        cache-dependency-path: apps/user-app/package-lock.json
 
     - name: Setup Java JDK
       uses: actions/setup-java@v4
@@ -29,6 +32,7 @@ jobs:
       uses: android-actions/setup-android@v3
 
     - name: Install dependencies
+      working-directory: ./apps/user-app
       run: npm ci
 
     - name: Install EAS CLI
@@ -40,23 +44,24 @@ jobs:
         echo "${{ secrets.EXPO_TOKEN }}" > ~/.expo/token
 
     - name: Prebuild Android
+      working-directory: ./apps/user-app
       run: npx expo prebuild --platform android --clean
 
     - name: Setup Gradle
       uses: gradle/gradle-build-action@v2
 
     - name: Make gradlew executable
-      run: chmod +x ./android/gradlew
+      run: chmod +x ./apps/user-app/android/gradlew
 
     - name: Build Android APK (Debug)
-      working-directory: ./android
+      working-directory: ./apps/user-app/android
       run: ./gradlew assembleDebug
 
     - name: Upload APK artifact
       uses: actions/upload-artifact@v4
       with:
         name: app-debug
-        path: android/app/build/outputs/apk/debug/app-debug.apk
+        path: apps/user-app/android/app/build/outputs/apk/debug/app-debug.apk
         retention-days: 30
 
     - name: Create Release
@@ -73,7 +78,7 @@ jobs:
           
           Alterações incluídas nesta versão:
           ${{ github.event.head_commit.message }}
-        files: android/app/build/outputs/apk/debug/app-debug.apk
+        files: apps/user-app/android/app/build/outputs/apk/debug/app-debug.apk
         draft: false
         prerelease: true
       env:
