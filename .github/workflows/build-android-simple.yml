@@ -38,14 +38,6 @@ jobs:
       working-directory: ./apps/user-app
       run: npm ci
 
-    - name: Install EAS CLI
-      run: npm install -g @expo/cli@latest
-
-    - name: Create Expo account token file
-      run: |
-        mkdir -p ~/.expo
-        echo "${{ secrets.EXPO_TOKEN }}" > ~/.expo/token
-
     - name: Prebuild Android
       working-directory: ./apps/user-app
       run: npx expo prebuild --platform android --clean
@@ -56,14 +48,26 @@ jobs:
     - name: Build Android APK (Release)
       working-directory: ./apps/user-app/android
       env:
-        GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.workers.max=2
-      run: ./gradlew --no-daemon --stacktrace assembleRelease
+        GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.workers.max=2 -Dorg.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8
+      run: |
+        ./gradlew --no-daemon --stacktrace --info assembleRelease 2>&1 | tee ../gradle-build.log
 
     - name: Upload APK artifact
       uses: actions/upload-artifact@v4
       with:
         name: app-release
         path: apps/user-app/android/app/build/outputs/apk/release/app-release.apk
+        retention-days: 30
+
+    - name: Upload build logs
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: android-build-logs
+        path: |
+          apps/user-app/gradle-build.log
+          apps/user-app/android/app/build/reports/**
+          apps/user-app/android/build/reports/**
         retention-days: 30
 
     - name: Create Release
