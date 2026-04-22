@@ -24,8 +24,6 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '20.20.2'
-        cache: 'npm'
-        cache-dependency-path: apps/user-app/package-lock.json
 
     - name: Setup Java JDK
       uses: actions/setup-java@v4
@@ -52,15 +50,14 @@ jobs:
       working-directory: ./apps/user-app
       run: npx expo prebuild --platform android --clean
 
-    - name: Setup Gradle
-      uses: gradle/gradle-build-action@v2
-
     - name: Make gradlew executable
       run: chmod +x ./apps/user-app/android/gradlew
 
     - name: Build Android APK (Release)
       working-directory: ./apps/user-app/android
-      run: ./gradlew assembleRelease
+      env:
+        GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.workers.max=2
+      run: ./gradlew --no-daemon --stacktrace assembleRelease
 
     - name: Upload APK artifact
       uses: actions/upload-artifact@v4
