@@ -2,7 +2,6 @@ name: Deploy Application
 
 on:
   push:
-    branches: [ main ]
     tags: [ 'v*' ]
   workflow_dispatch:
     inputs:
@@ -45,7 +44,7 @@ jobs:
     - name: Build web application
       run: |
         echo "🌐 Building web application..."
-        npx expo export:web
+        npx expo export --platform web
         
     - name: Deploy to Vercel
       if: github.event.inputs.environment != 'staging'
@@ -104,7 +103,7 @@ jobs:
 
     - name: Deploy to Railway
       if: github.event.inputs.environment == 'production'
-      uses: bervProject/railway-deploy@v1.0.0
+      uses: bervProject/railway-deploy@0.0.4-alpha
       with:
         railway_token: ${{ secrets.RAILWAY_TOKEN }}
         service: backend
