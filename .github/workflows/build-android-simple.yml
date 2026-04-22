@@ -23,7 +23,7 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: '20.20.2'
         cache: 'npm'
         cache-dependency-path: apps/user-app/package-lock.json
 
@@ -52,27 +52,21 @@ jobs:
       working-directory: ./apps/user-app
       run: npx expo prebuild --platform android --clean
 
-    - name: Bundle JS for offline APK
-      working-directory: ./apps/user-app
-      run: |
-        mkdir -p android/app/src/main/assets
-        npx react-native bundle --platform android --dev false --entry-file index.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res
-
     - name: Setup Gradle
       uses: gradle/gradle-build-action@v2
 
     - name: Make gradlew executable
       run: chmod +x ./apps/user-app/android/gradlew
 
-    - name: Build Android APK (Debug)
+    - name: Build Android APK (Release)
       working-directory: ./apps/user-app/android
-      run: ./gradlew assembleDebug
+      run: ./gradlew assembleRelease
 
     - name: Upload APK artifact
       uses: actions/upload-artifact@v4
       with:
-        name: app-debug
-        path: apps/user-app/android/app/build/outputs/apk/debug/app-debug.apk
+        name: app-release
+        path: apps/user-app/android/app/build/outputs/apk/release/app-release.apk
         retention-days: 30
 
     - name: Create Release
@@ -85,12 +79,12 @@ jobs:
         body: |
           🚀 Nova versão de teste do aplicativo Negócios do Bairro
           
-          📱 APK Android (Debug) disponível para download
+          📱 APK Android (Release) disponível para download
           ⚠️  Esta é uma versão de teste não assinada
           
           Alterações incluídas nesta versão:
           ${{ github.event.head_commit.message }}
-        files: apps/user-app/android/app/build/outputs/apk/debug/app-debug.apk
+        files: apps/user-app/android/app/build/outputs/apk/release/app-release.apk
         draft: false
         prerelease: true
       env:
