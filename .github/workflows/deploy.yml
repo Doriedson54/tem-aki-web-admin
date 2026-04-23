@@ -26,6 +26,7 @@ on:
 
 env:
   NODE_VERSION: '18'
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
   deploy-web:

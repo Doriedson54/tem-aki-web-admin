@@ -3,6 +3,9 @@ name: Build Web App
 on:
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 jobs:
   build-web:
     runs-on: ubuntu-latest
@@ -43,7 +46,7 @@ jobs:
 
     - name: Create Release
       if: false
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         tag_name: web-v${{ github.run_number }}
         name: Web Release v${{ github.run_number }}
