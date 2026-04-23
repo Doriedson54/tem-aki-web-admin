@@ -1,8 +1,20 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { Ionicons } from '@expo/vector-icons';
 import AnimatedBackButton from '../components/AnimatedBackButton';
 import { getSubcategories } from '../services/businessService';
+
+const pickIcon = (subcategoryName) => {
+  const name = String(subcategoryName || '').toLowerCase();
+  if (name.includes('digit') || name.includes('comunica') || name.includes('inform')) return 'wifi-outline';
+  if (name.includes('finance') || name.includes('admin')) return 'cash-outline';
+  if (name.includes('saúde') || name.includes('saude') || name.includes('bem-estar') || name.includes('bem estar')) return 'medkit-outline';
+  if (name.includes('transport') || name.includes('entreg') || name.includes('logíst') || name.includes('logist')) return 'car-outline';
+  if (name.includes('domést') || name.includes('domest') || name.includes('manuten') || name.includes('reparo')) return 'home-outline';
+  if (name.includes('educ') || name.includes('cultur')) return 'book-outline';
+  return 'briefcase-outline';
+};
 
 const ServiceProvidersScreen = ({ navigation, route }) => {
   const categoryId = route?.params?.categoryId || null;
@@ -85,7 +97,7 @@ const ServiceProvidersScreen = ({ navigation, route }) => {
               onPress={() => handleServicePress(service)}
               activeOpacity={0.8}
             >
-              <Text style={styles.subcategoryIcon}>🔹</Text>
+              <Ionicons name={pickIcon(service.name)} size={34} color="#ffffff" style={styles.subcategoryIcon} />
               <Text style={styles.subcategoryTitle}>{service.name}</Text>
             </TouchableOpacity>
           ))
@@ -172,7 +184,6 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   subcategoryIcon: {
-    fontSize: 34,
     marginBottom: 8,
   },
   subcategoryTitle: {

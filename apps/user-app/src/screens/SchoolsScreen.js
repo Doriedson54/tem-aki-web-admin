@@ -1,8 +1,19 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { Ionicons } from '@expo/vector-icons';
 import AnimatedBackButton from '../components/AnimatedBackButton';
 import { getSubcategories } from '../services/businessService';
+
+const pickIcon = (subcategoryName) => {
+  const name = String(subcategoryName || '').toLowerCase();
+  if (name.includes('infantil') || name.includes('creche')) return 'balloon-outline';
+  if (name.includes('fundamental') || name.includes('médio') || name.includes('medio')) return 'school-outline';
+  if (name.includes('técnic') || name.includes('tecnic') || name.includes('profiss') || name.includes('curso')) return 'hammer-outline';
+  if (name.includes('idioma') || name.includes('inglês') || name.includes('ingles')) return 'language-outline';
+  if (name.includes('univers') || name.includes('faculd')) return 'library-outline';
+  return 'book-outline';
+};
 
 const SchoolsScreen = ({ navigation, route }) => {
   const categoryId = route?.params?.categoryId || null;
@@ -79,7 +90,7 @@ const SchoolsScreen = ({ navigation, route }) => {
                 onPress={() => handleSchoolPress(category)}
                 activeOpacity={0.7}
               >
-                <Text style={styles.categoryIcon}>🔹</Text>
+                <Ionicons name={pickIcon(category.name)} size={34} color="#ffffff" style={styles.categoryIcon} />
                 <Text style={styles.categoryTitle}>{category.name}</Text>
               </TouchableOpacity>
             ))
@@ -177,7 +188,6 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   categoryIcon: {
-    fontSize: 34,
   },
 });
 

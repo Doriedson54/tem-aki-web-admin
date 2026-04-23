@@ -1,8 +1,21 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { Ionicons } from '@expo/vector-icons';
 import AnimatedBackButton from '../components/AnimatedBackButton';
 import { getSubcategories } from '../services/businessService';
+
+const pickIcon = (subcategoryName) => {
+  const name = String(subcategoryName || '').toLowerCase();
+  if (name.includes('mercad') || name.includes('super') || name.includes('varej') || name.includes('atacad')) return 'cart-outline';
+  if (name.includes('farm') || name.includes('drog')) return 'medkit-outline';
+  if (name.includes('roup') || name.includes('moda') || name.includes('calç') || name.includes('calc')) return 'shirt-outline';
+  if (name.includes('beleza') || name.includes('salão') || name.includes('salao') || name.includes('barbe')) return 'cut-outline';
+  if (name.includes('eletr') || name.includes('inform') || name.includes('tec')) return 'hardware-chip-outline';
+  if (name.includes('constr') || name.includes('mate') || name.includes('ferr')) return 'construct-outline';
+  if (name.includes('pet')) return 'paw-outline';
+  return 'pricetag-outline';
+};
 
 const CommerceScreen = ({ navigation, route }) => {
   const categoryId = route?.params?.categoryId || null;
@@ -85,7 +98,7 @@ const CommerceScreen = ({ navigation, route }) => {
               onPress={() => handleCommercePress(subcategory)}
               activeOpacity={0.8}
             >
-              <Text style={styles.subcategoryIcon}>🔹</Text>
+              <Ionicons name={pickIcon(subcategory.name)} size={34} color="#ffffff" style={styles.subcategoryIcon} />
               <Text style={styles.subcategoryTitle}>{subcategory.name}</Text>
             </TouchableOpacity>
           ))
@@ -172,7 +185,6 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   subcategoryIcon: {
-    fontSize: 34,
     marginBottom: 8,
   },
   subcategoryTitle: {

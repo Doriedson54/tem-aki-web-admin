@@ -115,20 +115,20 @@ const BusinessProfileScreen = ({ route, navigation }) => {
   const neighborhood = business?.neighborhood || null;
   const cityState = business?.cityState || (business?.city && business?.state ? `${business.city}/${business.state}` : null);
   const zipCode = business?.zipCode || business?.zip_code || null;
-  const phone = business?.phone || null;
-  const whatsapp = business?.whatsapp || null;
-  const email = business?.email || null;
+  const phone = normalizeString(business?.phone) || null;
+  const whatsapp = normalizeString(business?.whatsapp) || null;
+  const email = normalizeString(business?.email) || null;
   const workingHours =
     business?.opening_hours?.description ||
     business?.working_hours ||
     business?.openingHours ||
     business?.workingHours ||
     null;
-  const website = business?.website || business?.site || null;
-  const instagram = business?.instagram || null;
-  const facebook = business?.facebook || null;
-  const otherSocialMedia = business?.otherSocialMedia || business?.other_social_media || null;
-  const hasDelivery = Boolean(business?.hasDelivery || business?.has_delivery);
+  const website = normalizeString(business?.website || business?.site) || null;
+  const instagram = normalizeString(business?.instagram) || null;
+  const facebook = normalizeString(business?.facebook) || null;
+  const otherSocialMedia = normalizeString(business?.otherSocialMedia || business?.other_social_media) || null;
+  const hasDelivery = Boolean(business?.hasDelivery || business?.has_delivery || business?.delivery);
   const rating = business?.rating ?? null;
   const isOpen = typeof business?.isOpen === 'boolean' ? business.isOpen : null;
 
@@ -170,14 +170,24 @@ const BusinessProfileScreen = ({ route, navigation }) => {
 
   const handleInstagram = useCallback(() => {
     if (!instagram) return;
-    const handle = String(instagram).replace(/^@/, '');
+    const raw = String(instagram).trim();
+    if (/^https?:\/\//i.test(raw)) {
+      openUrl(raw);
+      return;
+    }
+    const handle = raw
+      .replace(/^@/, '')
+      .replace(/^https?:\/\/(www\.)?instagram\.com\//i, '')
+      .split(/[/?#]/)[0];
     openUrl(`https://instagram.com/${handle}`);
   }, [instagram]);
 
   const handleFacebook = useCallback(() => {
     if (!facebook) return;
-    const f = String(facebook);
-    const url = f.startsWith('http://') || f.startsWith('https://') ? f : `https://facebook.com/${f}`;
+    const raw = String(facebook).trim();
+    const url = /^https?:\/\//i.test(raw)
+      ? raw
+      : `https://facebook.com/${raw.replace(/^https?:\/\/(www\.)?facebook\.com\//i, '').split(/[/?#]/)[0]}`;
     openUrl(url);
   }, [facebook]);
 

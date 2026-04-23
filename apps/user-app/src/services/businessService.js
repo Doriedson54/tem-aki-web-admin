@@ -41,8 +41,20 @@ export async function getBusinessesBySubcategory(subcategoryId) {
 }
 
 export async function getBusinessById(id) {
-  const data = await apiGet(API_ENDPOINTS.BUSINESSES.BY_ID(id));
-  return normalizeBusiness(data);
+  try {
+    const data = await apiGet(API_ENDPOINTS.BUSINESSES.BY_ID(id));
+    const resolved = Array.isArray(data) ? data[0] : data;
+    return normalizeBusiness(resolved);
+  } catch (error) {
+    try {
+      const list = await apiGet(API_ENDPOINTS.BUSINESSES.LIST());
+      if (Array.isArray(list)) {
+        const found = list.find((b) => String(b?.id) === String(id));
+        if (found) return normalizeBusiness(found);
+      }
+    } catch {}
+    throw error;
+  }
 }
 
 export async function searchBusinesses({ q, categoryId, subcategory } = {}) {
