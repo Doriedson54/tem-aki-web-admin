@@ -206,23 +206,10 @@ const BusinessProfileScreen = ({ route, navigation }) => {
 
     try {
       setSubmittingRating(true);
-      const url = `${API_BASE_URL}/businesses/${encodeURIComponent(String(businessId))}/rating`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rating: userRating }),
-      });
-      const json = await response.json().catch(() => null);
-      if (!response.ok || json?.success === false) {
-        const message = json?.message || `Erro HTTP ${response.status}`;
-        throw new Error(message);
-      }
-      if (json?.data && typeof json.data === 'object') {
-        setBusiness((prev) => ({ ...(prev || {}), ...json.data }));
-      }
+      setBusiness((prev) => ({ ...(prev || {}), user_rating: userRating }));
       Alert.alert('Obrigado!', 'Sua avaliação foi registrada.');
     } catch (e) {
-      Alert.alert('Não foi possível enviar a avaliação', e?.message || 'Tente novamente.');
+      Alert.alert('Não foi possível registrar a avaliação', e?.message || 'Tente novamente.');
     } finally {
       setSubmittingRating(false);
     }
@@ -321,9 +308,8 @@ const BusinessProfileScreen = ({ route, navigation }) => {
           >
             <Text style={styles.rateButtonText}>{submittingRating ? 'Enviando…' : 'Enviar avaliação'}</Text>
           </TouchableOpacity>
-          <Text style={styles.helperText}>
-            {rating !== null ? `Média atual: ${Number(rating).toFixed(1)}` : 'Sem média de avaliações no momento'}
-          </Text>
+          <Text style={styles.helperText}>{userRating ? `Sua avaliação: ${userRating}/5` : 'Escolha de 1 a 5 estrelas'}</Text>
+          <Text style={styles.helperText}>{rating !== null ? `Média atual: ${Number(rating).toFixed(1)}` : 'Sem média de avaliações no momento'}</Text>
         </View>
 
         <View style={styles.section}>
