@@ -71,6 +71,8 @@ const BusinessProfileScreen = ({ route, navigation }) => {
   const initialBusiness = route.params?.business || {};
   const [business, setBusiness] = useState(initialBusiness);
   const [loading, setLoading] = useState(false);
+  const [userRating, setUserRating] = useState(null);
+  const [submittingRating, setSubmittingRating] = useState(false);
   const { width } = useWindowDimensions();
   const photoWidth = Math.min(width - 40, 380);
   const photoHeight = Math.round(photoWidth * 0.63);
@@ -93,6 +95,7 @@ const BusinessProfileScreen = ({ route, navigation }) => {
     reload();
   }, []);
 
+  const businessId = business?.id ?? initialBusiness?.id ?? null;
   const name = business?.name || business?.establishmentName || 'Negócio';
   const routeParentCategory = route.params?.parentCategory || null;
   const routeSubcategory = route.params?.subcategory || null;
@@ -198,6 +201,33 @@ const BusinessProfileScreen = ({ route, navigation }) => {
     openUrl(url);
   }, [otherSocialMedia]);
 
+  const submitRating = useCallback(async () => {
+    if (!businessId || !userRating) return;
+
+    try {
+      setSubmittingRating(true);
+      const url = `${API_BASE_URL}/businesses/${encodeURIComponent(String(businessId))}/rating`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rating: userRating }),
+      });
+      const json = await response.json().catch(() => null);
+      if (!response.ok || json?.success === false) {
+        const message = json?.message || `Erro HTTP ${response.status}`;
+        throw new Error(message);
+      }
+      if (json?.data && typeof json.data === 'object') {
+        setBusiness((prev) => ({ ...(prev || {}), ...json.data }));
+      }
+      Alert.alert('Obrigado!', 'Sua avaliação foi registrada.');
+    } catch (e) {
+      Alert.alert('Não foi possível enviar a avaliação', e?.message || 'Tente novamente.');
+    } finally {
+      setSubmittingRating(false);
+    }
+  }, [businessId, userRating]);
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="light" />
@@ -265,139 +295,162 @@ const BusinessProfileScreen = ({ route, navigation }) => {
           )}
         </View>
 
-        {mainProduct && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Produto/Serviço Principal</Text>
-            <Text style={styles.sectionContent}>{normalizeString(mainProduct)}</Text>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Avaliação</Text>
+          <View style={styles.ratingRow}>
+            {[1, 2, 3, 4, 5].map((value) => (
+              <TouchableOpacity
+                key={value}
+                style={styles.starButton}
+                onPress={() => setUserRating(value)}
+                activeOpacity={0.86}
+              >
+                <Ionicons
+                  name={(userRating || 0) >= value ? 'star' : 'star-outline'}
+                  size={28}
+                  color={(userRating || 0) >= value ? '#f59e0b' : '#9ca3af'}
+                />
+              </TouchableOpacity>
+            ))}
           </View>
-        )}
+          <TouchableOpacity
+            style={[styles.rateButton, { backgroundColor: colors.primary }, (!userRating || submittingRating || !businessId) && styles.rateButtonDisabled]}
+            onPress={submitRating}
+            activeOpacity={0.86}
+            disabled={!userRating || submittingRating || !businessId}
+          >
+            <Text style={styles.rateButtonText}>{submittingRating ? 'Enviando…' : 'Enviar avaliação'}</Text>
+          </TouchableOpacity>
+          <Text style={styles.helperText}>
+            {rating !== null ? `Média atual: ${Number(rating).toFixed(1)}` : 'Sem média de avaliações no momento'}
+          </Text>
+        </View>
 
-        {description && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Sobre</Text>
-            <Text style={styles.sectionContent}>{normalizeString(description)}</Text>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Produto/Serviço Principal</Text>
+          <Text style={styles.sectionContent}>{normalizeString(mainProduct) || 'Não informado'}</Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Sobre</Text>
+          <Text style={styles.sectionContent}>{normalizeString(description) || 'Não informado'}</Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Localização</Text>
+          <View style={styles.locationItem}>
+            <Text style={styles.locationLabel}>Endereço:</Text>
+            <Text style={styles.sectionContent}>{normalizeString(address) || 'Não informado'}</Text>
           </View>
-        )}
-
-        {(address || neighborhood || cityState || zipCode) && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Localização</Text>
-            {address && (
-              <View style={styles.locationItem}>
-                <Text style={styles.locationLabel}>Endereço:</Text>
-                <Text style={styles.sectionContent}>{normalizeString(address)}</Text>
-              </View>
-            )}
-            {neighborhood && (
-              <View style={styles.locationItem}>
-                <Text style={styles.locationLabel}>Bairro:</Text>
-                <Text style={styles.sectionContent}>{normalizeString(neighborhood)}</Text>
-              </View>
-            )}
-            {cityState && (
-              <View style={styles.locationItem}>
-                <Text style={styles.locationLabel}>Cidade/Estado:</Text>
-                <Text style={styles.sectionContent}>{normalizeString(cityState)}</Text>
-              </View>
-            )}
-            {zipCode && (
-              <View style={styles.locationItem}>
-                <Text style={styles.locationLabel}>CEP:</Text>
-                <Text style={styles.sectionContent}>{normalizeString(zipCode)}</Text>
-              </View>
-            )}
-            {mapUrl && (
-              <TouchableOpacity style={[styles.mapButton, { backgroundColor: colors.primary }]} onPress={() => openUrl(mapUrl)} activeOpacity={0.86}>
-                <Text style={styles.mapButtonIcon}>📍</Text>
-                <Text style={styles.mapButtonText}>Localizar no Mapa</Text>
-              </TouchableOpacity>
-            )}
+          <View style={styles.locationItem}>
+            <Text style={styles.locationLabel}>Bairro:</Text>
+            <Text style={styles.sectionContent}>{normalizeString(neighborhood) || 'Não informado'}</Text>
           </View>
-        )}
-
-        {workingHours && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Horário de Funcionamento</Text>
-            <Text style={styles.sectionContent}>{normalizeString(workingHours)}</Text>
+          <View style={styles.locationItem}>
+            <Text style={styles.locationLabel}>Cidade/Estado:</Text>
+            <Text style={styles.sectionContent}>{normalizeString(cityState) || 'Não informado'}</Text>
           </View>
-        )}
-
-        {hasDelivery && (
-          <View style={styles.section}>
-            <View style={[styles.deliveryBadge, { backgroundColor: colors.primary }]}>
-              <Text style={styles.deliveryText}>🚚 Faz Delivery</Text>
-            </View>
+          <View style={styles.locationItem}>
+            <Text style={styles.locationLabel}>CEP:</Text>
+            <Text style={styles.sectionContent}>{normalizeString(zipCode) || 'Não informado'}</Text>
           </View>
-        )}
+          {mapUrl && (
+            <TouchableOpacity style={[styles.mapButton, { backgroundColor: colors.primary }]} onPress={() => openUrl(mapUrl)} activeOpacity={0.86}>
+              <Text style={styles.mapButtonIcon}>📍</Text>
+              <Text style={styles.mapButtonText}>Localizar no Mapa</Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
-        {(phone || whatsapp || email || website) && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Contatos</Text>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Horário de Funcionamento</Text>
+          <Text style={styles.sectionContent}>{normalizeString(workingHours) || 'Não informado'}</Text>
+        </View>
 
-            {phone && (
-              <TouchableOpacity style={styles.contactButton} onPress={handlePhoneCall} activeOpacity={0.86}>
-                <Text style={styles.contactIcon}>📞</Text>
-                <Text style={styles.contactText}>{normalizeString(phone)}</Text>
-              </TouchableOpacity>
-            )}
-
-            {whatsapp && (
-              <TouchableOpacity style={styles.contactButton} onPress={handleWhatsApp} activeOpacity={0.86}>
-                <Ionicons name="logo-whatsapp" size={20} color="#25D366" style={styles.contactIconIonicons} />
-                <Text style={styles.contactText}>{normalizeString(whatsapp)}</Text>
-              </TouchableOpacity>
-            )}
-
-            {email && (
-              <TouchableOpacity style={styles.contactButton} onPress={handleEmail} activeOpacity={0.86}>
-                <Text style={styles.contactIcon}>📧</Text>
-                <Text style={styles.contactText}>{normalizeString(email)}</Text>
-              </TouchableOpacity>
-            )}
-
-            {website && (
-              <TouchableOpacity style={styles.contactButton} onPress={handleWebsite} activeOpacity={0.86}>
-                <Text style={styles.contactIcon}>🌐</Text>
-                <Text style={styles.contactText} numberOfLines={1}>
-                  {normalizeString(website)}
-                </Text>
-              </TouchableOpacity>
-            )}
+        <View style={styles.section}>
+          <View style={[styles.deliveryBadge, { backgroundColor: hasDelivery ? colors.primary : '#6b7280' }]}>
+            <Text style={styles.deliveryText}>{hasDelivery ? '🚚 Faz Delivery' : '🚫 Não faz Delivery'}</Text>
           </View>
-        )}
+        </View>
 
-        {(instagram || facebook || otherSocialMedia) && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Redes Sociais</Text>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Contatos</Text>
 
-            {instagram && (
-              <TouchableOpacity style={styles.socialButton} onPress={handleInstagram} activeOpacity={0.86}>
-                <Ionicons name="logo-instagram" size={20} color="#E4405F" style={styles.socialIconIonicons} />
-                <Text style={styles.socialText} numberOfLines={1}>
-                  Instagram: {normalizeString(instagram)}
-                </Text>
-              </TouchableOpacity>
-            )}
+          {phone ? (
+            <TouchableOpacity style={styles.contactButton} onPress={handlePhoneCall} activeOpacity={0.86}>
+              <Text style={styles.contactIcon}>📞</Text>
+              <Text style={styles.contactText}>{normalizeString(phone)}</Text>
+            </TouchableOpacity>
+          ) : (
+            <Text style={styles.emptyStateText}>Telefone não informado</Text>
+          )}
 
-            {facebook && (
-              <TouchableOpacity style={styles.socialButton} onPress={handleFacebook} activeOpacity={0.86}>
-                <Ionicons name="logo-facebook" size={20} color="#1877F2" style={styles.socialIconIonicons} />
-                <Text style={styles.socialText} numberOfLines={1}>
-                  Facebook: {normalizeString(facebook)}
-                </Text>
-              </TouchableOpacity>
-            )}
+          {whatsapp ? (
+            <TouchableOpacity style={styles.contactButton} onPress={handleWhatsApp} activeOpacity={0.86}>
+              <Ionicons name="logo-whatsapp" size={20} color="#25D366" style={styles.contactIconIonicons} />
+              <Text style={styles.contactText}>{normalizeString(whatsapp)}</Text>
+            </TouchableOpacity>
+          ) : (
+            <Text style={styles.emptyStateText}>WhatsApp não informado</Text>
+          )}
 
-            {otherSocialMedia && (
-              <TouchableOpacity style={styles.socialButton} onPress={handleOtherSocial} activeOpacity={0.86}>
-                <Text style={styles.socialIcon}>🔗</Text>
-                <Text style={styles.socialText} numberOfLines={1}>
-                  {normalizeString(otherSocialMedia)}
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
+          {email ? (
+            <TouchableOpacity style={styles.contactButton} onPress={handleEmail} activeOpacity={0.86}>
+              <Text style={styles.contactIcon}>📧</Text>
+              <Text style={styles.contactText}>{normalizeString(email)}</Text>
+            </TouchableOpacity>
+          ) : (
+            <Text style={styles.emptyStateText}>E-mail não informado</Text>
+          )}
+
+          {website ? (
+            <TouchableOpacity style={styles.contactButton} onPress={handleWebsite} activeOpacity={0.86}>
+              <Text style={styles.contactIcon}>🌐</Text>
+              <Text style={styles.contactText} numberOfLines={1}>
+                {normalizeString(website)}
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <Text style={styles.emptyStateText}>Site não informado</Text>
+          )}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Redes Sociais</Text>
+
+          {instagram ? (
+            <TouchableOpacity style={styles.socialButton} onPress={handleInstagram} activeOpacity={0.86}>
+              <Ionicons name="logo-instagram" size={20} color="#E4405F" style={styles.socialIconIonicons} />
+              <Text style={styles.socialText} numberOfLines={1}>
+                Instagram: {normalizeString(instagram)}
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <Text style={styles.emptyStateText}>Instagram não informado</Text>
+          )}
+
+          {facebook ? (
+            <TouchableOpacity style={styles.socialButton} onPress={handleFacebook} activeOpacity={0.86}>
+              <Ionicons name="logo-facebook" size={20} color="#1877F2" style={styles.socialIconIonicons} />
+              <Text style={styles.socialText} numberOfLines={1}>
+                Facebook: {normalizeString(facebook)}
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <Text style={styles.emptyStateText}>Facebook não informado</Text>
+          )}
+
+          {otherSocialMedia ? (
+            <TouchableOpacity style={styles.socialButton} onPress={handleOtherSocial} activeOpacity={0.86}>
+              <Text style={styles.socialIcon}>🔗</Text>
+              <Text style={styles.socialText} numberOfLines={1}>
+                {normalizeString(otherSocialMedia)}
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <Text style={styles.emptyStateText}>Outro link não informado</Text>
+          )}
+        </View>
 
         <View style={styles.bottomSpacing} />
       </ScrollView>
@@ -630,6 +683,40 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#495057',
     flex: 1,
+  },
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 12,
+  },
+  starButton: {
+    padding: 4,
+  },
+  rateButton: {
+    paddingVertical: 12,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  rateButtonDisabled: {
+    opacity: 0.55,
+  },
+  rateButtonText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  helperText: {
+    marginTop: 10,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#6b7280',
+  },
+  emptyStateText: {
+    paddingVertical: 10,
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#6b7280',
   },
   bottomSpacing: {
     height: 20,
