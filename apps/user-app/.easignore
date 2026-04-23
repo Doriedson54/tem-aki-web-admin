@@ -1,0 +1,11 @@
+node_modules
+.expo
+.expo-shared
+.metro-cache
+dist
+web-build
+android
+ios
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
