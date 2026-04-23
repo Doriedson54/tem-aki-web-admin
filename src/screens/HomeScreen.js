@@ -3,10 +3,9 @@ import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Image, ImageBac
 import { StatusBar } from 'expo-status-bar';
 // import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-const temAkiLogo = require('../assets/tem_aki_background.png');
 const tabSemFundo = require('../assets/TABsemfundo.png');
 const logoSemFundo = require('../assets/logosemfundo.png');
-const comercioBairro = require('../assets/comerciobairro.jpg');
+const comercioBairro = require('../assets/comerciobairro.png');
 import SideMenu from '../components/SideMenu';
 import { syncService } from '../services/SyncService';
 
