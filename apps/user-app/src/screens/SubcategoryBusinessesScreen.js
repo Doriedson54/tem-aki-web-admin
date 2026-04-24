@@ -97,7 +97,12 @@ const SubcategoryBusinessesScreen = ({ route, navigation }) => {
               business={item}
               accentColor={theme.bg}
               onPress={() =>
-                navigation.navigate('BusinessProfile', { businessId: item.id, business: item, parentCategory, subcategory })
+                navigation.navigate('BusinessProfile', {
+                  businessId: item?.id ?? item?.business_id ?? item?._id ?? item?.uuid ?? null,
+                  business: item,
+                  parentCategory,
+                  subcategory,
+                })
               }
             />
           )}

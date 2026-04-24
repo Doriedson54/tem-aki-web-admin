@@ -78,9 +78,32 @@ const BusinessProfileScreen = ({ route, navigation }) => {
   const photoWidth = Math.min(width - 40, 380);
   const photoHeight = Math.round(photoWidth * 0.63);
 
+  const resolveBusinessId = useCallback(() => {
+    const candidates = [
+      routeBusinessId,
+      business?.id,
+      initialBusiness?.id,
+      business?.business_id,
+      initialBusiness?.business_id,
+      business?._id,
+      initialBusiness?._id,
+      business?.uuid,
+      initialBusiness?.uuid,
+    ];
+    for (const c of candidates) {
+      if (c === null || typeof c === 'undefined') continue;
+      const v = typeof c === 'string' ? c.trim() : String(c);
+      if (v) return v;
+    }
+    return null;
+  }, [routeBusinessId, business?.id, business?.business_id, business?._id, business?.uuid, initialBusiness]);
+
   const reload = useCallback(async () => {
-    const id = routeBusinessId ?? business?.id ?? initialBusiness?.id;
-    if (!id) return;
+    const id = resolveBusinessId();
+    if (!id) {
+      Alert.alert('Falha ao carregar', `ID do negócio não encontrado.\n\nAPI: ${API_BASE_URL}`);
+      return;
+    }
     try {
       setLoading(true);
       const data = await getBusinessById(id);
@@ -92,13 +115,13 @@ const BusinessProfileScreen = ({ route, navigation }) => {
     } finally {
       setLoading(false);
     }
-  }, [routeBusinessId, business?.id, initialBusiness]);
+  }, [initialBusiness, resolveBusinessId]);
 
   useEffect(() => {
     reload();
   }, []);
 
-  const businessId = routeBusinessId ?? business?.id ?? initialBusiness?.id ?? null;
+  const businessId = resolveBusinessId();
   const name = business?.name || business?.establishmentName || 'Negócio';
   const routeParentCategory = route.params?.parentCategory || null;
   const routeSubcategory = route.params?.subcategory || null;

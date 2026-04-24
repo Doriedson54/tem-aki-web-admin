@@ -122,7 +122,7 @@ const CategoryBusinessesScreen = ({ route, navigation }) => {
               accentColor={theme.bg}
               onPress={() =>
                 navigation.navigate('BusinessProfile', {
-                  businessId: item.id,
+                  businessId: item?.id ?? item?.business_id ?? item?._id ?? item?.uuid ?? null,
                   business: item,
                   parentCategory: categoryName || null,
                   subcategory: item.subcategory || null,

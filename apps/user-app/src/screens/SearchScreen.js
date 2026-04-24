@@ -96,7 +96,7 @@ const SearchScreen = ({ route, navigation }) => {
               accentColor="#007AFF"
               onPress={() =>
                 navigation.navigate('BusinessProfile', {
-                  businessId: item.id,
+                  businessId: item?.id ?? item?.business_id ?? item?._id ?? item?.uuid ?? null,
                   business: item,
                   parentCategory: item.category_name || item.category || null,
                   subcategory: item.subcategory || null,
