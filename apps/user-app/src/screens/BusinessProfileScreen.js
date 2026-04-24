@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Image, Linking, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import AnimatedBackButton from '../components/AnimatedBackButton';
 import { API_BASE_URL } from '../config/api';
 import { getBusinessById } from '../services/businessService';
@@ -74,6 +75,7 @@ const BusinessProfileScreen = ({ route, navigation }) => {
   const [loading, setLoading] = useState(false);
   const [userRating, setUserRating] = useState(null);
   const [submittingRating, setSubmittingRating] = useState(false);
+  const [lastLoadedAt, setLastLoadedAt] = useState(null);
   const { width } = useWindowDimensions();
   const photoWidth = Math.min(width - 40, 380);
   const photoHeight = Math.round(photoWidth * 0.63);
@@ -107,7 +109,12 @@ const BusinessProfileScreen = ({ route, navigation }) => {
     try {
       setLoading(true);
       const data = await getBusinessById(id);
-      setBusiness(data || initialBusiness);
+      if (data && typeof data === 'object') {
+        setBusiness({ ...(initialBusiness || {}), ...data });
+      } else {
+        setBusiness(initialBusiness);
+      }
+      setLastLoadedAt(new Date().toISOString());
     } catch (e) {
       const msg = typeof e?.message === 'string' ? e.message : 'Não foi possível carregar os detalhes do negócio.';
       Alert.alert('Falha ao carregar', `${msg}\n\nAPI: ${API_BASE_URL}`);
@@ -119,7 +126,14 @@ const BusinessProfileScreen = ({ route, navigation }) => {
 
   useEffect(() => {
     reload();
-  }, []);
+  }, [reload]);
+
+  useFocusEffect(
+    useCallback(() => {
+      reload();
+      return undefined;
+    }, [reload])
+  );
 
   const businessId = resolveBusinessId();
   const name = business?.name || business?.establishmentName || 'Negócio';
@@ -254,6 +268,12 @@ const BusinessProfileScreen = ({ route, navigation }) => {
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        <View style={styles.metaBar}>
+          <Text style={styles.metaText} numberOfLines={1}>
+            {businessId ? `ID: ${businessId}` : 'ID: -'}
+            {lastLoadedAt ? `  •  Atualizado: ${new Date(lastLoadedAt).toLocaleTimeString('pt-BR')}` : ''}
+          </Text>
+        </View>
         <View style={styles.profileHeader}>
           <View style={styles.photoContainer}>
             {images.length > 0 ? (
@@ -475,6 +495,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8f9fa',
     paddingTop: 0,
+  },
+  metaBar: {
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 6,
+  },
+  metaText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: 'rgba(31, 41, 55, 0.65)',
   },
   header: {
     flexDirection: 'row',
