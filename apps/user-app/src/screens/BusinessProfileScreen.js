@@ -84,7 +84,9 @@ const BusinessProfileScreen = ({ route, navigation }) => {
       setLoading(true);
       const data = await getBusinessById(id);
       setBusiness(data || initialBusiness);
-    } catch {
+    } catch (e) {
+      const msg = typeof e?.message === 'string' ? e.message : 'Não foi possível carregar os detalhes do negócio.';
+      Alert.alert('Falha ao carregar', `${msg}\n\nAPI: ${API_BASE_URL}`);
       setBusiness(initialBusiness);
     } finally {
       setLoading(false);

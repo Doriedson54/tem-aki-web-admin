@@ -2,6 +2,8 @@ import { NativeModules, Platform } from 'react-native';
 
 const isDev = typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV !== 'production';
 
+export const PROD_API_BASE_URL = 'https://temakinobairro.com.br/api';
+
 function getBundleHost() {
   const scriptURL = NativeModules?.SourceCode?.scriptURL;
   if (!scriptURL || typeof scriptURL !== 'string') return null;
@@ -12,7 +14,7 @@ function getBundleHost() {
 }
 
 function getDefaultApiBaseUrl() {
-  if (!isDev) return 'https://temakinobairro.com.br/api';
+  if (!isDev) return PROD_API_BASE_URL;
 
   const host = getBundleHost();
   if (host && host !== 'localhost' && host !== '127.0.0.1') {
