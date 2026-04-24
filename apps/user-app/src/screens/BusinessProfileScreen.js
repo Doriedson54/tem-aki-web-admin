@@ -69,6 +69,7 @@ const openUrl = async (url) => {
 
 const BusinessProfileScreen = ({ route, navigation }) => {
   const initialBusiness = route.params?.business || {};
+  const routeBusinessId = route.params?.businessId || null;
   const [business, setBusiness] = useState(initialBusiness);
   const [loading, setLoading] = useState(false);
   const [userRating, setUserRating] = useState(null);
@@ -78,7 +79,7 @@ const BusinessProfileScreen = ({ route, navigation }) => {
   const photoHeight = Math.round(photoWidth * 0.63);
 
   const reload = useCallback(async () => {
-    const id = business?.id ?? initialBusiness?.id;
+    const id = routeBusinessId ?? business?.id ?? initialBusiness?.id;
     if (!id) return;
     try {
       setLoading(true);
@@ -91,13 +92,13 @@ const BusinessProfileScreen = ({ route, navigation }) => {
     } finally {
       setLoading(false);
     }
-  }, [business?.id, initialBusiness]);
+  }, [routeBusinessId, business?.id, initialBusiness]);
 
   useEffect(() => {
     reload();
   }, []);
 
-  const businessId = business?.id ?? initialBusiness?.id ?? null;
+  const businessId = routeBusinessId ?? business?.id ?? initialBusiness?.id ?? null;
   const name = business?.name || business?.establishmentName || 'Negócio';
   const routeParentCategory = route.params?.parentCategory || null;
   const routeSubcategory = route.params?.subcategory || null;
