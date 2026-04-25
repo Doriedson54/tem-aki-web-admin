@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Image, Linking, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { Alert, FlatList, Image, Linking, Modal, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -76,6 +76,8 @@ const BusinessProfileScreen = ({ route, navigation }) => {
   const [userRating, setUserRating] = useState(null);
   const [submittingRating, setSubmittingRating] = useState(false);
   const [lastLoadedAt, setLastLoadedAt] = useState(null);
+  const [galleryVisible, setGalleryVisible] = useState(false);
+  const [galleryIndex, setGalleryIndex] = useState(0);
   const { width } = useWindowDimensions();
   const photoWidth = Math.min(width - 40, 380);
   const photoHeight = Math.round(photoWidth * 0.63);
@@ -136,7 +138,7 @@ const BusinessProfileScreen = ({ route, navigation }) => {
   );
 
   const businessId = resolveBusinessId();
-  const name = business?.name || business?.establishmentName || 'Negócio';
+  const name = business?.name || business?.establishmentName || business?.title || 'Negócio';
   const routeParentCategory = route.params?.parentCategory || null;
   const routeSubcategory = route.params?.subcategory || null;
   const category =
@@ -172,10 +174,14 @@ const BusinessProfileScreen = ({ route, navigation }) => {
   const facebook = normalizeString(business?.facebook) || null;
   const otherSocialMedia = normalizeString(business?.otherSocialMedia || business?.other_social_media) || null;
   const hasDelivery = Boolean(business?.hasDelivery || business?.has_delivery || business?.delivery);
+  const hasTakeout = Boolean(business?.takeout || business?.hasTakeout || business?.has_takeout);
+  const hasDineIn = Boolean(business?.dine_in || business?.dineIn || business?.hasDineIn || business?.has_dine_in);
   const rating = business?.rating ?? null;
   const isOpen = typeof business?.isOpen === 'boolean' ? business.isOpen : null;
 
   const images = useMemo(() => getImages(business), [business]);
+  const coverImageUri = images[0] || null;
+  const extraGalleryUris = images.slice(1);
   const colors = useMemo(() => {
     if (subcategory) return getSubcategoryColors(subcategory, category);
     return getCategoryColors(category);
@@ -255,6 +261,15 @@ const BusinessProfileScreen = ({ route, navigation }) => {
     }
   }, [businessId, userRating]);
 
+  const openGalleryAt = useCallback(
+    (index) => {
+      const safeIndex = Math.max(0, Math.min(index || 0, Math.max(images.length - 1, 0)));
+      setGalleryIndex(safeIndex);
+      setGalleryVisible(true);
+    },
+    [images.length]
+  );
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="light" />
@@ -268,6 +283,34 @@ const BusinessProfileScreen = ({ route, navigation }) => {
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} nestedScrollEnabled contentContainerStyle={styles.scrollContent}>
+        <Modal visible={galleryVisible} transparent={false} animationType="fade" onRequestClose={() => setGalleryVisible(false)}>
+          <SafeAreaView style={styles.galleryContainer}>
+            <View style={styles.galleryHeader}>
+              <TouchableOpacity style={styles.galleryCloseButton} onPress={() => setGalleryVisible(false)} activeOpacity={0.86}>
+                <Ionicons name="close" size={28} color="#ffffff" />
+              </TouchableOpacity>
+              <Text style={styles.galleryTitle} numberOfLines={1}>
+                Fotos
+              </Text>
+              <View style={styles.galleryHeaderSpacer} />
+            </View>
+            <FlatList
+              data={images}
+              keyExtractor={(uri) => uri}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              initialScrollIndex={images.length > 0 ? galleryIndex : undefined}
+              getItemLayout={(_, index) => ({ length: width, offset: width * index, index })}
+              renderItem={({ item }) => (
+                <View style={[styles.gallerySlide, { width }]}>
+                  <Image source={{ uri: item }} style={styles.galleryImage} />
+                </View>
+              )}
+            />
+          </SafeAreaView>
+        </Modal>
+
         <View style={styles.metaBar}>
           <Text style={styles.metaText} numberOfLines={1}>
             {businessId ? `ID: ${businessId}` : 'ID: -'}
@@ -282,18 +325,30 @@ const BusinessProfileScreen = ({ route, navigation }) => {
         </View>
         <View style={styles.profileHeader}>
           <View style={styles.photoContainer}>
-            {images.length > 0 ? (
-              <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} nestedScrollEnabled>
-                {images.map((uri) => (
-                  <Image key={uri} source={{ uri }} style={[styles.profilePhoto, { width: photoWidth, height: photoHeight }]} />
-                ))}
-              </ScrollView>
+            {coverImageUri ? (
+              <TouchableOpacity activeOpacity={0.9} onPress={() => openGalleryAt(0)}>
+                <Image source={{ uri: coverImageUri }} style={[styles.profilePhoto, { width: photoWidth, height: photoHeight }]} />
+              </TouchableOpacity>
             ) : (
               <View style={[styles.placeholderPhoto, { width: photoWidth, height: photoHeight }]}>
                 <Text style={styles.placeholderPhotoText}>📷</Text>
               </View>
             )}
           </View>
+          {extraGalleryUris.length > 0 && (
+            <View style={[styles.thumbsRow, { width: photoWidth }]}>
+              {extraGalleryUris.slice(0, 6).map((uri, idx) => (
+                <TouchableOpacity key={uri} activeOpacity={0.86} onPress={() => openGalleryAt(idx + 1)}>
+                  <Image source={{ uri }} style={styles.thumbImage} />
+                </TouchableOpacity>
+              ))}
+              {extraGalleryUris.length > 6 && (
+                <TouchableOpacity style={styles.moreThumbs} activeOpacity={0.86} onPress={() => openGalleryAt(1)}>
+                  <Text style={styles.moreThumbsText}>+{extraGalleryUris.length - 6}</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
 
           <Text style={styles.businessName} numberOfLines={2}>
             {name}
@@ -409,6 +464,20 @@ const BusinessProfileScreen = ({ route, navigation }) => {
           <View style={[styles.deliveryBadge, { backgroundColor: hasDelivery ? colors.primary : '#6b7280' }]}>
             <Text style={styles.deliveryText}>{hasDelivery ? '🚚 Faz Delivery' : '🚫 Não faz Delivery'}</Text>
           </View>
+          {(hasTakeout || hasDineIn) && (
+            <View style={styles.serviceBadgesRow}>
+              {hasTakeout && (
+                <View style={styles.serviceBadge}>
+                  <Text style={styles.serviceBadgeText}>🥡 Retirada</Text>
+                </View>
+              )}
+              {hasDineIn && (
+                <View style={styles.serviceBadge}>
+                  <Text style={styles.serviceBadgeText}>🍽️ Consumo no local</Text>
+                </View>
+              )}
+            </View>
+          )}
         </View>
 
         <View style={styles.section}>
@@ -771,6 +840,94 @@ const styles = StyleSheet.create({
   },
   bottomSpacing: {
     height: 20,
+  },
+  thumbsRow: {
+    marginTop: 10,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    justifyContent: 'center',
+  },
+  thumbImage: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    backgroundColor: '#e9ecef',
+  },
+  moreThumbs: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    backgroundColor: '#111827',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  moreThumbsText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  serviceBadgesRow: {
+    marginTop: 10,
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  serviceBadge: {
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    backgroundColor: '#f1f3f5',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  serviceBadgeText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#2c3e50',
+  },
+  galleryContainer: {
+    flex: 1,
+    backgroundColor: '#000000',
+  },
+  galleryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+  },
+  galleryCloseButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  galleryTitle: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#ffffff',
+  },
+  galleryHeaderSpacer: {
+    width: 44,
+  },
+  gallerySlide: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#000000',
+  },
+  galleryImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'contain',
   },
 });
 
