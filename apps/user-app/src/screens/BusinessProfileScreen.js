@@ -60,8 +60,6 @@ const getImages = (business) => {
 
 const openUrl = async (url) => {
   try {
-    const supported = await Linking.canOpenURL(url);
-    if (!supported) throw new Error('URL não suportada');
     await Linking.openURL(url);
   } catch {
     Alert.alert('Não foi possível abrir', 'Verifique se há um aplicativo compatível instalado.');
@@ -201,8 +199,9 @@ const BusinessProfileScreen = ({ route, navigation }) => {
 
   const handleWhatsApp = useCallback(() => {
     if (!whatsapp) return;
-    const whatsappNumber = String(whatsapp).replace(/[^0-9]/g, '');
-    openUrl(`whatsapp://send?phone=55${whatsappNumber}`);
+    const digits = String(whatsapp).replace(/[^0-9]/g, '');
+    const phoneNumber = digits.startsWith('55') ? digits : `55${digits}`;
+    openUrl(`https://wa.me/${phoneNumber}`);
   }, [whatsapp]);
 
   const handleEmail = useCallback(() => {
