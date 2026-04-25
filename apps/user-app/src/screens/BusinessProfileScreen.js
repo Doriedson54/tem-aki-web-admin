@@ -309,19 +309,6 @@ const BusinessProfileScreen = ({ route, navigation }) => {
             />
           </SafeAreaView>
         </Modal>
-
-        <View style={styles.metaBar}>
-          <Text style={styles.metaText} numberOfLines={1}>
-            {businessId ? `ID: ${businessId}` : 'ID: -'}
-            {lastLoadedAt ? `  •  Atualizado: ${new Date(lastLoadedAt).toLocaleTimeString('pt-BR')}` : ''}
-          </Text>
-          <Text style={styles.metaText} numberOfLines={1}>
-            API: {getApiHost()}
-          </Text>
-          <Text style={styles.metaText} numberOfLines={2}>
-            {(business?.name || business?.establishmentName || business?.title || '-')}{business?.address ? `  •  ${business.address}` : ''}
-          </Text>
-        </View>
         <View style={styles.profileHeader}>
           <View style={styles.photoContainer}>
             {coverImageUri ? (
@@ -569,16 +556,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8f9fa',
     paddingTop: 0,
-  },
-  metaBar: {
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 6,
-  },
-  metaText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: 'rgba(31, 41, 55, 0.65)',
   },
   scrollContent: {
     paddingBottom: 24,

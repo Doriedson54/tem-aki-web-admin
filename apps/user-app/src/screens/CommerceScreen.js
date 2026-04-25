@@ -9,12 +9,22 @@ const pickIcon = (subcategoryName) => {
   const name = String(subcategoryName || '').toLowerCase();
   if (name.includes('mercad') || name.includes('super') || name.includes('varej') || name.includes('atacad')) return 'cart-outline';
   if (name.includes('farm') || name.includes('drog')) return 'medkit-outline';
+  if (name.includes('padar') || name.includes('confe') || name.includes('café') || name.includes('cafe')) return 'cafe-outline';
+  if (name.includes('açou') || name.includes('acou') || name.includes('açoug') || name.includes('acoug') || name.includes('carn')) return 'nutrition-outline';
+  if (name.includes('hort') || name.includes('frut') || name.includes('verd') || name.includes('legum')) return 'leaf-outline';
   if (name.includes('roup') || name.includes('moda') || name.includes('calç') || name.includes('calc')) return 'shirt-outline';
-  if (name.includes('beleza') || name.includes('salão') || name.includes('salao') || name.includes('barbe')) return 'cut-outline';
+  if (name.includes('joia') || name.includes('jóia') || name.includes('biju') || name.includes('ouro') || name.includes('prata')) return 'diamond-outline';
+  if (name.includes('beleza') || name.includes('salão') || name.includes('salao') || name.includes('barbe') || name.includes('cosm')) return 'sparkles-outline';
+  if (name.includes('cel') || name.includes('telefone') || name.includes('smart')) return 'phone-portrait-outline';
+  if (name.includes('eletrodom') || name.includes('eletro') || name.includes('tv')) return 'tv-outline';
   if (name.includes('eletr') || name.includes('inform') || name.includes('tec')) return 'hardware-chip-outline';
   if (name.includes('constr') || name.includes('mate') || name.includes('ferr')) return 'construct-outline';
+  if (name.includes('livr') || name.includes('papel') || name.includes('escri')) return 'book-outline';
+  if (name.includes('brinqu') || name.includes('toy')) return 'balloon-outline';
+  if (name.includes('moto') || name.includes('auto') || name.includes('car') || name.includes('peça') || name.includes('peca')) return 'car-outline';
+  if (name.includes('móve') || name.includes('move') || name.includes('mobil') || name.includes('decora')) return 'bed-outline';
   if (name.includes('pet')) return 'paw-outline';
-  return 'pricetag-outline';
+  return 'storefront-outline';
 };
 
 const CommerceScreen = ({ navigation, route }) => {

@@ -1,5 +1,18 @@
 import React, { useMemo, useState } from 'react';
-import { Image, ImageBackground, SafeAreaView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+  Image,
+  ImageBackground,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
+} from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import HamburgerMenu from '../components/HamburgerMenu';
@@ -19,54 +32,62 @@ const HomeScreen = ({ navigation }) => {
       <StatusBar style="light" />
 
       <ImageBackground source={comercioBairro} style={styles.backgroundImage} imageStyle={styles.backgroundImageStyle}>
-        <View style={[styles.topBar, { top: Math.max(insets.top, 8) + 8 }]}>
-          <HamburgerMenu navigation={navigation} />
-          <Image source={logoImoveis} style={styles.topRightLogo} />
-        </View>
-        <View style={styles.overlay}>
-          <View style={styles.logoSection}>
-            <Image source={logoSemFundo} style={styles.mainLogo} />
-          </View>
-
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>🔎 Buscar negócios</Text>
-            <View style={styles.searchRow}>
-              <TextInput
-                value={query}
-                onChangeText={setQuery}
-                placeholder="Nome, descrição, endereço..."
-                placeholderTextColor="rgba(31, 41, 55, 0.55)"
-                style={styles.searchInput}
-                returnKeyType="search"
-                onSubmitEditing={() => navigation.navigate('Search', { initialQuery: query })}
-              />
-              <TouchableOpacity
-                style={[styles.searchButton, !canSearch && styles.searchButtonDisabled]}
-                disabled={!canSearch}
-                onPress={() => navigation.navigate('Search', { initialQuery: query })}
-                activeOpacity={0.86}
-              >
-                <Text style={styles.searchButtonText}>Buscar</Text>
-              </TouchableOpacity>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          <KeyboardAvoidingView
+            style={styles.keyboardAvoiding}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Math.max(insets.top, 0) + 24}
+          >
+            <View style={[styles.topBar, { top: Math.max(insets.top, 8) + 8 }]}>
+              <HamburgerMenu navigation={navigation} />
+              <Image source={logoImoveis} style={styles.topRightLogo} />
             </View>
-
-            <View style={styles.divider} />
-
-            <Text style={styles.cardTitle}>📚 Navegar por categorias</Text>
-            <TouchableOpacity
-              style={styles.primaryButtonOuter}
-              onPress={() => navigation.navigate('CategoriesMenu')}
-              activeOpacity={0.86}
-            >
-              <View style={styles.primaryButtonInner}>
-                <View style={styles.primaryButtonHighlight} />
-                <View style={styles.primaryButtonGlossSpot} />
-                <Text style={styles.primaryButtonTextShadow}>Ver categorias</Text>
-                <Text style={styles.primaryButtonText}>Ver categorias</Text>
+            <View style={[styles.overlay, { paddingBottom: Math.max(insets.bottom, 22) + 12 }]}>
+              <View style={styles.logoSection}>
+                <Image source={logoSemFundo} style={styles.mainLogo} />
               </View>
-            </TouchableOpacity>
-          </View>
-        </View>
+
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>🔎 Buscar negócios</Text>
+                <View style={styles.searchRow}>
+                  <TextInput
+                    value={query}
+                    onChangeText={setQuery}
+                    placeholder="Nome, descrição, endereço..."
+                    placeholderTextColor="rgba(31, 41, 55, 0.55)"
+                    style={styles.searchInput}
+                    returnKeyType="search"
+                    onSubmitEditing={() => navigation.navigate('Search', { initialQuery: query })}
+                  />
+                  <TouchableOpacity
+                    style={[styles.searchButton, !canSearch && styles.searchButtonDisabled]}
+                    disabled={!canSearch}
+                    onPress={() => navigation.navigate('Search', { initialQuery: query })}
+                    activeOpacity={0.86}
+                  >
+                    <Text style={styles.searchButtonText}>Buscar</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.divider} />
+
+                <Text style={styles.cardTitle}>📚 Navegar por categorias</Text>
+                <TouchableOpacity
+                  style={styles.primaryButtonOuter}
+                  onPress={() => navigation.navigate('CategoriesMenu')}
+                  activeOpacity={0.86}
+                >
+                  <View style={styles.primaryButtonInner}>
+                    <View style={styles.primaryButtonHighlight} />
+                    <View style={styles.primaryButtonGlossSpot} />
+                    <Text style={styles.primaryButtonTextShadow}>Ver categorias</Text>
+                    <Text style={styles.primaryButtonText}>Ver categorias</Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </TouchableWithoutFeedback>
       </ImageBackground>
     </SafeAreaView>
   );
@@ -76,6 +97,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#ffffff',
+  },
+  keyboardAvoiding: {
+    flex: 1,
   },
   backgroundImage: {
     flex: 1,
