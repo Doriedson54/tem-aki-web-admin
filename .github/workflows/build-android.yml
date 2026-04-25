@@ -26,7 +26,7 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: '20.20.2'
         cache: 'npm'
         cache-dependency-path: apps/user-app/package-lock.json
 
@@ -43,14 +43,6 @@ jobs:
       working-directory: ./apps/user-app
       run: npm ci
 
-    - name: Install EAS CLI
-      run: npm install -g @expo/cli@latest eas-cli@latest
-
-    - name: Create Expo account token file
-      run: |
-        mkdir -p ~/.expo
-        echo "${{ secrets.EXPO_TOKEN }}" > ~/.expo/token
-
     - name: Prebuild Android
       working-directory: ./apps/user-app
       run: npx expo prebuild --platform android --clean
@@ -63,7 +55,10 @@ jobs:
 
     - name: Build Android APK
       working-directory: ./apps/user-app/android
-      run: ./gradlew assembleRelease
+      env:
+        GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.workers.max=2 -Dorg.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8
+      run: |
+        ./gradlew --no-daemon --stacktrace --info assembleRelease 2>&1 | tee ../gradle-build.log
 
     - name: Sign APK
       if: success()
@@ -79,7 +74,18 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: app-release-signed
-        path: apps/user-app/android/app/build/outputs/apk/release/app-release-unsigned.apk
+        path: apps/user-app/android/app/build/outputs/apk/release/*.apk
+        retention-days: 30
+
+    - name: Upload build logs
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: android-build-logs
+        path: |
+          apps/user-app/gradle-build.log
+          apps/user-app/android/app/build/reports/**
+          apps/user-app/android/build/reports/**
         retention-days: 30
 
     - name: Create Release

@@ -267,17 +267,23 @@ const BusinessProfileScreen = ({ route, navigation }) => {
         <View style={styles.placeholder} />
       </View>
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} nestedScrollEnabled contentContainerStyle={styles.scrollContent}>
         <View style={styles.metaBar}>
           <Text style={styles.metaText} numberOfLines={1}>
             {businessId ? `ID: ${businessId}` : 'ID: -'}
             {lastLoadedAt ? `  •  Atualizado: ${new Date(lastLoadedAt).toLocaleTimeString('pt-BR')}` : ''}
           </Text>
+          <Text style={styles.metaText} numberOfLines={1}>
+            API: {getApiHost()}
+          </Text>
+          <Text style={styles.metaText} numberOfLines={2}>
+            {(business?.name || business?.establishmentName || business?.title || '-')}{business?.address ? `  •  ${business.address}` : ''}
+          </Text>
         </View>
         <View style={styles.profileHeader}>
           <View style={styles.photoContainer}>
             {images.length > 0 ? (
-              <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}>
+              <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} nestedScrollEnabled>
                 {images.map((uri) => (
                   <Image key={uri} source={{ uri }} style={[styles.profilePhoto, { width: photoWidth, height: photoHeight }]} />
                 ))}
@@ -505,6 +511,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: 'rgba(31, 41, 55, 0.65)',
+  },
+  scrollContent: {
+    paddingBottom: 24,
   },
   header: {
     flexDirection: 'row',
