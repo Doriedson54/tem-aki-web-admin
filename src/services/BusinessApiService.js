@@ -486,6 +486,22 @@ class BusinessApiService {
     const convertedData = { ...businessData };
     
     try {
+      // Converte campos do app (camelCase) para o formato do backend (snake_case)
+      if (typeof businessData.mainProduct === 'string' && !convertedData.main_product) {
+        convertedData.main_product = businessData.mainProduct;
+        delete convertedData.mainProduct;
+      }
+
+      if (typeof businessData.hasDelivery !== 'undefined' && typeof convertedData.delivery === 'undefined') {
+        convertedData.delivery = Boolean(businessData.hasDelivery);
+        delete convertedData.hasDelivery;
+      }
+
+      if (typeof businessData.has_delivery !== 'undefined' && typeof convertedData.delivery === 'undefined') {
+        convertedData.delivery = Boolean(businessData.has_delivery);
+        delete convertedData.has_delivery;
+      }
+
       // Obtém as categorias para fazer a conversão
       const categories = await this.getCategories();
       
@@ -598,9 +614,10 @@ class BusinessApiService {
 
   async updateBusiness(businessId, businessData) {
     try {
+      const apiBusinessData = await this.convertBusinessDataForApi(businessData);
       const response = await this.apiService.requestWithRetry(
         API_ENDPOINTS.BUSINESSES.UPDATE(businessId),
-        { method: 'PUT', body: JSON.stringify(businessData) }
+        { method: 'PUT', body: JSON.stringify(apiBusinessData) }
       );
       
       // Limpa o cache para forçar atualização
