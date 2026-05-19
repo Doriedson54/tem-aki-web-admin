@@ -201,7 +201,9 @@ const BusinessProfileScreen = ({ route, navigation }) => {
     if (!whatsapp) return;
     const digits = String(whatsapp).replace(/[^0-9]/g, '');
     const phoneNumber = digits.startsWith('55') ? digits : `55${digits}`;
-    openUrl(`https://wa.me/${phoneNumber}`);
+    const message = 'Olá! Vi seu anúncio no app Tem Aki no Bairro e gostaria de mais informações.';
+    const text = encodeURIComponent(message);
+    openUrl(`https://wa.me/${phoneNumber}?text=${text}`);
   }, [whatsapp]);
 
   const handleEmail = useCallback(() => {
