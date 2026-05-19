@@ -21,13 +21,13 @@ const EditBusinessScreen = ({ route, navigation }) => {
   const [phone, setPhone] = useState(business.phone || '');
   const [whatsapp, setWhatsapp] = useState(business.whatsapp || '');
   const [email, setEmail] = useState(business.email || '');
-  const [mainProduct, setMainProduct] = useState(business.mainProduct || '');
+  const [mainProduct, setMainProduct] = useState(business.mainProduct || business.main_product || '');
   const [description, setDescription] = useState(business.description || '');
   const [workingHours, setWorkingHours] = useState(business.workingHours || '');
   const [instagram, setInstagram] = useState(business.instagram || '');
   const [facebook, setFacebook] = useState(business.facebook || '');
   const [otherSocialMedia, setOtherSocialMedia] = useState(business.otherSocialMedia || '');
-  const [hasDelivery, setHasDelivery] = useState(business.hasDelivery || false);
+  const [hasDelivery, setHasDelivery] = useState(Boolean(business.hasDelivery || business.has_delivery || business.delivery));
   const [profilePhoto, setProfilePhoto] = useState(business.profilePhoto || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
 

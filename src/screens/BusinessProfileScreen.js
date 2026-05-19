@@ -204,10 +204,10 @@ const BusinessProfileScreen = ({ route, navigation }) => {
         </View>
 
         {/* Produto/Serviço Principal */}
-        {business.mainProduct && (
+        {(business.mainProduct || business.main_product) && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Produto/Serviço Principal</Text>
-            <Text style={styles.sectionContent}>{business.mainProduct}</Text>
+            <Text style={styles.sectionContent}>{business.mainProduct || business.main_product}</Text>
           </View>
         )}
 
@@ -265,7 +265,7 @@ const BusinessProfileScreen = ({ route, navigation }) => {
         )}
 
         {/* Delivery */}
-        {business.hasDelivery && (
+        {(business.hasDelivery || business.has_delivery || business.delivery) && (
           <View style={styles.section}>
             <View style={styles.deliveryBadge}>
               <Text style={styles.deliveryText}>🚚 Faz Delivery</Text>

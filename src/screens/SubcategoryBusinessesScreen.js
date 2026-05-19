@@ -10,8 +10,8 @@ const BusinessItem = ({ business, onPress, colors }) => (
   <TouchableOpacity style={[styles.businessItem, { borderLeftColor: colors.border }]} onPress={() => onPress(business)}>
     <View style={styles.businessContent}>
       <View style={styles.photoContainer}>
-        {business.profilePhoto ? (
-          <Image source={{ uri: business.profilePhoto }} style={styles.businessPhoto} />
+        {business.profilePhoto || business.logo_url || business.image_url ? (
+          <Image source={{ uri: business.profilePhoto || business.logo_url || business.image_url }} style={styles.businessPhoto} />
         ) : (
           <View style={styles.placeholderPhoto}>
             <Text style={styles.placeholderPhotoText}>📷</Text>
@@ -19,8 +19,8 @@ const BusinessItem = ({ business, onPress, colors }) => (
         )}
       </View>
       <View style={styles.businessInfo}>
-        <Text style={styles.businessName}>{business.establishmentName}</Text>
-        <Text style={styles.businessProduct}>{business.mainProduct}</Text>
+        <Text style={styles.businessName}>{business.establishmentName || business.name}</Text>
+        <Text style={styles.businessProduct}>{business.mainProduct || business.main_product}</Text>
         <Text style={styles.businessAddress} numberOfLines={1}>{business.address}</Text>
         {(business.neighborhood || business.cityState) && (
           <Text style={styles.businessLocation} numberOfLines={1}>

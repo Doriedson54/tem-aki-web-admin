@@ -21,7 +21,9 @@ const pickIcon = (subcategoryName) => {
   if (name.includes('constr') || name.includes('mate') || name.includes('ferr')) return 'construct-outline';
   if (name.includes('livr') || name.includes('papel') || name.includes('escri')) return 'book-outline';
   if (name.includes('brinqu') || name.includes('toy')) return 'balloon-outline';
-  if (name.includes('moto') || name.includes('auto') || name.includes('car') || name.includes('peça') || name.includes('peca')) return 'car-outline';
+  if (name.includes('biciclet') || name.includes('bike') || name.includes('ciclo')) return 'bicycle-outline';
+  if (name.includes('moto')) return 'bicycle-outline';
+  if (name.includes('auto') || name.includes('car') || name.includes('peça') || name.includes('peca')) return 'car-outline';
   if (name.includes('móve') || name.includes('move') || name.includes('mobil') || name.includes('decora')) return 'bed-outline';
   if (name.includes('pet')) return 'paw-outline';
   return 'storefront-outline';
