@@ -19,6 +19,7 @@ import HamburgerMenu from '../components/HamburgerMenu';
 
 const comercioBairro = require('../assets/comerciobairro.png');
 const logoTanb = require('../assets/TAnB_sf.gif');
+const logoSemFundo = require('../assets/logosemfundo.png');
 
 const HomeScreen = ({ navigation }) => {
   const [query, setQuery] = useState('');
@@ -43,7 +44,7 @@ const HomeScreen = ({ navigation }) => {
             </View>
             <View style={[styles.overlay, { paddingBottom: Math.max(insets.bottom, 22) + 12 }]}>
               <View style={styles.logoSection}>
-                <Image source={logoTanb} style={styles.mainLogo} />
+                <Image source={logoSemFundo} style={styles.mainLogo} />
               </View>
 
               <View style={styles.card}>
