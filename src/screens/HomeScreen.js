@@ -3,8 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Image, ImageBac
 import { StatusBar } from 'expo-status-bar';
 // import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-const tabSemFundo = require('../assets/TABsemfundo.png');
-const logoSemFundo = require('../assets/logosemfundo.png');
+const logoTanb = require('../assets/TAnB_sf.gif');
 const comercioBairro = require('../assets/comerciobairro.png');
 import SideMenu from '../components/SideMenu';
 import { syncService } from '../services/SyncService';
@@ -77,7 +76,7 @@ const HomeScreen = ({ navigation }) => {
         </TouchableOpacity>
         
         <View style={styles.headerLogoContainer}>
-          <Image source={tabSemFundo} style={styles.headerLogoImage} />
+          <Image source={logoTanb} style={styles.headerLogoImage} />
         </View>
         
         <View style={styles.rightButtons}>
@@ -98,7 +97,7 @@ const HomeScreen = ({ navigation }) => {
       </View>
       
       <View style={styles.content}>
-        <Image source={logoSemFundo} style={styles.centerImage} />
+        <Image source={logoTanb} style={styles.centerImage} />
         
         <View style={styles.descriptionContainer}>
           <Text style={styles.descriptionText}>

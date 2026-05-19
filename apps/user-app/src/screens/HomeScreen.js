@@ -18,8 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import HamburgerMenu from '../components/HamburgerMenu';
 
 const comercioBairro = require('../assets/comerciobairro.png');
-const logoImoveis = require('../assets/Logo_TAB.gif');
-const logoSemFundo = require('../assets/logosemfundo.png');
+const logoTanb = require('../assets/TAnB_sf.gif');
 
 const HomeScreen = ({ navigation }) => {
   const [query, setQuery] = useState('');
@@ -40,11 +39,11 @@ const HomeScreen = ({ navigation }) => {
           >
             <View style={[styles.topBar, { top: Math.max(insets.top, 8) + 8 }]}>
               <HamburgerMenu navigation={navigation} />
-              <Image source={logoImoveis} style={styles.topRightLogo} />
+              <Image source={logoTanb} style={styles.topRightLogo} />
             </View>
             <View style={[styles.overlay, { paddingBottom: Math.max(insets.bottom, 22) + 12 }]}>
               <View style={styles.logoSection}>
-                <Image source={logoSemFundo} style={styles.mainLogo} />
+                <Image source={logoTanb} style={styles.mainLogo} />
               </View>
 
               <View style={styles.card}>
