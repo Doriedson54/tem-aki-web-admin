@@ -22,7 +22,8 @@
         
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--secondary-color);
+            background: linear-gradient(135deg, rgba(44, 90, 160, 0.7) 0%, rgba(70, 130, 180, 0.6) 50%, rgba(100, 149, 237, 0.5) 100%);
+            min-height: 100vh;
         }
         
         .navbar {
@@ -396,6 +397,11 @@
                                     Cadastrado em ${new Date(business.created_at).toLocaleDateString('pt-BR')}
                                 </small>
                             </div>
+                            <div class="mt-3">
+                                <a href="/business/${business.id}" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-info-circle"></i> Ver Detalhes
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -501,6 +507,7 @@
             categoryFilter.value = '';
             statusFilter.value = '';
             filterBusinesses();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         });
         
         // Paginação

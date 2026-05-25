@@ -24,7 +24,7 @@ app.use(helmet({
 
 // CORS
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: [process.env.FRONTEND_URL || 'http://localhost:3000', 'http://localhost:8081'],
   credentials: true
 }));
 
@@ -58,6 +58,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 const authMiddleware = require('./middleware/auth').authMiddleware;
 
 // Rotas
+const publicRoutes = require('./routes/public');
 const authRoutes = require('./routes/auth');
 const dashboardRoutes = require('./routes/dashboard');
 const businessRoutes = require('./routes/business');
@@ -65,14 +66,25 @@ const categoryRoutes = require('./routes/categories');
 const reportsRoutes = require('./routes/reports');
 
 // Usar rotas
+// Rotas públicas (sem autenticação) - devem vir primeiro
+app.use('/public', publicRoutes);
+
 app.use('/auth', authRoutes);
 app.use('/dashboard', authMiddleware, dashboardRoutes);
 app.use('/business', authMiddleware, businessRoutes);
 app.use('/categories', authMiddleware, categoryRoutes);
 app.use('/reports', authMiddleware, reportsRoutes);
 
-// Rota principal - redireciona para login
+// Rota principal - serve a página pública
 app.get('/', (req, res) => {
+  res.render('public/index', {
+    title: 'Tem Aki no Bairro - Descubra negócios locais',
+    layout: false
+  });
+});
+
+// Rota para admin - redireciona para login
+app.get('/admin', (req, res) => {
   if (req.session.user) {
     res.redirect('/dashboard');
   } else {

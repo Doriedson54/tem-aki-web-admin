@@ -97,4 +97,6 @@ app.use((err, req, res, next) => {
   });
 });
 
+// Para Vercel - exportar como função serverless
 module.exports = app;
+module.exports.default = app;

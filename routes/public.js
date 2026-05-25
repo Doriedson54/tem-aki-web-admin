@@ -158,8 +158,11 @@ router.get('/api/businesses/:id/public', async (req, res) => {
         description,
         address,
         phone,
+        whatsapp,
         email,
         website,
+        instagram,
+        facebook,
         opening_hours,
         status,
         views,
@@ -167,7 +170,8 @@ router.get('/api/businesses/:id/public', async (req, res) => {
         category_id,
         subcategory_id,
         categories(id, name),
-        subcategories(id, name)
+        subcategories(id, name),
+        business_images(id, image_url, is_primary)
       `)
       .eq('id', id)
       .eq('status', 'approved')
@@ -190,14 +194,18 @@ router.get('/api/businesses/:id/public', async (req, res) => {
       description: business.description,
       address: business.address,
       phone: business.phone,
+      whatsapp: business.whatsapp,
       email: business.email,
       website: business.website,
+      instagram: business.instagram,
+      facebook: business.facebook,
       opening_hours: business.opening_hours,
       status: business.status,
       views: (business.views || 0) + 1,
       created_at: business.created_at,
       category: business.categories?.name || 'Categoria não informada',
-      subcategory: business.subcategories?.name || null
+      subcategory: business.subcategories?.name || null,
+      images: business.business_images || []
     };
 
     res.json(formattedBusiness);
@@ -220,8 +228,11 @@ router.get('/business/:id', async (req, res) => {
         description,
         address,
         phone,
+        whatsapp,
         email,
         website,
+        instagram,
+        facebook,
         opening_hours,
         status,
         views,
@@ -229,7 +240,8 @@ router.get('/business/:id', async (req, res) => {
         category_id,
         subcategory_id,
         categories(id, name),
-        subcategories(id, name)
+        subcategories(id, name),
+        business_images(id, image_url, is_primary)
       `)
       .eq('id', id)
       .eq('status', 'approved')

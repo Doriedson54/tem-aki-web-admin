@@ -167,37 +167,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Imagens -->
-      <% if (images && images.length > 0) { %>
-        <div class="card shadow mb-4">
-          <div class="card-header py-3">
-            <h6 class="m-0 font-weight-bold text-primary">
-              <i class="fas fa-images mr-2"></i>Imagens (<%= images.length %>)
-            </h6>
-          </div>
-          <div class="card-body">
-            <div class="row">
-              <% images.forEach(image => { %>
-                <div class="col-md-4 mb-3">
-                  <div class="card">
-                    <img src="/uploads/businesses/<%= image.filename %>" class="card-img-top" 
-                         alt="Imagem do negócio" style="height: 200px; object-fit: cover;">
-                    <div class="card-body p-2">
-                      <% if (image.is_primary) { %>
-                        <span class="badge badge-primary">Principal</span>
-                      <% } %>
-                      <small class="text-muted d-block">
-                        <%= new Date(image.created_at).toLocaleDateString('pt-BR') %>
-                      </small>
-                    </div>
-                  </div>
-                </div>
-              <% }); %>
-            </div>
-          </div>
-        </div>
-      <% } %>
     </div>
 
     <!-- Ações de Moderação -->

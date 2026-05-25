@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <meta name="description" content="<%= business.description || 'Detalhes do negócio local' %>">
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-color: #2c5aa0;
+            --secondary-color: #f8f9fa;
+            --accent-color: #28a745;
+            --text-dark: #333;
+            --text-light: #666;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--secondary-color);
+            min-height: 100vh;
+        }
+        .navbar {
+            background: var(--primary-color) !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .navbar-brand {
+            font-weight: 700;
+            font-size: 1.5rem;
+        }
+        .business-header {
+            background: white;
+            padding: 3rem 0;
+            border-bottom: 1px solid #e9ecef;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            margin-bottom: 2rem;
+        }
+        .business-name {
+            color: var(--primary-color);
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        .business-category {
+            background: var(--accent-color);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            display: inline-block;
+            margin-bottom: 1rem;
+        }
+        .action-buttons .btn {
+            margin-right: 0.5rem;
+            margin-bottom: 0.5rem;
+            border-radius: 20px;
+            padding: 0.5rem 1.25rem;
+        }
+        .info-card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border-top: 4px solid var(--primary-color);
+        }
+        .info-card h4 {
+            color: var(--primary-color);
+            border-bottom: 1px solid #eee;
+            padding-bottom: 0.75rem;
+            margin-bottom: 1rem;
+        }
+        .info-item {
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: flex-start;
+        }
+        .info-item i {
+            color: var(--primary-color);
+            width: 25px;
+            font-size: 1.2rem;
+            margin-top: 3px;
+        }
+        .info-item-content {
+            flex: 1;
+        }
+        .gallery-img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .gallery-img:hover {
+            transform: scale(1.05);
+        }
+        /* Lightbox modal image */
+        #lightboxImage {
+            max-width: 100%;
+            max-height: 80vh;
+            object-fit: contain;
+        }
+        .star-rating {
+            font-size: 2rem;
+            color: #ccc;
+            cursor: pointer;
+        }
+        .star-rating .fas.active {
+            color: #ffc107;
+        }
+        .whatsapp-btn {
+            background-color: #25D366;
+            color: white;
+            border: none;
+        }
+        .whatsapp-btn:hover {
+            background-color: #128C7E;
+            color: white;
+        }
+        .favorite-btn.active i {
+            color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-store"></i>
+                Tem Aki no Bairro
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/directory">
+                    <i class="fas fa-arrow-left"></i>
+                    Voltar
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Business Header -->
+    <div class="business-header">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="business-name"><%= business.name %></h1>
+                    <span class="business-category">
+                        <%= business.categories ? business.categories.name : 'Categoria não informada' %>
+                        <% if (business.subcategories) { %>
+                            - <%= business.subcategories.name %>
+                        <% } %>
+                    </span>
+                    <p class="lead mt-2"><%= business.description || 'Nenhuma descrição disponível.' %></p>
+                </div>
+                <div class="col-md-4 text-md-end action-buttons">
+                    <button class="btn btn-outline-danger favorite-btn" id="favoriteBtn" onclick="toggleFavorite('<%= business.id %>')">
+                        <i class="far fa-heart"></i> Favoritar
+                    </button>
+                    <button class="btn btn-outline-primary" onclick="shareBusiness()">
+                        <i class="fas fa-share-alt"></i> Compartilhar
+                    </button>
+                    <% if (business.phone) { %>
+                        <% 
+                            let waNumber = business.phone.replace(/\D/g, ''); 
+                            if(waNumber.length === 10 || waNumber.length === 11) {
+                                waNumber = '55' + waNumber;
+                            }
+                        %>
+                        <a href="https://wa.me/<%= waNumber %>" target="_blank" class="btn whatsapp-btn">
+                            <i class="fab fa-whatsapp"></i> WhatsApp
+                        </a>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container mb-5">
+        <div class="row">
+            <!-- Left Column: Info & Map -->
+            <div class="col-lg-7">
+                <!-- Contato e Endereço -->
+                <div class="info-card">
+                    <h4><i class="fas fa-info-circle me-2"></i>Informações</h4>
+                    
+                    <% if (business.address) { %>
+                    <div class="info-item">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <div class="info-item-content">
+                            <strong>Endereço</strong><br>
+                            <%= business.address %><br>
+                            <a href="https://www.google.com/maps/search/?api=1&query=<%= encodeURIComponent(business.address + ' Nova Terra') %>" target="_blank" class="btn btn-sm btn-outline-primary mt-2">
+                                <i class="fas fa-map"></i> Ver no Mapa (Nova Terra)
+                            </a>
+                        </div>
+                    </div>
+                    <% } %>
+
+                    <% if (business.phone) { %>
+                    <div class="info-item">
+                        <i class="fas fa-phone"></i>
+                        <div class="info-item-content">
+                            <strong>Telefone</strong><br>
+                            <%= business.phone %>
+                        </div>
+                    </div>
+                    <% } %>
+
+                    <% if (business.email) { %>
+                    <div class="info-item">
+                        <i class="fas fa-envelope"></i>
+                        <div class="info-item-content">
+                            <strong>Email</strong><br>
+                            <a href="mailto:<%= business.email %>"><%= business.email %></a>
+                        </div>
+                    </div>
+                    <% } %>
+
+                    <% if (business.website) { %>
+                    <div class="info-item">
+                        <i class="fas fa-globe"></i>
+                        <div class="info-item-content">
+                            <strong>Website</strong><br>
+                            <a href="<%= business.website.startsWith('http') ? business.website : 'https://' + business.website %>" target="_blank"><%= business.website %></a>
+                        </div>
+                    </div>
+                    <% } %>
+
+                    <% if (business.instagram) { %>
+                    <div class="info-item">
+                        <i class="fab fa-instagram"></i>
+                        <div class="info-item-content">
+                            <strong>Instagram</strong><br>
+                            <a href="<%= business.instagram.startsWith('http') ? business.instagram : 'https://' + business.instagram.replace('@', 'instagram.com/') %>" target="_blank"><%= business.instagram %></a>
+                        </div>
+                    </div>
+                    <% } %>
+
+                    <% if (business.facebook) { %>
+                    <div class="info-item">
+                        <i class="fab fa-facebook"></i>
+                        <div class="info-item-content">
+                            <strong>Facebook</strong><br>
+                            <a href="<%= business.facebook.startsWith('http') ? business.facebook : 'https://' + business.facebook %>" target="_blank"><%= business.facebook %></a>
+                        </div>
+                    </div>
+                    <% } %>
+                    
+                    <% if (business.opening_hours) { %>
+                    <div class="info-item">
+                        <i class="fas fa-clock"></i>
+                        <div class="info-item-content">
+                            <strong>Horário de Funcionamento</strong><br>
+                            <button class="btn btn-sm btn-outline-secondary mt-1" data-bs-toggle="modal" data-bs-target="#hoursModal">
+                                <i class="fas fa-calendar-alt"></i> Ver Horários
+                            </button>
+                        </div>
+                    </div>
+                    <% } %>
+                </div>
+
+                <!-- Galeria de Imagens -->
+                <% if (business.business_images && business.business_images.length > 0) { %>
+                <div class="info-card">
+                    <h4><i class="fas fa-images me-2"></i>Imagens</h4>
+                    <div class="row g-3">
+                        <% business.business_images.forEach(img => { %>
+                            <div class="col-6 col-md-4">
+                                <!-- Se for URL completa (Supabase storage) ou caminho relativo -->
+                                <% const imgSrc = img.image_url.startsWith('http') ? img.image_url : '/uploads/businesses/' + img.image_url; %>
+                                <img src="<%= imgSrc %>" alt="Imagem de <%= business.name %>" class="gallery-img" onclick="openLightbox('<%= imgSrc %>')">
+                            </div>
+                        <% }); %>
+                    </div>
+                </div>
+                <% } %>
+            </div>
+
+            <!-- Right Column: Review & Rating -->
+            <div class="col-lg-5">
+                <div class="info-card">
+                    <h4><i class="fas fa-star me-2"></i>Avaliar Negócio</h4>
+                    <p class="text-muted small">Sua avaliação será enviada diretamente para o WhatsApp do estabelecimento.</p>
+                    
+                    <div class="text-center mb-4">
+                        <div class="star-rating" id="starRating">
+                            <i class="fas fa-star" data-rating="1"></i>
+                            <i class="fas fa-star" data-rating="2"></i>
+                            <i class="fas fa-star" data-rating="3"></i>
+                            <i class="fas fa-star" data-rating="4"></i>
+                            <i class="fas fa-star" data-rating="5"></i>
+                        </div>
+                        <div id="ratingText" class="mt-2 text-muted fw-bold">Selecione uma nota</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="reviewText" class="form-label">Seu comentário (opcional)</label>
+                        <textarea class="form-control" id="reviewText" rows="3" placeholder="O que você achou do atendimento, produto ou serviço?"></textarea>
+                    </div>
+
+                    <button class="btn whatsapp-btn w-100" onclick="sendReviewWhatsApp()">
+                        <i class="fab fa-whatsapp me-2"></i> Enviar Avaliação por WhatsApp
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lightbox Modal -->
+    <div class="modal fade" id="lightboxModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content bg-transparent border-0">
+                <div class="modal-header border-0 pb-0">
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center pt-0">
+                    <img id="lightboxImage" src="" alt="Imagem ampliada" class="img-fluid rounded shadow">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Horários Modal -->
+    <div class="modal fade" id="hoursModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-clock me-2 text-primary"></i>Horário de Funcionamento</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="p-3 bg-light rounded">
+                        <% if (business.opening_hours) { %>
+                            <!-- Se opening_hours for um objeto JSON stringificado ou texto simples -->
+                            <p style="white-space: pre-wrap;"><%= typeof business.opening_hours === 'object' ? JSON.stringify(business.opening_hours, null, 2) : business.opening_hours %></p>
+                        <% } else { %>
+                            <p>Horários não informados.</p>
+                        <% } %>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Lógica de Favoritos (Local Storage)
+        const businessId = '<%= business.id %>';
+        const favoriteBtn = document.getElementById('favoriteBtn');
+        
+        function checkFavoriteStatus() {
+            const favorites = JSON.parse(localStorage.getItem('temAkiFavorites')) || [];
+            if (favorites.includes(businessId)) {
+                favoriteBtn.classList.add('active');
+                favoriteBtn.innerHTML = '<i class="fas fa-heart"></i> Favorito';
+            } else {
+                favoriteBtn.classList.remove('active');
+                favoriteBtn.innerHTML = '<i class="far fa-heart"></i> Favoritar';
+            }
+        }
+
+        function toggleFavorite(id) {
+            let favorites = JSON.parse(localStorage.getItem('temAkiFavorites')) || [];
+            const index = favorites.indexOf(id);
+            
+            if (index > -1) {
+                favorites.splice(index, 1);
+            } else {
+                favorites.push(id);
+            }
+            
+            localStorage.setItem('temAkiFavorites', JSON.stringify(favorites));
+            checkFavoriteStatus();
+        }
+
+        // Inicializar status de favorito
+        checkFavoriteStatus();
+
+        // Lógica de Compartilhar
+        function shareBusiness() {
+            if (navigator.share) {
+                navigator.share({
+                    title: '<%= business.name %> no Tem Aki no Bairro',
+                    text: 'Confira este negócio no Tem Aki no Bairro: <%= business.name %>',
+                    url: window.location.href
+                }).catch(console.error);
+            } else {
+                // Fallback
+                navigator.clipboard.writeText(window.location.href).then(() => {
+                    alert('Link copiado para a área de transferência!');
+                });
+            }
+        }
+
+        // Lógica do Lightbox
+        const lightboxModal = new bootstrap.Modal(document.getElementById('lightboxModal'));
+        const lightboxImage = document.getElementById('lightboxImage');
+        
+        function openLightbox(src) {
+            lightboxImage.src = src;
+            lightboxModal.show();
+        }
+
+        // Lógica de Avaliação (Estrelas)
+        let currentRating = 0;
+        const stars = document.querySelectorAll('.star-rating .fas');
+        const ratingText = document.getElementById('ratingText');
+        const ratingLabels = ['Péssimo', 'Ruim', 'Regular', 'Bom', 'Excelente'];
+
+        stars.forEach(star => {
+            star.addEventListener('click', function() {
+                currentRating = parseInt(this.getAttribute('data-rating'));
+                updateStars(currentRating);
+                ratingText.textContent = ratingLabels[currentRating - 1];
+            });
+
+            star.addEventListener('mouseover', function() {
+                const hoverRating = parseInt(this.getAttribute('data-rating'));
+                updateStars(hoverRating);
+            });
+
+            star.addEventListener('mouseout', function() {
+                updateStars(currentRating);
+            });
+        });
+
+        function updateStars(rating) {
+            stars.forEach(s => {
+                const sRating = parseInt(s.getAttribute('data-rating'));
+                if (sRating <= rating) {
+                    s.classList.add('active');
+                    s.classList.replace('far', 'fas');
+                } else {
+                    s.classList.remove('active');
+                    //s.classList.replace('fas', 'far');
+                }
+            });
+        }
+
+        // Envio para WhatsApp
+        function sendReviewWhatsApp() {
+            if (currentRating === 0) {
+                alert('Por favor, selecione uma nota de 1 a 5 estrelas antes de enviar.');
+                return;
+            }
+
+            const phone = '<%= business.phone || "" %>';
+            if (!phone) {
+                alert('Este negócio não possui um número de telefone cadastrado.');
+                return;
+            }
+
+            let waNumber = phone.replace(/\D/g, '');
+            if(waNumber.length === 10 || waNumber.length === 11) {
+                waNumber = '55' + waNumber;
+            }
+
+            const reviewText = document.getElementById('reviewText').value.trim();
+            const starsStr = '⭐'.repeat(currentRating);
+            
+            let message = `Olá! Vi o perfil do seu negócio (*<%= business.name %>*) no *Tem Aki no Bairro* e gostaria de deixar uma avaliação:\n\n`;
+            message += `*Nota:* ${starsStr} (${currentRating}/5)\n`;
+            
+            if (reviewText) {
+                message += `*Comentário:* ${reviewText}\n`;
+            }
+            
+            const waUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`;
+            window.open(waUrl, '_blank');
+        }
+    </script>
+</body>
+</html>

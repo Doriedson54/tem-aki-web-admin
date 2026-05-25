@@ -44,7 +44,7 @@ function main() {
   
   switch (databaseType.toLowerCase()) {
     case 'supabase':
-      appFile = './app_supabase.js';
+      appFile = './api/app_supabase.js';
       version = '2.0.0 (Supabase)';
       break;
       
