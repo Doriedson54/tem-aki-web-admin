@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <title>React</title>
+  <circle cx="16" cy="16" r="2" fill="#00D8FF" />
+  <ellipse cx="16" cy="16" rx="11" ry="4.5" fill="none" stroke="#00D8FF" stroke-width="1.5" />
+  <ellipse cx="16" cy="16" rx="11" ry="4.5" fill="none" stroke="#00D8FF" stroke-width="1.5" transform="rotate(60 16 16)" />
+  <ellipse cx="16" cy="16" rx="11" ry="4.5" fill="none" stroke="#00D8FF" stroke-width="1.5" transform="rotate(120 16 16)" />
+</svg>
