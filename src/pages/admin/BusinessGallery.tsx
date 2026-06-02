@@ -12,6 +12,7 @@ export function BusinessGallery() {
     const [items, setItems] = useState<BusinessImage[]>([]);
     const [imageUrl, setImageUrl] = useState("");
     const [error, setError] = useState("");
+    const [uploading, setUploading] = useState(false);
 
     const load = async () => {
         if (!id) return;
@@ -30,6 +31,37 @@ export function BusinessGallery() {
     useEffect(() => {
         load();
     }, [id]);
+
+    const uploadFile = async (file: File | null) => {
+        if (!id || !file) return;
+        setError("");
+        setUploading(true);
+        try {
+            const fd = new FormData();
+            fd.append("businessId", id);
+            fd.append("file", file);
+            const up = await api.post<ApiResponse<{ url: string; path: string }>>("/upload/image", fd);
+            if (!up.data?.success) {
+                setError(up.data?.message || "Falha no upload.");
+                return;
+            }
+            const url = (up.data.data as { url?: string }).url;
+            if (!url) {
+                setError("Resposta inválida do servidor.");
+                return;
+            }
+            const resp = await api.post(`/business-images/${id}`, { business_id: id, image_url: url, is_primary: false });
+            if (!resp.data?.success) {
+                setError(resp.data?.message || "Falha ao adicionar.");
+                return;
+            }
+            await load();
+        } catch {
+            setError("Falha ao enviar imagem.");
+        } finally {
+            setUploading(false);
+        }
+    };
 
     const add = async () => {
         if (!id) return;
@@ -73,6 +105,16 @@ export function BusinessGallery() {
                     <div className="text-status-error font-semibold">{error}</div>
                 </Card>
             )}
+
+            <Card className="border-border-subtle">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-space-4 items-end">
+                    <div className="md:col-span-3 space-y-1">
+                        <label className="text-text-sm font-semibold text-text-secondary">Upload de imagem</label>
+                        <Input type="file" accept="image/*" onChange={(e) => uploadFile(e.target.files?.[0] || null)} disabled={uploading} />
+                    </div>
+                    <div className="text-text-sm text-text-secondary">{uploading ? "Enviando..." : ""}</div>
+                </div>
+            </Card>
 
             <Card className="border-border-subtle">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-space-4 items-end">

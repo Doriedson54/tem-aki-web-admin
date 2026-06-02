@@ -13,6 +13,12 @@ export function SubcategoryList() {
     const [name, setName] = useState("");
     const [error, setError] = useState("");
 
+    const categoryById = useMemo(() => {
+        const map = new Map<string, Category>();
+        for (const c of categories) map.set(c.id, c);
+        return map;
+    }, [categories]);
+
     const query = useMemo(() => {
         const qs = new URLSearchParams();
         if (categoryId) qs.set("category", categoryId);
@@ -25,7 +31,7 @@ export function SubcategoryList() {
         setLoading(true);
         try {
             const [catsRes, subsRes] = await Promise.all([
-                api.get<ApiResponse<Category[]>>("/categories"),
+                api.get<ApiResponse<Category[]>>("/categories?standard=1"),
                 api.get<ApiResponse<Subcategory[]>>(`/subcategories${query}`),
             ]);
             if (catsRes.data.success) setCategories(catsRes.data.data || []);
@@ -68,17 +74,20 @@ export function SubcategoryList() {
 
     return (
         <div className="space-y-space-6">
-            <h1 className="text-text-3xl font-bold text-text-primary">Subcategorias</h1>
+            <div>
+                <h1 className="text-text-3xl font-bold text-text-primary">Gerenciar Subcategorias</h1>
+                <div className="text-text-sm text-text-secondary mt-space-1">Crie subcategorias vinculadas a uma categoria</div>
+            </div>
 
             {error && (
-                <Card className="border-border-subtle">
+                <Card className="border-border-subtle p-space-4">
                     <div className="text-status-error font-semibold">{error}</div>
                 </Card>
             )}
 
-            <Card className="border-border-subtle">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-space-4 items-end">
-                    <div className="space-y-1">
+            <Card className="border-border-subtle p-space-4">
+                <div className="flex flex-col md:flex-row md:items-end gap-space-4">
+                    <div className="flex-1 space-y-1">
                         <label className="text-text-sm font-semibold text-text-secondary">Categoria</label>
                         <select
                             value={categoryId}
@@ -91,13 +100,13 @@ export function SubcategoryList() {
                             ))}
                         </select>
                     </div>
-                    <div className="space-y-1">
+                    <div className="flex-1 space-y-1">
                         <label className="text-text-sm font-semibold text-text-secondary">Nome</label>
                         <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Alimentação e Bebidas" />
                     </div>
-                </div>
-                <div className="mt-space-4 flex justify-end">
-                    <Button onClick={create} disabled={!categoryId || !name.trim()}>Adicionar</Button>
+                    <div className="md:pb-[2px]">
+                        <Button onClick={create} disabled={!categoryId || !name.trim()}>Adicionar</Button>
+                    </div>
                 </div>
             </Card>
 
@@ -106,15 +115,36 @@ export function SubcategoryList() {
                     <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-action-primary"></div>
                 </div>
             ) : (
-                <Card className="border-border-subtle">
-                    <div className="space-y-space-3">
-                        {items.map((s) => (
-                            <div key={s.id} className="flex items-center justify-between border-b border-border-subtle pb-space-3 last:border-b-0 last:pb-0">
-                                <div className="font-semibold text-text-primary">{s.name}</div>
-                                <button className="text-status-error hover:underline font-semibold text-text-sm" onClick={() => remove(s.id)}>Excluir</button>
-                            </div>
-                        ))}
-                        {items.length === 0 && <div className="text-text-secondary">Sem subcategorias.</div>}
+                <Card className="border-border-subtle p-space-4">
+                    <div className="text-text-sm text-text-secondary">{items.length} subcategorias</div>
+                    <div className="mt-space-4 overflow-auto">
+                        <table className="w-full text-sm">
+                            <thead>
+                                <tr className="text-left text-text-muted">
+                                    <th className="py-2 pr-4">Subcategoria</th>
+                                    <th className="py-2 pr-4">Categoria</th>
+                                    <th className="py-2 pr-4">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {items.map((s) => (
+                                    <tr key={s.id} className="border-t border-border-subtle hover:bg-surface-subtle/60">
+                                        <td className="py-3 pr-4 font-semibold text-text-primary">{s.name}</td>
+                                        <td className="py-3 pr-4 text-text-secondary">
+                                            {s.category?.name || categoryById.get(s.category_id)?.name || "-"}
+                                        </td>
+                                        <td className="py-3 pr-4">
+                                            <button className="text-status-error hover:underline font-semibold" onClick={() => remove(s.id)}>Excluir</button>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {items.length === 0 && (
+                                    <tr>
+                                        <td className="py-4 text-text-secondary" colSpan={3}>Sem subcategorias.</td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
                     </div>
                 </Card>
             )}

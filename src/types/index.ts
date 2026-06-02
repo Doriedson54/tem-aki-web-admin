@@ -26,6 +26,7 @@ export interface Business {
     website?: string;
     instagram?: string;
     facebook?: string;
+    other_social?: string;
     category_id: string;
     subcategory_id?: string;
     status: 'active' | 'inactive' | 'pending';

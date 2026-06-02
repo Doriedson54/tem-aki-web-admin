@@ -14,6 +14,18 @@ export const config = {
 type ApiQuery = Record<string, string | string[] | undefined>;
 type ApiRequest = IncomingMessage & { query?: ApiQuery; body?: unknown };
 
+const STANDARD_CATEGORIES = [
+  { name: 'Serviços', icon: '🛠️' },
+  { name: 'Comércio', icon: '🛍️' },
+  { name: 'Escolar', icon: '🎓' },
+  { name: 'Instituições Públicas', icon: '🏛️' },
+  { name: 'Instituições Comunitárias', icon: '🤝' },
+  { name: 'Instituições Religiosas', icon: '⛪' },
+];
+
+const normalizeCategoryName = (value: unknown) => String(value || '').trim().toLowerCase();
+const STANDARD_CATEGORY_NAME_SET = new Set(STANDARD_CATEGORIES.map((c) => normalizeCategoryName(c.name)));
+
 function getPathSegments(req: ApiRequest): string[] {
   const raw = req.query?.path;
   if (!raw) {
@@ -143,6 +155,7 @@ function normalizeBusinessUpdatePayload(body: unknown): Record<string, unknown> 
     'website',
     'instagram',
     'facebook',
+    'other_social',
     'category_id',
     'subcategory_id',
     'status',
@@ -162,6 +175,7 @@ function normalizeBusinessUpdatePayload(body: unknown): Record<string, unknown> 
   }
 
   if (!('main_product' in payload) && typeof b.mainProduct === 'string') payload.main_product = b.mainProduct;
+  if (!('other_social' in payload) && typeof b.otherSocial === 'string') payload.other_social = b.otherSocial;
   if ('delivery' in payload) {
     const normalized = normalizeBoolean(payload.delivery);
     if (typeof normalized !== 'undefined') payload.delivery = normalized;
@@ -409,9 +423,71 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
       const supabase = getSupabaseAdmin();
 
       if (!a && req.method === 'GET') {
+        const onlyStandard = getQuery(req, 'standard') || getQuery(req, 'onlyStandard');
+        const includeAll = getQuery(req, 'all');
         const { data, error } = await supabase.from('categories').select('*').order('name', { ascending: true });
         if (error) return json(res, 500, { success: false, message: error.message });
-        return json(res, 200, { success: true, data: data || [] });
+        const list = data || [];
+        if (!onlyStandard || includeAll) return json(res, 200, { success: true, data: list });
+
+        const byName = new Map<string, any>();
+        for (const c of list) {
+          const key = normalizeCategoryName((c as any)?.name);
+          if (!STANDARD_CATEGORY_NAME_SET.has(key)) continue;
+          if (!byName.has(key)) byName.set(key, c);
+        }
+
+        const standardized = STANDARD_CATEGORIES
+          .map((c) => byName.get(normalizeCategoryName(c.name)))
+          .filter(Boolean);
+
+        return json(res, 200, { success: true, data: standardized });
+      }
+
+      if (a === 'standardize' && req.method === 'POST') {
+        const user = await requireAuth(req);
+        requireRole(user, ['admin']);
+
+        const body = await readJson(req);
+        const action = body?.action;
+
+        const { data, error } = await supabase.from('categories').select('*').order('name', { ascending: true });
+        if (error) return json(res, 500, { success: false, message: error.message });
+        const list = data || [];
+
+        const byName = new Map<string, any>();
+        for (const c of list) {
+          const key = normalizeCategoryName((c as any)?.name);
+          if (!byName.has(key)) byName.set(key, c);
+        }
+
+        if (action === 'create-missing') {
+          const missing = STANDARD_CATEGORIES.filter((c) => !byName.has(normalizeCategoryName(c.name)));
+          if (!missing.length) return json(res, 200, { success: true, data: { created: 0 } });
+
+          const insertRes = await supabase.from('categories').insert(missing).select('*');
+          if (insertRes.error) return json(res, 500, { success: false, message: insertRes.error.message });
+          return json(res, 200, { success: true, data: { created: missing.length, inserted: insertRes.data || [] } });
+        }
+
+        if (action === 'delete-nonstandard') {
+          const nonStandardIds = (list || [])
+            .filter((c: any) => !STANDARD_CATEGORY_NAME_SET.has(normalizeCategoryName(c?.name)))
+            .map((c: any) => c.id)
+            .filter((id: any) => typeof id === 'string' && id.length > 0);
+
+          if (!nonStandardIds.length) return json(res, 200, { success: true, data: { deleted: 0 } });
+
+          const subsDel = await supabase.from('subcategories').delete().in('category_id', nonStandardIds);
+          if (subsDel.error) return json(res, 500, { success: false, message: subsDel.error.message });
+
+          const catDel = await supabase.from('categories').delete().in('id', nonStandardIds);
+          if (catDel.error) return json(res, 500, { success: false, message: catDel.error.message });
+
+          return json(res, 200, { success: true, data: { deleted: nonStandardIds.length } });
+        }
+
+        return json(res, 400, { success: false, message: 'action inválida' });
       }
 
       if (!a && req.method === 'POST') {
@@ -592,6 +668,7 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
           website: body.website || null,
           instagram: body.instagram || null,
           facebook: body.facebook || null,
+          other_social: body.other_social || body.otherSocial || null,
           category_id: body.category_id || null,
           subcategory_id: body.subcategory_id || null,
           status: body.status || 'pending',
@@ -611,10 +688,11 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
 
         let { data, error } = await attemptInsert(insertPayload as Record<string, unknown>);
 
-        if (error && (isMissingColumnError(error, 'main_product') || isMissingColumnError(error, 'delivery'))) {
+        if (error && (isMissingColumnError(error, 'main_product') || isMissingColumnError(error, 'delivery') || isMissingColumnError(error, 'other_social'))) {
           const retryPayload: Record<string, unknown> = { ...(insertPayload as Record<string, unknown>) };
           if (isMissingColumnError(error, 'main_product')) delete retryPayload.main_product;
           if (isMissingColumnError(error, 'delivery')) delete retryPayload.delivery;
+          if (isMissingColumnError(error, 'other_social')) delete retryPayload.other_social;
           ({ data, error } = await attemptInsert(retryPayload));
         }
 
@@ -705,10 +783,11 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
 
         let { data, error } = await attemptUpdate(updatePayload);
 
-        if (error && (isMissingColumnError(error, 'main_product') || isMissingColumnError(error, 'delivery'))) {
+        if (error && (isMissingColumnError(error, 'main_product') || isMissingColumnError(error, 'delivery') || isMissingColumnError(error, 'other_social'))) {
           const retryPayload: Record<string, unknown> = { ...updatePayload };
           if (isMissingColumnError(error, 'main_product')) delete retryPayload.main_product;
           if (isMissingColumnError(error, 'delivery')) delete retryPayload.delivery;
+          if (isMissingColumnError(error, 'other_social')) delete retryPayload.other_social;
           ({ data, error } = await attemptUpdate(retryPayload));
         }
 
@@ -742,7 +821,18 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
         const safeLimitBusinesses = Number.isFinite(limitBusinesses) && limitBusinesses > 0 ? Math.min(limitBusinesses, 50) : 8;
         const safeLimitActivities = Number.isFinite(limitActivities) && limitActivities > 0 ? Math.min(limitActivities, 100) : 12;
 
-        const [recentBusinessesRes, businessesActivityRes, categoriesRes, subcategoriesRes, leadsRes, favoritesRes] = await Promise.all([
+        const [
+          recentBusinessesRes,
+          businessesActivityRes,
+          categoriesRes,
+          categoriesAllRes,
+          subcategoriesRes,
+          leadsRes,
+          favoritesRes,
+          businessesCountRes,
+          reviewsCountRes,
+          leadsCountRes,
+        ] = await Promise.all([
           supabase
             .from('businesses')
             .select('id, name, status, neighborhood, city, created_at, updated_at')
@@ -758,6 +848,7 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
             .select('id, name, created_at')
             .order('created_at', { ascending: false })
             .limit(30),
+          supabase.from('categories').select('id, name'),
           supabase
             .from('subcategories')
             .select('id, name, category_id, created_at')
@@ -773,9 +864,13 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
             .select('id, business_id, user_id, created_at, business:businesses(id,name)')
             .order('created_at', { ascending: false })
             .limit(30),
+          supabase.from('businesses').select('id', { count: 'exact', head: true }),
+          supabase.from('reviews').select('id', { count: 'exact', head: true }),
+          supabase.from('leads').select('id', { count: 'exact', head: true }),
         ]);
 
         const recentBusinesses = recentBusinessesRes.data || [];
+        const recentLeads = leadsRes.data || [];
 
         type Activity = {
           id: string;
@@ -852,11 +947,23 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
         }
 
         activities.sort((x, y) => new Date(y.created_at).getTime() - new Date(x.created_at).getTime());
+        const standardCategoriesFound = new Set<string>();
+        for (const cItem of categoriesAllRes.data || []) {
+          const key = normalizeCategoryName((cItem as any)?.name);
+          if (STANDARD_CATEGORY_NAME_SET.has(key)) standardCategoriesFound.add(key);
+        }
 
         return json(res, 200, {
           success: true,
           data: {
+            totals: {
+              businesses: businessesCountRes.count || 0,
+              categories: standardCategoriesFound.size,
+              reviews: reviewsCountRes.count || 0,
+              leads: leadsCountRes.count || 0,
+            },
             recentBusinesses,
+            recentLeads,
             activities: activities.slice(0, safeLimitActivities),
           },
         });
@@ -989,6 +1096,62 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
     if (resource === 'reviews') {
       const supabase = getSupabaseAdmin();
 
+      if (!a && req.method === 'GET') {
+        const user = await requireAuth(req);
+        requireRole(user, ['admin']);
+
+        const limitRaw = getQuery(req, 'limit');
+        const limit = limitRaw ? Number.parseInt(limitRaw, 10) : 200;
+        const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.min(limit, 500) : 200;
+
+        const attempt = async (options: { withProfile: boolean; withBusiness: boolean; useCommentField: boolean; useProfileId: boolean }) => {
+          const contentField = options.useCommentField ? 'comment' : 'content';
+          const userIdField = options.useProfileId ? 'profile_id' : 'user_id';
+          const base = `id, business_id, ${userIdField}, rating, ${contentField}, created_at`;
+          const select = [
+            base,
+            options.withBusiness ? 'business:businesses(id,name)' : null,
+            options.withProfile ? 'user:profiles(id, username)' : null,
+          ]
+            .filter(Boolean)
+            .join(', ');
+
+          return supabase.from('reviews').select(select).order('created_at', { ascending: false }).limit(safeLimit);
+        };
+
+        let { data, error } = await attempt({ withProfile: true, withBusiness: true, useCommentField: false, useProfileId: false });
+        if (error && isMissingColumnError(error, 'content')) {
+          ({ data, error } = await attempt({ withProfile: true, withBusiness: true, useCommentField: true, useProfileId: false }));
+        }
+        if (error && isMissingColumnError(error, 'user_id')) {
+          ({ data, error } = await attempt({ withProfile: true, withBusiness: true, useCommentField: isMissingColumnError(error, 'content'), useProfileId: true }));
+        }
+        if (error) {
+          ({ data, error } = await attempt({
+            withProfile: false,
+            withBusiness: true,
+            useCommentField: isMissingColumnError(error, 'content'),
+            useProfileId: isMissingColumnError(error, 'user_id'),
+          }));
+        }
+        if (error) {
+          console.error('[reviews] LIST failed', { error: normalizeSupabaseError(error) });
+          const resp = supabaseErrorResponse(error);
+          return json(res, resp.status, resp.body);
+        }
+
+        const mapped = Array.isArray(data)
+          ? data.map((r) => {
+            const rr = r as Record<string, unknown>;
+            const content = typeof rr.content === 'string' ? rr.content : typeof rr.comment === 'string' ? rr.comment : '';
+            const userIdValue = typeof rr.user_id === 'string' ? rr.user_id : typeof rr.profile_id === 'string' ? rr.profile_id : null;
+            return { ...rr, content, user_id: userIdValue };
+          })
+          : [];
+
+        return json(res, 200, { success: true, data: mapped });
+      }
+
       if (a && req.method === 'GET') {
         const attempt = async (options: { withProfile: boolean; useCommentField: boolean; useProfileId: boolean }) => {
           const contentField = options.useCommentField ? 'comment' : 'content';
@@ -1030,6 +1193,19 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
           : [];
 
         return json(res, 200, { success: true, data: mapped });
+      }
+
+      if (a && req.method === 'DELETE') {
+        const user = await requireAuth(req);
+        requireRole(user, ['admin']);
+
+        const { error } = await supabase.from('reviews').delete().eq('id', a);
+        if (error) {
+          console.error('[reviews] DELETE failed', { reviewId: a, error: normalizeSupabaseError(error) });
+          const resp = supabaseErrorResponse(error);
+          return json(res, resp.status, resp.body);
+        }
+        return json(res, 200, { success: true });
       }
 
       if (req.method === 'POST') {

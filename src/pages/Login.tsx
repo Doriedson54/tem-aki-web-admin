@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
@@ -9,13 +9,23 @@ import { useAuth } from "../contexts/AuthContext";
 export function Login() {
     const navigate = useNavigate();
     const location = useLocation();
-    const { login } = useAuth();
+    const { login, isAuthenticated, user } = useAuth();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
     const from = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname || "/";
+    const defaultRedirect = useMemo(() => {
+        if (from && from !== "/" && from !== "/login") return from;
+        if (user?.role === "admin" || user?.role === "operador") return "/admin";
+        return "/";
+    }, [from, user?.role]);
+
+    useEffect(() => {
+        if (!isAuthenticated) return;
+        navigate(defaultRedirect, { replace: true });
+    }, [defaultRedirect, isAuthenticated, navigate]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -31,7 +41,12 @@ export function Login() {
                 return;
             }
             login(token, user);
-            navigate(from, { replace: true });
+            if (from && from !== "/" && from !== "/login") {
+                navigate(from, { replace: true });
+                return;
+            }
+            const target = user.role === "admin" || user.role === "operador" ? "/admin" : "/";
+            navigate(target, { replace: true });
         } catch {
             setError("Credenciais inválidas.");
         } finally {

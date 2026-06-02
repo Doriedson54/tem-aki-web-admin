@@ -5,11 +5,6 @@ import { useState, useRef, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import logo from "../../assets/logo.jpg";
 
-type BeforeInstallPromptEvent = Event & {
-    prompt: () => Promise<void> | void;
-    userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
-};
-
 type NavigatorStandalone = Navigator & { standalone?: boolean };
 
 export function Header() {
@@ -17,7 +12,6 @@ export function Header() {
     const navigate = useNavigate();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
-    const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
     const [isStandalone, setIsStandalone] = useState(false);
     const profileRef = useRef<HTMLDivElement>(null);
 
@@ -49,50 +43,18 @@ export function Header() {
 
         updateStandalone();
 
-        const onBeforeInstallPrompt = (e: Event) => {
-            const ev = e as BeforeInstallPromptEvent;
-            ev.preventDefault();
-            setDeferredPrompt(ev);
-        };
-
         const onAppInstalled = () => {
-            setDeferredPrompt(null);
             updateStandalone();
         };
 
-        window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
         window.addEventListener("appinstalled", onAppInstalled);
         window.matchMedia?.("(display-mode: standalone)")?.addEventListener?.("change", updateStandalone);
 
         return () => {
-            window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
             window.removeEventListener("appinstalled", onAppInstalled);
             window.matchMedia?.("(display-mode: standalone)")?.removeEventListener?.("change", updateStandalone);
         };
     }, []);
-
-    const handleInstall = async () => {
-        const isIos = /iphone|ipad|ipod/i.test(window.navigator.userAgent);
-        if (isStandalone) return;
-
-        if (deferredPrompt) {
-            try {
-                deferredPrompt.prompt();
-                await deferredPrompt.userChoice;
-                setDeferredPrompt(null);
-            } catch {
-                setDeferredPrompt(null);
-            }
-            return;
-        }
-
-        if (isIos) {
-            alert("No iPhone, toque em Compartilhar e depois em Adicionar à Tela de Início.");
-            return;
-        }
-
-        alert("Instalação não disponível neste navegador. Use Chrome/Edge no Android ou instale como aplicativo pelo próprio navegador.");
-    };
 
     return (
         <header className="fixed top-0 left-0 w-full z-50 bg-surface-section border-b border-border-default shadow-sm text-sm">
@@ -110,9 +72,11 @@ export function Header() {
                     <Link to="/map" className="text-text-secondary hover:text-action-primary font-medium transition-colors">Mapa</Link>
                     <Link to="/about" className="text-text-secondary hover:text-action-primary font-medium transition-colors">Sobre</Link>
                     {!isStandalone && (
-                        <Button size="sm" variant="ghost" className="text-action-primary hover:bg-surface-subtle font-bold border border-border-subtle" onClick={handleInstall}>
-                            Instalar
-                        </Button>
+                        <Link to="/download">
+                            <Button size="sm" variant="ghost" className="text-action-primary hover:bg-surface-subtle font-bold border border-border-subtle">
+                                Instalar
+                            </Button>
+                        </Link>
                     )}
 
                     {!user ? (
@@ -187,9 +151,11 @@ export function Header() {
             {isMenuOpen && (
                 <div className="md:hidden absolute top-16 left-0 w-full bg-surface-card border-b border-border-default shadow-lg p-space-4 flex flex-col gap-space-4 animate-in slide-in-from-top-2 max-h-[calc(100vh-4rem)] overflow-y-auto">
                     {!isStandalone && (
-                        <Button onClick={() => { handleInstall(); toggleMenu(); }} className="w-full shadow-button-primary">
-                            Instalar no celular
-                        </Button>
+                        <Link to="/download" onClick={toggleMenu}>
+                            <Button className="w-full shadow-button-primary">
+                                Instalar no celular
+                            </Button>
+                        </Link>
                     )}
                     {user && (
                         <div className="flex items-center gap-space-3 p-space-3 bg-surface-subtle rounded-radius-lg mb-space-2">

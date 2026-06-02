@@ -1,11 +1,14 @@
-import { Link, Outlet, useLocation } from "react-router-dom";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { LayoutDashboard, Store, Grid, MessageSquare, LogOut, Menu, X, ListTree } from "lucide-react";
 import { useState } from "react";
 import { Button } from "../components/ui/Button";
+import { useAuth } from "../contexts/AuthContext";
 
 export function AdminLayout() {
     const { pathname } = useLocation();
+    const navigate = useNavigate();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const { logout } = useAuth();
 
     const navItems = [
         { path: "/admin", label: "Dashboard", icon: LayoutDashboard },
@@ -18,16 +21,16 @@ export function AdminLayout() {
     const toggleMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
 
     return (
-        <div className="flex h-screen bg-gray-100">
+        <div className="flex h-screen bg-surface-page">
             {isMobileMenuOpen && (
                 <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={toggleMenu}></div>
             )}
 
-            <aside className={`fixed md:static inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0 transition-transform duration-300 ease-in-out`}>
+            <aside className={`fixed md:static inset-y-0 left-0 z-50 w-64 bg-surface-card border-r border-border-subtle shadow-card transform ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0 transition-transform duration-300 ease-in-out`}>
                 <div className="h-full flex flex-col">
-                    <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-                        <Link to="/" className="text-xl font-bold text-action-primary">Tem Aki Admin</Link>
-                        <button onClick={toggleMenu} className="md:hidden text-gray-500">
+                    <div className="p-space-6 border-b border-border-subtle flex justify-between items-center">
+                        <Link to="/" className="text-text-lg font-bold text-action-primary">Tem Aki Admin</Link>
+                        <button onClick={toggleMenu} className="md:hidden text-text-muted">
                             <X className="h-6 w-6" />
                         </button>
                     </div>
@@ -44,9 +47,9 @@ export function AdminLayout() {
                                     key={item.path}
                                     to={item.path}
                                     onClick={() => setIsMobileMenuOpen(false)}
-                                    className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive
+                                    className={`flex items-center gap-3 px-4 py-3 rounded-radius-lg transition-colors ${isActive
                                             ? "bg-action-primary/10 text-action-primary font-medium"
-                                            : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                                            : "text-text-secondary hover:bg-surface-subtle hover:text-text-primary"
                                         }`}
                                 >
                                     <Icon className="h-5 w-5" />
@@ -56,13 +59,13 @@ export function AdminLayout() {
                         })}
                     </nav>
 
-                    <div className="p-4 border-t border-gray-100">
+                    <div className="p-4 border-t border-border-subtle">
                         <Button
                             variant="ghost"
-                            className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 gap-3"
+                            className="w-full justify-start text-status-error hover:text-status-error hover:bg-status-error/10 gap-3"
                             onClick={() => {
-                                localStorage.removeItem('tem-aki-token');
-                                window.location.href = '/login';
+                                logout();
+                                navigate("/login", { replace: true });
                             }}
                         >
                             <LogOut className="h-5 w-5" />
@@ -73,11 +76,11 @@ export function AdminLayout() {
             </aside>
 
             <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
-                <header className="md:hidden bg-white shadow-sm p-4 flex items-center gap-4">
-                    <button onClick={toggleMenu} className="text-gray-500">
+                <header className="md:hidden bg-surface-card shadow-card p-4 flex items-center gap-4 border-b border-border-subtle">
+                    <button onClick={toggleMenu} className="text-text-muted">
                         <Menu className="h-6 w-6" />
                     </button>
-                    <span className="font-semibold text-gray-900">Painel Administrativo</span>
+                    <span className="font-semibold text-text-primary">Painel Administrativo</span>
                 </header>
 
                 <div className="flex-1 overflow-auto p-4 md:p-8">

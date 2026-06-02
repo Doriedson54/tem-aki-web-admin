@@ -6,6 +6,7 @@ import { Directory } from "./pages/Directory";
 import { Login } from "./pages/Login";
 import { About } from "./pages/About";
 import { BusinessDetails } from "./pages/BusinessDetails";
+import { Download } from "./pages/Download";
 import { AdminLayout } from "./layouts/AdminLayout";
 import { Dashboard } from "./pages/admin/Dashboard";
 import { BusinessList } from "./pages/admin/BusinessList";
@@ -102,6 +103,8 @@ Ao utilizar o sistema, você concorda em fornecer dados verdadeiros e respeitar 
         <Route path="business/:id" element={<BusinessDetails />} />
         <Route path="map" element={<Geolocation />} />
         <Route path="about" element={<About />} />
+        <Route path="download" element={<Download />} />
+        <Route path="instalar" element={<Download />} />
         <Route path="login" element={<Login />} />
         <Route path="favorites" element={<PrivateRoute><MyFavorites /></PrivateRoute>} />
         <Route path="profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
