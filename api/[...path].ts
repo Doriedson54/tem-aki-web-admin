@@ -60,7 +60,24 @@ function normalizeBoolean(value: unknown): boolean | undefined {
 function isMissingColumnError(error: unknown, columnName: string): boolean {
   const message = typeof (error as { message?: unknown })?.message === 'string' ? (error as { message: string }).message : '';
   if (!message) return false;
-  return message.toLowerCase().includes(`column "${columnName}" does not exist`.toLowerCase());
+  const msg = message.toLowerCase();
+  const col = columnName.toLowerCase();
+
+  if (msg.includes(`column "${col}" does not exist`)) return true;
+  if (msg.includes(`could not find the '${col}' column`)) return true;
+  if (msg.includes(`could not find the "${col}" column`)) return true;
+  if (msg.includes('schema cache') && msg.includes('could not find') && msg.includes(col)) return true;
+  return false;
+}
+
+function findMissingColumns(error: unknown, columns: string[]): string[] {
+  const unique = Array.from(new Set(columns)).filter((c) => typeof c === 'string' && c.length > 0);
+  return unique.filter((c) => isMissingColumnError(error, c));
+}
+
+function missingColumnsMessage(columns: string[]): string {
+  const list = columns.join(', ');
+  return `Colunas ausentes no banco: ${list}. Execute o SQL de migração no Supabase SQL Editor e tente novamente.`;
 }
 
 type SupabaseErrorLike = {
@@ -176,6 +193,7 @@ function normalizeBusinessUpdatePayload(body: unknown): Record<string, unknown> 
 
   if (!('main_product' in payload) && typeof b.mainProduct === 'string') payload.main_product = b.mainProduct;
   if (!('other_social' in payload) && typeof b.otherSocial === 'string') payload.other_social = b.otherSocial;
+  if (!('opening_hours' in payload) && typeof b.openingHours === 'string') payload.opening_hours = b.openingHours;
   if ('delivery' in payload) {
     const normalized = normalizeBoolean(payload.delivery);
     if (typeof normalized !== 'undefined') payload.delivery = normalized;
@@ -656,7 +674,12 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
         if (!body?.name) return json(res, 400, { success: false, message: 'name é obrigatório' });
 
         const delivery = normalizeBoolean(body.delivery ?? body.hasDelivery ?? body.has_delivery) ?? false;
-        const insertPayload = {
+        const openingHoursInput = body.opening_hours ?? body.openingHours ?? null;
+        const openingHoursText = typeof openingHoursInput === 'string' ? openingHoursInput.trim() : null;
+        const openingHoursJson =
+          openingHoursText ? { description: openingHoursText } : openingHoursInput && typeof openingHoursInput === 'object' ? openingHoursInput : null;
+
+        const insertPayloadBase = {
           name: body.name,
           main_product: typeof body.main_product === 'string' ? body.main_product : typeof body.mainProduct === 'string' ? body.mainProduct : null,
           description: body.description || '',
@@ -680,20 +703,34 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
           zip_code: body.zip_code || null,
           latitude: body.latitude || null,
           longitude: body.longitude || null,
-          opening_hours: body.opening_hours || null,
         };
 
         const attemptInsert = async (payload: Record<string, unknown>) =>
           supabase.from('businesses').insert([payload]).select('*, category:categories(id,name), subcategory:subcategories(id,name)').single();
 
-        let { data, error } = await attemptInsert(insertPayload as Record<string, unknown>);
+        const insertPayloadJson = { ...(insertPayloadBase as Record<string, unknown>), opening_hours: openingHoursJson };
+        const insertPayloadText = { ...(insertPayloadBase as Record<string, unknown>), opening_hours: openingHoursText || null };
 
-        if (error && (isMissingColumnError(error, 'main_product') || isMissingColumnError(error, 'delivery') || isMissingColumnError(error, 'other_social'))) {
-          const retryPayload: Record<string, unknown> = { ...(insertPayload as Record<string, unknown>) };
-          if (isMissingColumnError(error, 'main_product')) delete retryPayload.main_product;
-          if (isMissingColumnError(error, 'delivery')) delete retryPayload.delivery;
-          if (isMissingColumnError(error, 'other_social')) delete retryPayload.other_social;
-          ({ data, error } = await attemptInsert(retryPayload));
+        let { data, error } = await attemptInsert(insertPayloadJson);
+
+        if (error) {
+          const missingColumns = findMissingColumns(error, Object.keys(insertPayloadJson));
+          if (missingColumns.length > 0) {
+            console.error('[businesses] missing columns', { missingColumns, error: normalizeSupabaseError(error) });
+            return json(res, 500, { success: false, message: missingColumnsMessage(missingColumns), error: { missingColumns } });
+          }
+
+          if (typeof openingHoursText === 'string' && insertPayloadText.opening_hours !== insertPayloadJson.opening_hours) {
+            ({ data, error } = await attemptInsert(insertPayloadText));
+
+            if (error) {
+              const missingColumnsRetry = findMissingColumns(error, Object.keys(insertPayloadText));
+              if (missingColumnsRetry.length > 0) {
+                console.error('[businesses] missing columns', { missingColumns: missingColumnsRetry, error: normalizeSupabaseError(error) });
+                return json(res, 500, { success: false, message: missingColumnsMessage(missingColumnsRetry), error: { missingColumns: missingColumnsRetry } });
+              }
+            }
+          }
         }
 
         if (error) return json(res, 500, { success: false, message: error.message });
@@ -781,14 +818,36 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
         const attemptUpdate = async (payload: Record<string, unknown>) =>
           supabase.from('businesses').update(payload).eq('id', a).select('*, category:categories(id,name), subcategory:subcategories(id,name)').single();
 
-        let { data, error } = await attemptUpdate(updatePayload);
+        const openingHoursInput = (body as Record<string, unknown>)?.opening_hours ?? (body as Record<string, unknown>)?.openingHours ?? null;
+        const openingHoursText = typeof openingHoursInput === 'string' ? openingHoursInput.trim() : null;
+        const updatePayloadJson = { ...(updatePayload as Record<string, unknown>) };
+        const updatePayloadText = { ...(updatePayload as Record<string, unknown>) };
 
-        if (error && (isMissingColumnError(error, 'main_product') || isMissingColumnError(error, 'delivery') || isMissingColumnError(error, 'other_social'))) {
-          const retryPayload: Record<string, unknown> = { ...updatePayload };
-          if (isMissingColumnError(error, 'main_product')) delete retryPayload.main_product;
-          if (isMissingColumnError(error, 'delivery')) delete retryPayload.delivery;
-          if (isMissingColumnError(error, 'other_social')) delete retryPayload.other_social;
-          ({ data, error } = await attemptUpdate(retryPayload));
+        if (typeof openingHoursText === 'string') {
+          updatePayloadJson.opening_hours = openingHoursText ? { description: openingHoursText } : null;
+          updatePayloadText.opening_hours = openingHoursText || null;
+        }
+
+        let { data, error } = await attemptUpdate(updatePayloadJson);
+
+        if (error) {
+          const missingColumns = findMissingColumns(error, Object.keys(updatePayloadJson));
+          if (missingColumns.length > 0) {
+            console.error('[businesses] missing columns', { missingColumns, error: normalizeSupabaseError(error) });
+            return json(res, 500, { success: false, message: missingColumnsMessage(missingColumns), error: { missingColumns } });
+          }
+
+          if (typeof openingHoursText === 'string' && updatePayloadText.opening_hours !== updatePayloadJson.opening_hours) {
+            ({ data, error } = await attemptUpdate(updatePayloadText));
+
+            if (error) {
+              const missingColumnsRetry = findMissingColumns(error, Object.keys(updatePayloadText));
+              if (missingColumnsRetry.length > 0) {
+                console.error('[businesses] missing columns', { missingColumns: missingColumnsRetry, error: normalizeSupabaseError(error) });
+                return json(res, 500, { success: false, message: missingColumnsMessage(missingColumnsRetry), error: { missingColumns: missingColumnsRetry } });
+              }
+            }
+          }
         }
 
         if (error) return json(res, 500, { success: false, message: error.message });
