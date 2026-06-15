@@ -85,8 +85,75 @@ Tem Aki no Bairro
 
 Última atualização: ${updatedAt}
 
-Este sistema utiliza Supabase para autenticação e persistência de dados do catálogo (categorias, negócios, favoritos e leads).
-Os dados são utilizados apenas para fornecer as funcionalidades do sistema.`;
+1. Introdução
+
+O Tem Aki no Bairro valoriza a privacidade dos usuários e trata os dados pessoais com responsabilidade, transparência e respeito à legislação aplicável, incluindo a Lei Geral de Proteção de Dados Pessoais (LGPD - Lei nº 13.709/2018).
+
+Esta Política de Privacidade explica como os dados são coletados, utilizados, armazenados e protegidos ao utilizar a plataforma Tem Aki no Bairro, incluindo o site, o aplicativo instalado como PWA e áreas de cadastro e autenticação.
+
+2. Dados coletados
+
+Podemos coletar e tratar os seguintes dados, conforme a utilização da plataforma:
+
+- Nome
+- E-mail
+- Telefone
+- Dados de negócios cadastrados
+- Informações fornecidas voluntariamente pelo usuário
+
+Os dados de negócios cadastrados podem incluir, por exemplo, nome do estabelecimento, descrição, endereço, categoria, subcategoria, horário de funcionamento, meios de contato, imagens, redes sociais e outras informações inseridas pelo próprio usuário responsável pelo cadastro.
+
+3. Finalidade do uso dos dados
+
+Os dados coletados são utilizados para as seguintes finalidades:
+
+- Autenticação de usuários e acesso a áreas restritas
+- Cadastro de empresas, comércios, serviços e instituições na plataforma
+- Exibição de informações públicas para consulta pelos moradores e visitantes
+- Contato entre usuários e negócios, incluindo acesso a telefone, WhatsApp, endereço e outros meios de contato disponibilizados
+- Melhoria da plataforma, de suas funcionalidades, desempenho, organização das informações e experiência de uso
+
+4. Compartilhamento de dados
+
+O Tem Aki no Bairro não comercializa dados pessoais dos usuários.
+
+O compartilhamento de dados ocorre apenas quando necessário para o funcionamento do sistema, hospedagem, autenticação, armazenamento ou prestação dos serviços oferecidos pela própria plataforma, sempre dentro de limites compatíveis com a finalidade do serviço.
+
+Informações de negócios cadastrados podem ser exibidas publicamente quando essa for a finalidade natural do serviço, permitindo que moradores encontrem estabelecimentos, serviços e instituições locais.
+
+5. Armazenamento e segurança
+
+Os dados são armazenados com utilização do Supabase, plataforma empregada para autenticação, banco de dados e recursos relacionados ao funcionamento do sistema.
+
+Adotamos medidas razoáveis de segurança, administrativas e técnicas, para proteger os dados contra acesso não autorizado, uso indevido, alteração, divulgação ou destruição indevida. Ainda assim, nenhum sistema é totalmente isento de riscos, razão pela qual recomendamos que os usuários também adotem boas práticas de segurança.
+
+6. Direitos do usuário
+
+Nos termos da LGPD, o usuário pode solicitar, observadas as obrigações legais e regulatórias aplicáveis:
+
+- Atualização de seus dados
+- Correção de dados incompletos, inexatos ou desatualizados
+- Exclusão de dados pessoais, quando cabível
+
+Solicitações relacionadas aos dados podem ser feitas pelos canais de contato informados nesta política.
+
+7. Cookies e tecnologias semelhantes
+
+O Tem Aki no Bairro pode utilizar cookies e tecnologias semelhantes para autenticação, manutenção de sessão, funcionamento do sistema, melhoria de desempenho e recursos essenciais da plataforma.
+
+Esses recursos ajudam a reconhecer sessões ativas, manter preferências básicas de navegação e garantir o funcionamento adequado de áreas restritas e funcionalidades do serviço.
+
+8. Contato
+
+Para dúvidas, solicitações relacionadas à privacidade ou exercício de direitos previstos na LGPD, entre em contato:
+
+Nome: Doriedson Serra
+E-mail: dsdodo18@hotmail.com
+Telefone: (98) 99934-5232
+
+9. Atualização da política
+
+Esta Política de Privacidade pode ser alterada periodicamente para refletir melhorias da plataforma, mudanças operacionais, atualizações legais ou regulatórias. Recomendamos a consulta periódica desta página para ciência da versão mais atual.`;
 
   const termsOfUse = `TERMOS DE USO
 Tem Aki no Bairro
