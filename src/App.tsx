@@ -111,6 +111,7 @@ Ao utilizar o sistema, você concorda em fornecer dados verdadeiros e respeitar 
         <Route path="owner/dashboard" element={<PrivateRoute><OwnerDashboard /></PrivateRoute>} />
         <Route path="developer-contacts" element={<DeveloperContactsPage />} />
         <Route path="privacy-policy" element={<StaticTextPage title="Política de Privacidade" content={privacyPolicy} />} />
+        <Route path="politica-de-privacidade" element={<StaticTextPage title="Política de Privacidade" content={privacyPolicy} />} />
         <Route path="terms-of-use" element={<StaticTextPage title="Termos de Uso" content={termsOfUse} />} />
       </Route>
 

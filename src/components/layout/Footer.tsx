@@ -31,7 +31,7 @@ export function Footer() {
 
                         <h4 className="font-semibold text-white mt-space-6 mb-space-4">Informações</h4>
                         <ul className="space-y-space-2">
-                            <li><Link to="/privacy-policy" className="text-text-muted hover:text-white transition-colors">Política de Privacidade</Link></li>
+                            <li><Link to="/politica-de-privacidade" className="text-text-muted hover:text-white transition-colors">Política de Privacidade</Link></li>
                             <li><Link to="/terms-of-use" className="text-text-muted hover:text-white transition-colors">Termos de Uso</Link></li>
                             <li><Link to="/about" className="text-text-muted hover:text-white transition-colors">Sobre o Aplicativo</Link></li>
                         </ul>
