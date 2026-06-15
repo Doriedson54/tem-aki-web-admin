@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { Card } from "../components/ui/Card";
@@ -23,6 +23,10 @@ export function Home() {
     const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
     const [selectedSubcategoryId, setSelectedSubcategoryId] = useState<string>("");
     const [isLoadingSubcategories, setIsLoadingSubcategories] = useState(false);
+    const [isSearchFocused, setIsSearchFocused] = useState(false);
+    const [keyboardInset, setKeyboardInset] = useState(0);
+    const searchCardRef = useRef<HTMLDivElement | null>(null);
+    const blurTimeoutRef = useRef<number | null>(null);
 
     const getSubcategoryEmoji = (subcategoryName: string) => {
         const name = String(subcategoryName || "").toLowerCase();
@@ -125,6 +129,38 @@ export function Home() {
     }, []);
 
     useEffect(() => {
+        if (!isSearchFocused) {
+            setKeyboardInset(0);
+            return;
+        }
+
+        const viewport = window.visualViewport;
+        if (!viewport) return;
+
+        const updateKeyboardInset = () => {
+            const inset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
+            setKeyboardInset(inset > 0 ? inset : 0);
+        };
+
+        updateKeyboardInset();
+        viewport.addEventListener("resize", updateKeyboardInset);
+        viewport.addEventListener("scroll", updateKeyboardInset);
+
+        return () => {
+            viewport.removeEventListener("resize", updateKeyboardInset);
+            viewport.removeEventListener("scroll", updateKeyboardInset);
+        };
+    }, [isSearchFocused]);
+
+    useEffect(() => {
+        return () => {
+            if (blurTimeoutRef.current !== null) {
+                window.clearTimeout(blurTimeoutRef.current);
+            }
+        };
+    }, []);
+
+    useEffect(() => {
         if (!isCategoryModalOpen || !selectedCategory) return;
 
         let cancelled = false;
@@ -153,6 +189,7 @@ export function Home() {
     }, [isCategoryModalOpen, selectedCategory?.id]);
 
     const handleSearch = () => {
+        setIsSearchFocused(false);
         const isLeadCaptured = localStorage.getItem("temaki_lead_captured");
         if (!isLeadCaptured) {
             setIsLeadModalOpen(true);
@@ -174,6 +211,35 @@ export function Home() {
         setIsCategoryModalOpen(false);
     };
 
+    const scrollSearchIntoView = () => {
+        const target = searchCardRef.current;
+        if (!target) return;
+
+        window.setTimeout(() => {
+            target.scrollIntoView({
+                behavior: "smooth",
+                block: "start",
+                inline: "nearest",
+            });
+        }, 220);
+    };
+
+    const handleSearchFocus = () => {
+        if (blurTimeoutRef.current !== null) {
+            window.clearTimeout(blurTimeoutRef.current);
+            blurTimeoutRef.current = null;
+        }
+        setIsSearchFocused(true);
+        scrollSearchIntoView();
+    };
+
+    const handleSearchBlur = () => {
+        blurTimeoutRef.current = window.setTimeout(() => {
+            setIsSearchFocused(false);
+            setKeyboardInset(0);
+        }, 180);
+    };
+
     if (loading) {
         return (
             <div className="flex justify-center items-center h-screen text-action-primary">
@@ -183,7 +249,12 @@ export function Home() {
     }
 
     return (
-        <div className="flex flex-col gap-space-16 pb-space-16">
+        <div
+            className="flex flex-col gap-space-16 pb-space-16"
+            style={{
+                paddingBottom: keyboardInset > 0 ? `${keyboardInset + 24}px` : undefined,
+            }}
+        >
             <LeadCaptureModal
                 isOpen={isLeadModalOpen}
                 onClose={() => setIsLeadModalOpen(false)}
@@ -207,7 +278,10 @@ export function Home() {
                         Encontre os melhores comércios, serviços e instituições do bairro.
                     </p>
 
-                    <div className="bg-surface-card p-space-4 rounded-radius-xl shadow-lg max-w-2xl mx-auto flex flex-col md:flex-row gap-space-4 items-center">
+                    <div
+                        ref={searchCardRef}
+                        className="bg-surface-card p-space-4 rounded-radius-xl shadow-lg max-w-2xl mx-auto flex flex-col md:flex-row gap-space-4 items-center scroll-mt-24 md:scroll-mt-28"
+                    >
                         <div className="relative flex-1 w-full">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted h-5 w-5" />
                             <Input
@@ -216,6 +290,8 @@ export function Home() {
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                                onFocus={handleSearchFocus}
+                                onBlur={handleSearchBlur}
                             />
                         </div>
                         <Button className="w-full md:w-auto h-12 px-space-12 text-lg" onClick={handleSearch}>Localizar Agora</Button>
