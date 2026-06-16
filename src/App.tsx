@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import { MainLayout } from "./layouts/MainLayout";
 import { Home } from "./pages/Home";
@@ -39,6 +39,34 @@ function ScrollToTop() {
   }, [location.key, location.hash]);
 
   return null;
+}
+
+function OfflineNotice() {
+  const [isOffline, setIsOffline] = useState(() => typeof navigator !== "undefined" && !navigator.onLine);
+
+  useEffect(() => {
+    const updateStatus = () => {
+      setIsOffline(!navigator.onLine);
+    };
+
+    window.addEventListener("online", updateStatus);
+    window.addEventListener("offline", updateStatus);
+
+    return () => {
+      window.removeEventListener("online", updateStatus);
+      window.removeEventListener("offline", updateStatus);
+    };
+  }, []);
+
+  if (!isOffline) return null;
+
+  return (
+    <div className="fixed bottom-4 left-4 right-4 z-[60] pointer-events-none">
+      <div className="mx-auto max-w-2xl rounded-radius-xl border border-amber-300 bg-amber-50 px-space-4 py-space-3 text-text-sm text-amber-900 shadow-lg">
+        Você está sem internet. O aplicativo continua disponível no modo offline, mas buscas e dados em tempo real podem não carregar até a conexão voltar.
+      </div>
+    </div>
+  );
 }
 
 function StaticTextPage({ title, content }: { title: string; content: string }) {
@@ -200,6 +228,7 @@ export default function App() {
   return (
     <Router>
       <AuthProvider>
+        <OfflineNotice />
         <ScrollToTop />
         <AppRoutes />
       </AuthProvider>
