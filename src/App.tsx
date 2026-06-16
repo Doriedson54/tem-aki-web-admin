@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useLocation, Outlet, Link } from "react-router-dom";
 import { MainLayout } from "./layouts/MainLayout";
 import { Home } from "./pages/Home";
 import { Directory } from "./pages/Directory";
@@ -22,6 +22,7 @@ import { OwnerDashboard } from "./pages/OwnerDashboard";
 import { AuthProvider } from "./contexts/AuthContext";
 import { PrivateRoute } from "./components/PrivateRoute";
 import { Card } from "./components/ui/Card";
+import logo from "./assets/logo.jpg";
 
 function ScrollToTop() {
   const location = useLocation();
@@ -101,6 +102,27 @@ function DeveloperContactsPage() {
           </div>
         </div>
       </Card>
+    </div>
+  );
+}
+
+function UserAppLayout() {
+  return (
+    <div className="min-h-[100dvh] bg-surface-page">
+      <header className="sticky top-0 z-50 bg-surface-section border-b border-border-default shadow-sm">
+        <div className="container mx-auto px-space-4 h-14 flex items-center">
+          <Link to="/app" className="flex items-center gap-space-3">
+            <img src={logo} alt="Tem Aki no Bairro" className="h-9 w-9 rounded-radius-lg border border-border-subtle object-cover bg-surface-card" />
+            <div className="leading-tight">
+              <div className="text-text-sm font-bold text-text-primary">Tem Aki no Bairro</div>
+              <div className="text-text-xs text-text-muted">Consulta rápida</div>
+            </div>
+          </Link>
+        </div>
+      </header>
+      <main>
+        <Outlet />
+      </main>
     </div>
   );
 }
@@ -208,6 +230,11 @@ Ao utilizar o sistema, você concorda em fornecer dados verdadeiros e respeitar 
         <Route path="privacy-policy" element={<StaticTextPage title="Política de Privacidade" content={privacyPolicy} />} />
         <Route path="politica-de-privacidade" element={<StaticTextPage title="Política de Privacidade" content={privacyPolicy} />} />
         <Route path="terms-of-use" element={<StaticTextPage title="Termos de Uso" content={termsOfUse} />} />
+      </Route>
+
+      <Route path="app" element={<UserAppLayout />}>
+        <Route index element={<Directory mode="app" detailsPathPrefix="/app" />} />
+        <Route path="business/:id" element={<BusinessDetails mode="app" backTo="/app" />} />
       </Route>
 
       <Route path="admin" element={<PrivateRoute><AdminLayout /></PrivateRoute>}>

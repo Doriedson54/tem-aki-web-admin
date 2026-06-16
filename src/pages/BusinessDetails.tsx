@@ -47,7 +47,14 @@ function normalizeInstagramUrl(value: unknown): string | null {
   return `https://instagram.com/${encodeURIComponent(withoutAt)}`;
 }
 
-export function BusinessDetails() {
+type BusinessDetailsMode = "site" | "app";
+
+type BusinessDetailsProps = {
+  mode?: BusinessDetailsMode;
+  backTo?: string;
+};
+
+export function BusinessDetails({ mode = "site", backTo }: BusinessDetailsProps) {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
@@ -64,6 +71,8 @@ export function BusinessDetails() {
 
   const { user } = useAuth();
   const isLoggedIn = Boolean(user);
+  const allowAccountFeatures = mode === "site";
+  const resolvedBackTo = backTo || (mode === "app" ? "/app" : "/directory");
 
   const imageUrls = useMemo(() => {
     const urls = [business?.image_url, business?.logo_url, ...(images || []).map((img) => img?.image_url)].filter(
@@ -145,7 +154,7 @@ export function BusinessDetails() {
   }, [id]);
 
   useEffect(() => {
-    if (!id || !user) return;
+    if (!allowAccountFeatures || !id || !user) return;
     (async () => {
       try {
         const response = await favoritesService.check(id);
@@ -153,9 +162,10 @@ export function BusinessDetails() {
       } catch {
       }
     })();
-  }, [id, user]);
+  }, [allowAccountFeatures, id, user]);
 
   const toggleFavorite = async () => {
+    if (!allowAccountFeatures) return;
     if (!user) return navigate("/login", { state: { from: location } });
     if (!id) return;
     try {
@@ -201,6 +211,7 @@ export function BusinessDetails() {
 
   const handleSubmitReview = async (e: FormEvent) => {
     e.preventDefault();
+    if (!allowAccountFeatures) return;
     if (!id) return;
     if (!user) return navigate("/login", { state: { from: location } });
     if (rating < 1 || rating > 5) {
@@ -283,9 +294,9 @@ export function BusinessDetails() {
         <div className="text-center space-y-space-4">
           <h2 className="text-text-3xl font-bold text-text-primary">Negócio não encontrado</h2>
           <p className="text-text-secondary">O estabelecimento que você procura não está disponível.</p>
-          <Link to="/directory">
+          <Link to={resolvedBackTo}>
             <Button variant="primary" className="mt-space-4 shadow-lg hover:shadow-xl transition-all">
-              Voltar para o Diretório
+              Voltar
             </Button>
           </Link>
         </div>
@@ -307,7 +318,7 @@ export function BusinessDetails() {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent"></div>
         <div className="absolute top-space-4 left-space-4 z-10">
-          <Link to="/directory">
+          <Link to={resolvedBackTo}>
             <Button variant="secondary" className="bg-white/20 hover:bg-white/30 text-white border-none backdrop-blur-md">
               <ArrowLeft className="h-space-4 w-space-4 mr-space-2" /> Voltar
             </Button>
@@ -353,15 +364,17 @@ export function BusinessDetails() {
               </div>
             </div>
             <div className="flex gap-space-3 w-full md:w-auto">
-              <Button
-                variant="secondary"
-                onClick={toggleFavorite}
-                className={`flex-1 md:flex-none border-white/20 backdrop-blur-md transition-colors ${isFavorite ? "bg-white text-status-error hover:bg-white" : "bg-white/10 hover:bg-white/20 text-white"
-                  }`}
-              >
-                <Heart className={`h-space-4 w-space-4 md:mr-space-2 ${isFavorite ? "fill-current" : ""}`} />
-                <span className="hidden md:inline">{isFavorite ? "Salvo" : "Salvar"}</span>
-              </Button>
+              {allowAccountFeatures && (
+                <Button
+                  variant="secondary"
+                  onClick={toggleFavorite}
+                  className={`flex-1 md:flex-none border-white/20 backdrop-blur-md transition-colors ${isFavorite ? "bg-white text-status-error hover:bg-white" : "bg-white/10 hover:bg-white/20 text-white"
+                    }`}
+                >
+                  <Heart className={`h-space-4 w-space-4 md:mr-space-2 ${isFavorite ? "fill-current" : ""}`} />
+                  <span className="hidden md:inline">{isFavorite ? "Salvo" : "Salvar"}</span>
+                </Button>
+              )}
               <Button
                 variant="secondary"
                 onClick={handleShare}
@@ -461,83 +474,85 @@ export function BusinessDetails() {
               )}
             </section>
 
-            <section>
-              <h2 className="text-text-2xl font-bold text-text-primary mb-space-8 flex items-center gap-space-2">
-                <span className="w-1.5 h-space-8 bg-status-warning rounded-radius-full"></span>
-                Avaliações
-              </h2>
+            {allowAccountFeatures && (
+              <section>
+                <h2 className="text-text-2xl font-bold text-text-primary mb-space-8 flex items-center gap-space-2">
+                  <span className="w-1.5 h-space-8 bg-status-warning rounded-radius-full"></span>
+                  Avaliações
+                </h2>
 
-              {isLoggedIn ? (
-                <div className="bg-surface-card p-space-8 rounded-radius-2xl shadow-sm border border-border-subtle mb-space-8">
-                  <h3 className="font-bold text-text-lg mb-space-6 text-text-primary">Como foi sua experiência?</h3>
-                  <form onSubmit={handleSubmitReview}>
-                    <div className="flex gap-space-2 mb-space-6">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <button
-                          key={star}
-                          type="button"
-                          onClick={() => setRating(star)}
-                          className="focus:outline-none transition-transform hover:scale-110 active:scale-95"
-                        >
-                          <Star
-                            className={`h-space-8 w-space-8 ${star <= rating ? "text-status-warning fill-status-warning drop-shadow-sm" : "text-text-muted"
-                              }`}
-                          />
-                        </button>
-                      ))}
-                    </div>
-                    <textarea
-                      value={comment}
-                      onChange={(e) => setComment(e.target.value)}
-                      placeholder="Conte detalhes sobre o atendimento, produtos..."
-                      className="w-full p-space-4 rounded-radius-xl border border-border-default bg-surface-subtle focus:bg-surface-card focus:border-border-focus focus:ring-4 focus:ring-border-focus/10 outline-none transition-all min-h-[120px] mb-space-4 resize-none text-text-primary"
-                      required
-                    />
-                    <Button type="submit" disabled={submittingReview || rating < 1} className="rounded-radius-xl px-space-8 py-space-3 shadow-lg">
-                      {submittingReview ? "Enviando..." : "Publicar Avaliação"}
-                    </Button>
-                  </form>
-                </div>
-              ) : (
-                <div className="bg-surface-subtle p-space-6 rounded-radius-2xl border border-border-subtle mb-space-8">
-                  <div className="text-text-secondary">Faça login para avaliar este negócio.</div>
-                  <Link to="/login" state={{ from: location }}>
-                    <Button variant="secondary" className="mt-space-4">
-                      Ir para Login
-                    </Button>
-                  </Link>
-                </div>
-              )}
-
-              <div className="space-y-space-4">
-                {reviews.length ? (
-                  reviews.map((r) => (
-                    <div key={r.id} className="bg-surface-card p-space-6 rounded-radius-2xl border border-border-subtle">
-                      <div className="flex items-start justify-between gap-space-4">
-                        <div className="min-w-0">
-                          <div className="font-bold text-text-primary">
-                            {r.user?.username || r.user?.name || "Usuário"}
-                          </div>
-                          <div className="flex items-center gap-space-2 mt-space-1">
-                            <div className="flex">
-                              {[1, 2, 3, 4, 5].map((s) => (
-                                <Star key={s} className={`h-4 w-4 ${s <= r.rating ? "text-status-warning fill-status-warning" : "text-text-muted"}`} />
-                              ))}
-                            </div>
-                            {safeDateLabel(r.created_at) && <span className="text-text-xs text-text-muted">{safeDateLabel(r.created_at)}</span>}
-                          </div>
-                        </div>
+                {isLoggedIn ? (
+                  <div className="bg-surface-card p-space-8 rounded-radius-2xl shadow-sm border border-border-subtle mb-space-8">
+                    <h3 className="font-bold text-text-lg mb-space-6 text-text-primary">Como foi sua experiência?</h3>
+                    <form onSubmit={handleSubmitReview}>
+                      <div className="flex gap-space-2 mb-space-6">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <button
+                            key={star}
+                            type="button"
+                            onClick={() => setRating(star)}
+                            className="focus:outline-none transition-transform hover:scale-110 active:scale-95"
+                          >
+                            <Star
+                              className={`h-space-8 w-space-8 ${star <= rating ? "text-status-warning fill-status-warning drop-shadow-sm" : "text-text-muted"
+                                }`}
+                            />
+                          </button>
+                        ))}
                       </div>
-                      <div className="mt-space-4 text-text-secondary whitespace-pre-line">{r.content}</div>
-                    </div>
-                  ))
+                      <textarea
+                        value={comment}
+                        onChange={(e) => setComment(e.target.value)}
+                        placeholder="Conte detalhes sobre o atendimento, produtos..."
+                        className="w-full p-space-4 rounded-radius-xl border border-border-default bg-surface-subtle focus:bg-surface-card focus:border-border-focus focus:ring-4 focus:ring-border-focus/10 outline-none transition-all min-h-[120px] mb-space-4 resize-none text-text-primary"
+                        required
+                      />
+                      <Button type="submit" disabled={submittingReview || rating < 1} className="rounded-radius-xl px-space-8 py-space-3 shadow-lg">
+                        {submittingReview ? "Enviando..." : "Publicar Avaliação"}
+                      </Button>
+                    </form>
+                  </div>
                 ) : (
-                  <div className="bg-surface-card p-space-8 rounded-radius-2xl border border-border-subtle text-text-secondary">
-                    Nenhuma avaliação ainda.
+                  <div className="bg-surface-subtle p-space-6 rounded-radius-2xl border border-border-subtle mb-space-8">
+                    <div className="text-text-secondary">Faça login para avaliar este negócio.</div>
+                    <Link to="/login" state={{ from: location }}>
+                      <Button variant="secondary" className="mt-space-4">
+                        Ir para Login
+                      </Button>
+                    </Link>
                   </div>
                 )}
-              </div>
-            </section>
+
+                <div className="space-y-space-4">
+                  {reviews.length ? (
+                    reviews.map((r) => (
+                      <div key={r.id} className="bg-surface-card p-space-6 rounded-radius-2xl border border-border-subtle">
+                        <div className="flex items-start justify-between gap-space-4">
+                          <div className="min-w-0">
+                            <div className="font-bold text-text-primary">
+                              {r.user?.username || r.user?.name || "Usuário"}
+                            </div>
+                            <div className="flex items-center gap-space-2 mt-space-1">
+                              <div className="flex">
+                                {[1, 2, 3, 4, 5].map((s) => (
+                                  <Star key={s} className={`h-4 w-4 ${s <= r.rating ? "text-status-warning fill-status-warning" : "text-text-muted"}`} />
+                                ))}
+                              </div>
+                              {safeDateLabel(r.created_at) && <span className="text-text-xs text-text-muted">{safeDateLabel(r.created_at)}</span>}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="mt-space-4 text-text-secondary whitespace-pre-line">{r.content}</div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="bg-surface-card p-space-8 rounded-radius-2xl border border-border-subtle text-text-secondary">
+                      Nenhuma avaliação ainda.
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
           </div>
 
           <div className="lg:col-span-4 space-y-space-8">

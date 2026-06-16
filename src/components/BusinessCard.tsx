@@ -6,11 +6,20 @@ interface BusinessCardProps {
     business: Business;
     isFavorite?: boolean;
     onToggleFavorite?: (e: React.MouseEvent) => void;
+    detailsPathPrefix?: string;
+    showFavorite?: boolean;
 }
 
-export function BusinessCard({ business, isFavorite, onToggleFavorite }: BusinessCardProps) {
+function joinPath(prefix: string | undefined, path: string) {
+    const safePrefix = String(prefix || "").trim().replace(/\/+$/, "");
+    const safePath = String(path || "").trim().replace(/^\/+/, "");
+    if (!safePrefix) return `/${safePath}`;
+    return `${safePrefix}/${safePath}`;
+}
+
+export function BusinessCard({ business, isFavorite, onToggleFavorite, detailsPathPrefix, showFavorite = true }: BusinessCardProps) {
     return (
-        <Link to={`/business/${business.id}`} className="group relative block h-full cursor-pointer">
+        <Link to={joinPath(detailsPathPrefix, `business/${business.id}`)} className="group relative block h-full cursor-pointer">
             <article className="bg-surface-card rounded-radius-2xl border border-border-subtle shadow-card hover:shadow-card-hover hover:-translate-y-1.5 transition-all duration-300 overflow-hidden h-full flex flex-col">
                 <div className="relative aspect-[4/3] overflow-hidden bg-surface-subtle">
                     <img
@@ -23,12 +32,14 @@ export function BusinessCard({ business, isFavorite, onToggleFavorite }: Busines
                             {business.category?.name || 'Geral'}
                         </span>
                     </div>
-                    <button
-                        onClick={onToggleFavorite}
-                        className="absolute top-space-4 right-space-4 p-space-2 rounded-radius-full bg-white/90 backdrop-blur-sm shadow-md hover:bg-white transition-all z-10 hover:scale-110 active:scale-95 group/heart"
-                    >
-                        <Heart className={`h-space-4 w-space-4 transition-colors ${isFavorite ? "fill-status-error text-status-error" : "text-text-muted group-hover/heart:text-status-error"}`} />
-                    </button>
+                    {showFavorite && (
+                        <button
+                            onClick={onToggleFavorite}
+                            className="absolute top-space-4 right-space-4 p-space-2 rounded-radius-full bg-white/90 backdrop-blur-sm shadow-md hover:bg-white transition-all z-10 hover:scale-110 active:scale-95 group/heart"
+                        >
+                            <Heart className={`h-space-4 w-space-4 transition-colors ${isFavorite ? "fill-status-error text-status-error" : "text-text-muted group-hover/heart:text-status-error"}`} />
+                        </button>
+                    )}
                 </div>
 
                 <div className="p-space-6 flex flex-col flex-1">

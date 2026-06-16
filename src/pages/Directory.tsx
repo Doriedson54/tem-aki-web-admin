@@ -11,7 +11,14 @@ import { MapComponent, type MapMarker } from "../components/MapComponent";
 import { favoritesService } from "../services/favorites";
 import { useAuth } from "../contexts/AuthContext";
 
-export function Directory() {
+type DirectoryMode = "site" | "app";
+
+type DirectoryProps = {
+  mode?: DirectoryMode;
+  detailsPathPrefix?: string;
+};
+
+export function Directory({ mode = "site", detailsPathPrefix }: DirectoryProps) {
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -21,6 +28,7 @@ export function Directory() {
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"grid" | "map">("grid");
   const [favorites, setFavorites] = useState<string[]>([]);
+  const showFavorites = mode === "site";
 
   const [name, setName] = useState(searchParams.get("search") || "");
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get("category") || "");
@@ -62,7 +70,7 @@ export function Directory() {
   }, [allowedCategoryNames, searchParams, setSearchParams]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!showFavorites || !user) return;
     (async () => {
       try {
         const data = await favoritesService.getAll();
@@ -71,7 +79,7 @@ export function Directory() {
         if (axios.isAxiosError(error) && error.response?.status === 401) return;
       }
     })();
-  }, [user]);
+  }, [showFavorites, user]);
 
   useEffect(() => {
     const categoryId = String(selectedCategory || "").trim();
@@ -182,6 +190,7 @@ export function Directory() {
 
   const toggleFavorite = async (e: React.MouseEvent, businessId: string) => {
     e.preventDefault();
+    if (!showFavorites) return;
     if (!user) {
       alert("Faça login para adicionar aos favoritos!");
       return;
@@ -212,13 +221,13 @@ export function Directory() {
                 {b.category?.name}
                 {b.subcategory?.name ? ` • ${b.subcategory.name}` : ""}
               </p>
-              <Link to={`/business/${b.id}`} className="text-action-primary hover:underline">
+              <Link to={`${detailsPathPrefix || ""}/business/${b.id}`} className="text-action-primary hover:underline">
                 Ver detalhes
               </Link>
             </div>
           ),
         })),
-    [businesses]
+    [businesses, detailsPathPrefix]
   );
 
   return (
@@ -228,31 +237,46 @@ export function Directory() {
         <div className="container mx-auto px-space-4 py-space-12 md:py-space-16 relative">
           <div className="flex flex-col md:flex-row justify-between items-end gap-space-8">
             <div className="max-w-2xl">
-              <h1 className="text-text-4xl md:text-text-5xl font-bold text-text-primary tracking-tight mb-space-4">
-                Encontre o que você precisa no <span className="text-action-primary">Bairro</span>
-              </h1>
-              <p className="text-text-secondary text-text-lg md:text-text-xl leading-relaxed">
-                Descubra estabelecimentos locais, serviços e ofertas exclusivas perto de você.
-              </p>
+              {mode === "app" ? (
+                <>
+                  <h1 className="text-text-3xl md:text-text-4xl font-bold text-text-primary tracking-tight mb-space-3">
+                    Buscar no <span className="text-action-primary">Tem Aki</span>
+                  </h1>
+                  <p className="text-text-secondary text-text-base md:text-text-lg leading-relaxed">
+                    Pesquise comércios, serviços e instituições do bairro.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h1 className="text-text-4xl md:text-text-5xl font-bold text-text-primary tracking-tight mb-space-4">
+                    Encontre o que você precisa no <span className="text-action-primary">Bairro</span>
+                  </h1>
+                  <p className="text-text-secondary text-text-lg md:text-text-xl leading-relaxed">
+                    Descubra estabelecimentos locais, serviços e ofertas exclusivas perto de você.
+                  </p>
+                </>
+              )}
             </div>
-            <div className="flex items-center gap-space-4 w-full md:w-auto">
-              <div className="bg-surface-subtle p-1 rounded-radius-xl flex border border-border-default shadow-sm">
-                <button
-                  onClick={() => setViewMode("grid")}
-                  className={`px-space-6 py-space-2.5 rounded-radius-lg text-text-sm font-semibold transition-all ${viewMode === "grid" ? "bg-surface-card shadow-md text-action-primary" : "text-text-muted hover:text-text-primary"
-                    }`}
-                >
-                  Lista
-                </button>
-                <button
-                  onClick={() => setViewMode("map")}
-                  className={`px-space-6 py-space-2.5 rounded-radius-lg text-text-sm font-semibold transition-all ${viewMode === "map" ? "bg-surface-card shadow-md text-action-primary" : "text-text-muted hover:text-text-primary"
-                    }`}
-                >
-                  Mapa
-                </button>
+            {mode !== "app" && (
+              <div className="flex items-center gap-space-4 w-full md:w-auto">
+                <div className="bg-surface-subtle p-1 rounded-radius-xl flex border border-border-default shadow-sm">
+                  <button
+                    onClick={() => setViewMode("grid")}
+                    className={`px-space-6 py-space-2.5 rounded-radius-lg text-text-sm font-semibold transition-all ${viewMode === "grid" ? "bg-surface-card shadow-md text-action-primary" : "text-text-muted hover:text-text-primary"
+                      }`}
+                  >
+                    Lista
+                  </button>
+                  <button
+                    onClick={() => setViewMode("map")}
+                    className={`px-space-6 py-space-2.5 rounded-radius-lg text-text-sm font-semibold transition-all ${viewMode === "map" ? "bg-surface-card shadow-md text-action-primary" : "text-text-muted hover:text-text-primary"
+                      }`}
+                  >
+                    Mapa
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
@@ -339,7 +363,7 @@ export function Directory() {
           </div>
         </div>
 
-        {viewMode === "map" ? (
+        {mode !== "app" && viewMode === "map" ? (
           mapMarkers.length ? (
             <MapComponent center={mapMarkers[0]?.position} zoom={13} markers={mapMarkers} className="h-[520px] w-full" />
           ) : (
@@ -357,6 +381,8 @@ export function Directory() {
               <BusinessCard
                 key={b.id}
                 business={b}
+                detailsPathPrefix={detailsPathPrefix}
+                showFavorite={showFavorites}
                 isFavorite={favorites.includes(b.id)}
                 onToggleFavorite={(e) => toggleFavorite(e, b.id)}
               />

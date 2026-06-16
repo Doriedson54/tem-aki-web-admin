@@ -23,7 +23,7 @@ export default defineConfig({
         short_name: 'Tem Aki',
         description: 'Encontre tudo o que precisa no seu bairro!',
         lang: 'pt-BR',
-        start_url: '/',
+        start_url: '/app',
         scope: '/',
         display: 'standalone',
         background_color: '#ffffff',
