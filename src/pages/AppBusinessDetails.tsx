@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, ChevronLeft, ChevronRight, Clock, Globe, Heart, Instagram, MapPin, MessageCircle, Phone, Share2, X, ZoomIn, ZoomOut } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Clock, Globe, Heart, Instagram, MapPin, MessageCircle, Phone, Share2, X } from "lucide-react";
 import api from "../services/api";
 import type { Business, BusinessImage } from "../types";
 import { Button } from "../components/ui/Button";
@@ -42,7 +42,8 @@ export function AppBusinessDetails() {
   const [isFavorite, setIsFavorite] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
-  const [viewerScale, setViewerScale] = useState(1);
+  const galleryTrackRef = useRef<HTMLDivElement | null>(null);
+  const viewerTrackRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -102,7 +103,6 @@ export function AppBusinessDetails() {
 
   useEffect(() => {
     setActiveImageIndex(0);
-    setViewerScale(1);
     setIsViewerOpen(false);
   }, [id, imageUrls.length]);
 
@@ -113,11 +113,9 @@ export function AppBusinessDetails() {
       if (event.key === "Escape") setIsViewerOpen(false);
       if (event.key === "ArrowLeft") {
         setActiveImageIndex((prev) => (prev - 1 + imageUrls.length) % Math.max(imageUrls.length, 1));
-        setViewerScale(1);
       }
       if (event.key === "ArrowRight") {
         setActiveImageIndex((prev) => (prev + 1) % Math.max(imageUrls.length, 1));
-        setViewerScale(1);
       }
     };
 
@@ -127,32 +125,33 @@ export function AppBusinessDetails() {
 
   const openViewerAt = useCallback((index: number) => {
     setActiveImageIndex(index);
-    setViewerScale(1);
     setIsViewerOpen(true);
   }, []);
 
   const closeViewer = useCallback(() => {
     setIsViewerOpen(false);
-    setViewerScale(1);
   }, []);
+
+  const scrollToIndex = useCallback((container: HTMLDivElement | null, index: number) => {
+    if (!container) return;
+    const nextIndex = Math.max(0, Math.min(index, imageUrls.length - 1));
+    container.scrollTo({
+      left: container.clientWidth * nextIndex,
+      behavior: "smooth",
+    });
+  }, [imageUrls.length]);
 
   const showPrevImage = useCallback(() => {
-    setActiveImageIndex((prev) => (prev - 1 + imageUrls.length) % Math.max(imageUrls.length, 1));
-    setViewerScale(1);
-  }, [imageUrls.length]);
+    const next = (activeImageIndex - 1 + imageUrls.length) % Math.max(imageUrls.length, 1);
+    setActiveImageIndex(next);
+    scrollToIndex(isViewerOpen ? viewerTrackRef.current : galleryTrackRef.current, next);
+  }, [activeImageIndex, imageUrls.length, isViewerOpen, scrollToIndex]);
 
   const showNextImage = useCallback(() => {
-    setActiveImageIndex((prev) => (prev + 1) % Math.max(imageUrls.length, 1));
-    setViewerScale(1);
-  }, [imageUrls.length]);
-
-  const zoomIn = useCallback(() => {
-    setViewerScale((prev) => Math.min(prev + 0.5, 3));
-  }, []);
-
-  const zoomOut = useCallback(() => {
-    setViewerScale((prev) => Math.max(prev - 0.5, 1));
-  }, []);
+    const next = (activeImageIndex + 1) % Math.max(imageUrls.length, 1);
+    setActiveImageIndex(next);
+    scrollToIndex(isViewerOpen ? viewerTrackRef.current : galleryTrackRef.current, next);
+  }, [activeImageIndex, imageUrls.length, isViewerOpen, scrollToIndex]);
 
   const handleToggleFavorite = useCallback(() => {
     if (!id || typeof window === "undefined") return;
@@ -175,13 +174,14 @@ export function AppBusinessDetails() {
     const url = typeof window !== "undefined" ? window.location.href : "";
     const title = business?.name || "Tem Aki no Bairro";
     try {
-      if (navigator.share) {
-        await navigator.share({ title, url });
+      const nav = typeof navigator !== "undefined" ? navigator : undefined;
+      if (nav?.share) {
+        await nav.share({ title, url });
         return;
       }
 
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(url);
+      if (nav?.clipboard?.writeText) {
+        await nav.clipboard.writeText(url);
         alert("Link copiado!");
         return;
       }
@@ -190,6 +190,19 @@ export function AppBusinessDetails() {
     } catch {
     }
   }, [business?.name]);
+
+  const handleGalleryScroll = useCallback((container: HTMLDivElement | null) => {
+    if (!container) return;
+    const nextIndex = Math.round(container.scrollLeft / Math.max(container.clientWidth, 1));
+    if (nextIndex !== activeImageIndex) {
+      setActiveImageIndex(Math.max(0, Math.min(nextIndex, imageUrls.length - 1)));
+    }
+  }, [activeImageIndex, imageUrls.length]);
+
+  useEffect(() => {
+    if (!isViewerOpen) return;
+    scrollToIndex(viewerTrackRef.current, activeImageIndex);
+  }, [activeImageIndex, isViewerOpen, scrollToIndex]);
 
   const whatsappLink = buildWhatsAppLink(business?.whatsapp || business?.phone || "", "Olá, vi seu perfil no Tem Aki no Bairro!");
   const openingHoursText =
@@ -229,12 +242,33 @@ export function AppBusinessDetails() {
   }
 
   return (
-    <div className="min-h-screen bg-surface-page pb-space-16">
-      <section className="container mx-auto px-space-4 py-space-6">
-        <Link to="/app" className="inline-flex items-center gap-space-2 text-text-secondary hover:text-action-primary font-medium">
-          <ArrowLeft className="h-4 w-4" />
-          Voltar para busca
-        </Link>
+    <div className="min-h-screen bg-surface-page pb-28 md:pb-space-16">
+      <section className="container mx-auto px-space-4 py-space-4">
+        <div className="flex items-center justify-between gap-space-3">
+          <Link to="/app" className="inline-flex items-center gap-space-2 text-text-secondary hover:text-action-primary font-medium">
+            <ArrowLeft className="h-5 w-5" />
+            <span className="text-text-sm">Voltar</span>
+          </Link>
+          <div className="flex items-center gap-space-2">
+            <button
+              type="button"
+              onClick={handleToggleFavorite}
+              className={`h-10 w-10 rounded-full border inline-flex items-center justify-center transition-colors ${isFavorite ? "border-status-error bg-status-error/10 text-status-error" : "border-border-subtle bg-surface-card text-text-secondary"
+                }`}
+              aria-label={isFavorite ? "Desfavoritar" : "Favoritar"}
+            >
+              <Heart className={`h-5 w-5 ${isFavorite ? "fill-current" : ""}`} />
+            </button>
+            <button
+              type="button"
+              onClick={handleShare}
+              className="h-10 w-10 rounded-full border border-border-subtle bg-surface-card text-text-secondary inline-flex items-center justify-center"
+              aria-label="Compartilhar"
+            >
+              <Share2 className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
       </section>
 
       <section className="container mx-auto px-space-4">
@@ -260,41 +294,49 @@ export function AppBusinessDetails() {
                 )}
               </div>
 
-              <div className="flex flex-wrap gap-space-3">
-                <Button
-                  variant="secondary"
-                  onClick={handleToggleFavorite}
-                  className={`gap-space-2 ${isFavorite ? "border-status-error text-status-error bg-status-error/5" : ""}`}
+              <div className="flex flex-wrap gap-space-2">
+                {normalizeInstagramUrl(business.instagram) && (
+                  <a
+                    href={normalizeInstagramUrl(business.instagram) || undefined}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex h-10 items-center justify-center rounded-full border border-border-subtle bg-surface-card px-space-4 text-text-sm font-medium text-text-secondary"
+                  >
+                    <Instagram className="h-4 w-4 mr-2" />
+                    Instagram
+                  </a>
+                )}
+                {business.website && (
+                  <a
+                    href={business.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex h-10 items-center justify-center rounded-full border border-border-subtle bg-surface-card px-space-4 text-text-sm font-medium text-text-secondary"
+                  >
+                    <Globe className="h-4 w-4 mr-2" />
+                    Site
+                  </a>
+                )}
+                <a
+                  href={mapLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex h-10 items-center justify-center rounded-full border border-border-subtle bg-surface-card px-space-4 text-text-sm font-medium text-text-secondary"
                 >
-                  <Heart className={`h-4 w-4 ${isFavorite ? "fill-current" : ""}`} />
-                  {isFavorite ? "Favoritado" : "Favoritar"}
-                </Button>
-                <Button variant="secondary" onClick={handleShare} className="gap-space-2">
-                  <Share2 className="h-4 w-4" />
-                  Compartilhar
-                </Button>
-                {business.phone && (
-                  <a href={`tel:${business.phone}`}>
-                    <Button variant="secondary" className="gap-space-2">
-                      <Phone className="h-4 w-4" />
-                      Ligar
-                    </Button>
-                  </a>
-                )}
-                {whatsappLink && (
-                  <a href={whatsappLink} target="_blank" rel="noopener noreferrer">
-                    <Button className="gap-space-2 bg-status-success border-none">
-                      <MessageCircle className="h-4 w-4" />
-                      WhatsApp
-                    </Button>
-                  </a>
-                )}
-                <a href={mapLink} target="_blank" rel="noopener noreferrer">
-                  <Button variant="secondary" className="gap-space-2">
-                    <MapPin className="h-4 w-4" />
-                    Ver localização
-                  </Button>
+                  <MapPin className="h-4 w-4 mr-2" />
+                  Localização
                 </a>
+                {whatsappLink && (
+                  <a
+                    href={whatsappLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex h-10 items-center justify-center rounded-full border border-border-subtle bg-surface-card px-space-4 text-text-sm font-medium text-text-secondary"
+                  >
+                    <MessageCircle className="h-4 w-4 mr-2" />
+                    WhatsApp
+                  </a>
+                )}
               </div>
             </div>
 
@@ -317,55 +359,43 @@ export function AppBusinessDetails() {
                         </p>
                       </div>
                       <div className="shrink-0 rounded-full bg-surface-subtle px-space-3 py-1 text-text-xs font-semibold text-text-muted">
-                        {activeImageIndex + 1}/{imageUrls.length}
+                        {activeImageIndex + 1} / {imageUrls.length}
                       </div>
                     </div>
 
-                    <div className="mt-space-4 -mx-space-2 px-space-2 overflow-x-auto overscroll-x-contain scroll-smooth [scrollbar-width:none]">
-                      <div className="flex gap-space-3 snap-x snap-mandatory">
+                    <div
+                      ref={galleryTrackRef}
+                      className="mt-space-4 overflow-x-auto overscroll-x-contain scroll-smooth snap-x snap-mandatory [scrollbar-width:none]"
+                      onScroll={(e) => handleGalleryScroll(e.currentTarget)}
+                    >
+                      <div className="flex">
                         {imageUrls.map((url, index) => (
                           <button
                             key={url}
                             type="button"
-                            className={`relative shrink-0 w-[78%] sm:w-[58%] md:w-[42%] lg:w-[36%] rounded-radius-2xl overflow-hidden border transition-all snap-start ${index === activeImageIndex ? "border-action-primary shadow-card-hover" : "border-border-subtle shadow-card"
-                              }`}
+                            className="relative shrink-0 w-full snap-start"
                             onClick={() => openViewerAt(index)}
                           >
-                            <div className="aspect-[4/3] bg-surface-subtle">
-                              <img src={url} alt={`${business.name} ${index + 1}`} className="h-full w-full object-cover" loading="lazy" decoding="async" />
-                            </div>
-                            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-space-4 py-space-3 text-left">
-                              <div className="text-white text-text-sm font-semibold">Foto {index + 1}</div>
+                            <div className="overflow-hidden rounded-radius-2xl bg-surface-subtle shadow-card">
+                              <div className="aspect-[4/3] md:aspect-[16/10]">
+                                <img src={url} alt={`${business.name} ${index + 1}`} className="h-full w-full object-cover" loading="lazy" decoding="async" />
+                              </div>
                             </div>
                           </button>
                         ))}
                       </div>
                     </div>
 
-                    <div className="mt-space-4 flex gap-space-3 overflow-x-auto pb-1 [scrollbar-width:none]">
-                      {imageUrls.map((url, index) => (
-                        <button
-                          key={`${url}-thumb`}
-                          type="button"
-                          onClick={() => {
-                            setActiveImageIndex(index);
-                            openViewerAt(index);
-                          }}
-                          className={`relative shrink-0 h-16 w-16 rounded-radius-lg overflow-hidden border-2 transition-all ${index === activeImageIndex ? "border-action-primary" : "border-transparent opacity-80"
-                            }`}
-                        >
-                          <img src={url} alt={`Miniatura ${index + 1}`} className="h-full w-full object-cover" loading="lazy" decoding="async" />
-                        </button>
-                      ))}
-                    </div>
-
                     {imageUrls.length > 1 && (
-                      <div className="mt-space-4 flex items-center gap-space-2">
+                      <div className="mt-space-4 flex items-center justify-center gap-space-2">
                         {imageUrls.map((url, index) => (
                           <button
                             key={`${url}-dot`}
                             type="button"
-                            onClick={() => setActiveImageIndex(index)}
+                            onClick={() => {
+                              setActiveImageIndex(index);
+                              scrollToIndex(galleryTrackRef.current, index);
+                            }}
                             className={`h-2.5 rounded-full transition-all ${index === activeImageIndex ? "w-6 bg-action-primary" : "w-2.5 bg-border-default"
                               }`}
                             aria-label={`Ir para foto ${index + 1}`}
@@ -447,24 +477,16 @@ export function AppBusinessDetails() {
         <div className="fixed inset-0 z-[70] bg-black/95 flex flex-col" role="dialog" aria-modal="true">
           <div className="flex items-center justify-between gap-space-3 px-space-4 py-space-3 border-b border-white/10 text-white">
             <div className="text-text-sm font-semibold">
-              {activeImageIndex + 1} de {imageUrls.length}
+              {activeImageIndex + 1} / {imageUrls.length}
             </div>
             <div className="flex items-center gap-space-2">
               <button
                 type="button"
-                onClick={zoomOut}
+                onClick={handleShare}
                 className="h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 inline-flex items-center justify-center"
-                aria-label="Diminuir zoom"
+                aria-label="Compartilhar imagem"
               >
-                <ZoomOut className="h-5 w-5" />
-              </button>
-              <button
-                type="button"
-                onClick={zoomIn}
-                className="h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 inline-flex items-center justify-center"
-                aria-label="Aumentar zoom"
-              >
-                <ZoomIn className="h-5 w-5" />
+                <Share2 className="h-5 w-5" />
               </button>
               <button
                 type="button"
@@ -477,7 +499,7 @@ export function AppBusinessDetails() {
             </div>
           </div>
 
-          <div className="relative flex-1 flex items-center justify-center overflow-auto p-space-4">
+          <div className="relative flex-1 flex items-center justify-center overflow-hidden">
             {imageUrls.length > 1 && (
               <button
                 type="button"
@@ -489,13 +511,22 @@ export function AppBusinessDetails() {
               </button>
             )}
 
-            <div className="flex items-center justify-center min-h-full min-w-full">
-              <img
-                src={imageUrls[activeImageIndex]}
-                alt={`${business.name} ${activeImageIndex + 1}`}
-                className="max-w-full max-h-[78vh] object-contain transition-transform duration-200"
-                style={{ transform: `scale(${viewerScale})` }}
-              />
+            <div
+              ref={viewerTrackRef}
+              className="h-full w-full overflow-x-auto snap-x snap-mandatory scroll-smooth [scrollbar-width:none]"
+              onScroll={(e) => handleGalleryScroll(e.currentTarget)}
+            >
+              <div className="flex h-full">
+                {imageUrls.map((url, index) => (
+                  <div key={`${url}-viewer`} className="shrink-0 w-full h-full snap-start flex items-center justify-center p-space-4">
+                    <img
+                      src={url}
+                      alt={`${business.name} ${index + 1}`}
+                      className="max-w-full max-h-[74vh] object-contain"
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
 
             {imageUrls.length > 1 && (
@@ -511,26 +542,60 @@ export function AppBusinessDetails() {
           </div>
 
           {imageUrls.length > 1 && (
-            <div className="px-space-4 py-space-3 border-t border-white/10 overflow-x-auto [scrollbar-width:none]">
-              <div className="flex gap-space-3">
+            <div className="px-space-4 py-space-4 border-t border-white/10">
+              <div className="mb-space-4 text-center text-white/70 text-text-sm">
+                Deslize para o lado para ver mais fotos
+              </div>
+              <div className="flex items-center justify-center gap-space-2">
                 {imageUrls.map((url, index) => (
                   <button
-                    key={`${url}-viewer-thumb`}
+                    key={`${url}-viewer-dot`}
                     type="button"
                     onClick={() => {
                       setActiveImageIndex(index);
-                      setViewerScale(1);
+                      scrollToIndex(viewerTrackRef.current, index);
                     }}
-                    className={`shrink-0 h-16 w-16 rounded-radius-lg overflow-hidden border-2 ${index === activeImageIndex ? "border-white" : "border-transparent opacity-70"}`}
-                  >
-                    <img src={url} alt={`Thumb ${index + 1}`} className="h-full w-full object-cover" />
-                  </button>
+                    className={`h-2.5 rounded-full transition-all ${index === activeImageIndex ? "w-6 bg-white" : "w-2.5 bg-white/30"}`}
+                    aria-label={`Ir para foto ${index + 1}`}
+                  />
                 ))}
               </div>
             </div>
           )}
         </div>
       )}
+
+      <div className="fixed bottom-0 left-0 right-0 z-[60] border-t border-border-subtle bg-surface-card/95 backdrop-blur md:hidden">
+        <div className="container mx-auto px-space-4 py-space-3 grid grid-cols-2 gap-space-3">
+          {business.phone ? (
+            <a href={`tel:${business.phone}`} className="block">
+              <Button className="w-full h-12 bg-[#B56422] hover:bg-[#9d561e] border-none">
+                <Phone className="h-5 w-5 mr-space-2" />
+                Ligar
+              </Button>
+            </a>
+          ) : (
+            <Button disabled className="w-full h-12 bg-[#B56422] border-none">
+              <Phone className="h-5 w-5 mr-space-2" />
+              Ligar
+            </Button>
+          )}
+
+          {whatsappLink ? (
+            <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className="block">
+              <Button className="w-full h-12 bg-status-success border-none">
+                <MessageCircle className="h-5 w-5 mr-space-2" />
+                WhatsApp
+              </Button>
+            </a>
+          ) : (
+            <Button disabled className="w-full h-12 bg-status-success border-none">
+              <MessageCircle className="h-5 w-5 mr-space-2" />
+              WhatsApp
+            </Button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
