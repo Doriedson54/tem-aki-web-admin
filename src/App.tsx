@@ -7,6 +7,8 @@ import { Login } from "./pages/Login";
 import { About } from "./pages/About";
 import { BusinessDetails } from "./pages/BusinessDetails";
 import { Download } from "./pages/Download";
+import { AppDirectory } from "./pages/AppDirectory";
+import { AppBusinessDetails } from "./pages/AppBusinessDetails";
 import { AdminLayout } from "./layouts/AdminLayout";
 import { Dashboard } from "./pages/admin/Dashboard";
 import { BusinessList } from "./pages/admin/BusinessList";
@@ -233,8 +235,8 @@ Ao utilizar o sistema, você concorda em fornecer dados verdadeiros e respeitar 
       </Route>
 
       <Route path="app" element={<UserAppLayout />}>
-        <Route index element={<Directory mode="app" detailsPathPrefix="/app" />} />
-        <Route path="business/:id" element={<BusinessDetails mode="app" backTo="/app" />} />
+        <Route index element={<AppDirectory />} />
+        <Route path="business/:id" element={<AppBusinessDetails />} />
       </Route>
 
       <Route path="admin" element={<PrivateRoute><AdminLayout /></PrivateRoute>}>
