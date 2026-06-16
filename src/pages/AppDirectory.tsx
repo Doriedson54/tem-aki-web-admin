@@ -1,10 +1,74 @@
-import { useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { ChevronRight, Filter, MapPin, MessageCircle, Phone, Search } from "lucide-react";
 import api from "../services/api";
 import type { ApiResponse, Business, Category, Subcategory } from "../types";
 import { Input } from "../components/ui/Input";
 import { Button } from "../components/ui/Button";
+
+const BusinessListItem = memo(function BusinessListItem({ business }: { business: Business }) {
+  return (
+    <Link
+      to={`/app/business/${business.id}`}
+      className="group rounded-radius-2xl border border-border-subtle bg-surface-card shadow-card overflow-hidden hover:-translate-y-1 hover:shadow-card-hover transition-all"
+    >
+      <div className="aspect-[16/10] bg-surface-subtle overflow-hidden">
+        <img
+          src={business.image_url || business.logo_url || "https://placehold.co/640x480/e2e8f0/94a3b8?text=Tem+Aki"}
+          alt={business.name}
+          className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
+          loading="lazy"
+          decoding="async"
+        />
+      </div>
+      <div className="p-space-4 md:p-space-5 space-y-space-3">
+        <div className="flex items-center justify-between gap-space-3">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
+            {business.category?.name || "Geral"}
+          </span>
+          <span className="text-text-xs text-text-muted">
+            {business.rating ? `${Number(business.rating).toFixed(1)} ★` : "Sem avaliação"}
+          </span>
+        </div>
+
+        <div>
+          <h2 className="text-[18px] md:text-text-xl font-bold text-text-primary leading-tight line-clamp-2">{business.name}</h2>
+          {business.main_product && (
+            <p className="mt-1 text-text-sm text-text-secondary line-clamp-1">{business.main_product}</p>
+          )}
+        </div>
+
+        <div className="space-y-space-2 text-text-sm text-text-secondary">
+          <div className="flex items-start gap-space-2">
+            <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-text-muted" />
+            <span className="line-clamp-2">
+              {[business.address, business.neighborhood, business.city].filter(Boolean).join(", ") || "Endereço não informado"}
+            </span>
+          </div>
+          <div className="flex items-center gap-space-4">
+            {business.phone && (
+              <span className="inline-flex items-center gap-1">
+                <Phone className="h-4 w-4 text-text-muted" />
+                Telefone
+              </span>
+            )}
+            {(business.whatsapp || business.phone) && (
+              <span className="inline-flex items-center gap-1">
+                <MessageCircle className="h-4 w-4 text-text-muted" />
+                WhatsApp
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="pt-space-3 border-t border-border-default text-action-primary text-text-sm font-semibold inline-flex items-center gap-1">
+          Ver detalhes
+          <ChevronRight className="h-4 w-4" />
+        </div>
+      </div>
+    </Link>
+  );
+});
 
 export function AppDirectory() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -15,6 +79,10 @@ export function AppDirectory() {
   const [name, setName] = useState(searchParams.get("search") || "");
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get("category") || "");
   const [selectedSubcategory, setSelectedSubcategory] = useState(searchParams.get("subcategory") || "");
+  const [isFilterFocused, setIsFilterFocused] = useState(false);
+  const [keyboardInset, setKeyboardInset] = useState(0);
+  const filterCardRef = useRef<HTMLDivElement | null>(null);
+  const blurTimeoutRef = useRef<number | null>(null);
 
   const allowedCategoryNames = useMemo(
     () => [
@@ -113,6 +181,62 @@ export function AppDirectory() {
     };
   }, [searchParams]);
 
+  useEffect(() => {
+    if (!isFilterFocused) {
+      setKeyboardInset(0);
+      return;
+    }
+
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+
+    const updateKeyboardInset = () => {
+      const inset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
+      setKeyboardInset(inset > 0 ? inset : 0);
+    };
+
+    updateKeyboardInset();
+    viewport.addEventListener("resize", updateKeyboardInset);
+    viewport.addEventListener("scroll", updateKeyboardInset);
+
+    return () => {
+      viewport.removeEventListener("resize", updateKeyboardInset);
+      viewport.removeEventListener("scroll", updateKeyboardInset);
+    };
+  }, [isFilterFocused]);
+
+  useEffect(() => {
+    return () => {
+      if (blurTimeoutRef.current !== null) {
+        window.clearTimeout(blurTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const scrollFiltersIntoView = () => {
+    const target = filterCardRef.current;
+    if (!target) return;
+    window.setTimeout(() => {
+      target.scrollIntoView({ behavior: "smooth", block: "start", inline: "nearest" });
+    }, 150);
+  };
+
+  const handleFieldFocus = () => {
+    if (blurTimeoutRef.current !== null) {
+      window.clearTimeout(blurTimeoutRef.current);
+      blurTimeoutRef.current = null;
+    }
+    setIsFilterFocused(true);
+    scrollFiltersIntoView();
+  };
+
+  const handleFieldBlur = () => {
+    blurTimeoutRef.current = window.setTimeout(() => {
+      setIsFilterFocused(false);
+      setKeyboardInset(0);
+    }, 180);
+  };
+
   const handleSearch = () => {
     const params: Record<string, string> = {};
     if (name.trim()) params.search = name.trim();
@@ -129,27 +253,32 @@ export function AppDirectory() {
   };
 
   return (
-    <div className="min-h-screen bg-surface-page pb-space-16">
-      <section className="container mx-auto px-space-4 py-space-8 md:py-space-10">
-        <div className="rounded-radius-2xl border border-border-subtle bg-surface-card p-space-6 md:p-space-8 shadow-card">
+    <div
+      className="min-h-screen bg-surface-page pb-space-12"
+      style={{ paddingBottom: keyboardInset > 0 ? `${keyboardInset + 20}px` : undefined }}
+    >
+      <section className="container mx-auto px-space-4 pt-space-4 pb-space-5 md:py-space-10">
+        <div ref={filterCardRef} className="rounded-radius-2xl border border-border-subtle bg-surface-card p-space-4 md:p-space-8 shadow-card">
           <div className="max-w-2xl">
-            <h1 className="text-text-3xl md:text-text-4xl font-bold text-text-primary">Encontre no Tem Aki</h1>
-            <p className="mt-space-2 text-text-secondary text-text-base md:text-text-lg">
+            <h1 className="text-text-2xl md:text-text-4xl font-bold text-text-primary">Encontre no Tem Aki</h1>
+            <p className="mt-1 md:mt-space-2 text-text-secondary text-text-sm md:text-text-lg">
               Consulte com rapidez comércios, serviços e instituições do bairro.
             </p>
           </div>
 
-          <div className="mt-space-6 grid grid-cols-1 md:grid-cols-12 gap-space-4 items-end">
+          <div className="mt-space-4 md:mt-space-6 grid grid-cols-1 md:grid-cols-12 gap-space-3 md:gap-space-4 items-end">
             <div className="md:col-span-4">
               <label className="text-text-xs font-bold text-text-primary/70 uppercase tracking-widest mb-space-3 block ml-1">Buscar</label>
               <div className="relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted h-5 w-5" />
                 <Input
-                  className="pl-12 h-14 bg-surface-subtle border-border-subtle rounded-radius-xl"
+                  className="pl-12 h-12 md:h-14 bg-surface-subtle border-border-subtle rounded-radius-xl"
                   placeholder="Ex: farmácia, oficina, escola"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                  onFocus={handleFieldFocus}
+                  onBlur={handleFieldBlur}
                 />
               </div>
             </div>
@@ -159,12 +288,14 @@ export function AppDirectory() {
               <div className="relative">
                 <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted h-5 w-5 pointer-events-none" />
                 <select
-                  className="w-full h-14 pl-12 pr-space-10 bg-surface-subtle border border-border-subtle rounded-radius-xl focus:outline-none focus:border-action-primary appearance-none text-text-primary"
+                  className="w-full h-12 md:h-14 pl-12 pr-space-10 bg-surface-subtle border border-border-subtle rounded-radius-xl focus:outline-none focus:border-action-primary appearance-none text-text-primary"
                   value={selectedCategory}
                   onChange={(e) => {
                     setSelectedCategory(e.target.value);
                     setSelectedSubcategory("");
                   }}
+                  onFocus={handleFieldFocus}
+                  onBlur={handleFieldBlur}
                 >
                   <option value="">Todas as categorias</option>
                   {categories.map((cat) => (
@@ -184,10 +315,12 @@ export function AppDirectory() {
               <div className="relative">
                 <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted h-5 w-5 pointer-events-none" />
                 <select
-                  className="w-full h-14 pl-12 pr-space-10 bg-surface-subtle border border-border-subtle rounded-radius-xl focus:outline-none focus:border-action-primary appearance-none text-text-primary disabled:opacity-60"
+                  className="w-full h-12 md:h-14 pl-12 pr-space-10 bg-surface-subtle border border-border-subtle rounded-radius-xl focus:outline-none focus:border-action-primary appearance-none text-text-primary disabled:opacity-60"
                   value={selectedSubcategory}
                   onChange={(e) => setSelectedSubcategory(e.target.value)}
                   disabled={!selectedCategory || subcategories.length === 0}
+                  onFocus={handleFieldFocus}
+                  onBlur={handleFieldBlur}
                 >
                   <option value="">Todas as subcategorias</option>
                   {subcategories.map((sub) => (
@@ -203,10 +336,10 @@ export function AppDirectory() {
             </div>
           </div>
 
-          <div className="mt-space-6 flex flex-col sm:flex-row gap-space-3 sm:items-center sm:justify-between">
+          <div className="mt-space-4 md:mt-space-6 flex flex-col sm:flex-row gap-space-3 sm:items-center sm:justify-between">
             <div className="flex gap-space-3">
-              <Button onClick={handleSearch} className="h-11 px-8">Buscar</Button>
-              <Button variant="secondary" onClick={clearFilters} className="h-11 px-6">Limpar</Button>
+              <Button onClick={handleSearch} size="sm" className="h-10 px-6">Buscar</Button>
+              <Button variant="secondary" onClick={clearFilters} size="sm" className="h-10 px-5">Limpar</Button>
             </div>
             <div className="text-text-sm text-text-muted">
               {loading ? "Carregando..." : `${businesses.length} resultado(s)`}
@@ -221,66 +354,9 @@ export function AppDirectory() {
             <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-action-primary"></div>
           </div>
         ) : businesses.length ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-space-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-space-4 md:gap-space-5">
             {businesses.map((business) => (
-              <Link
-                key={business.id}
-                to={`/app/business/${business.id}`}
-                className="group rounded-radius-2xl border border-border-subtle bg-surface-card shadow-card overflow-hidden hover:-translate-y-1 hover:shadow-card-hover transition-all"
-              >
-                <div className="aspect-[4/3] bg-surface-subtle overflow-hidden">
-                  <img
-                    src={business.image_url || business.logo_url || "https://placehold.co/640x480/e2e8f0/94a3b8?text=Tem+Aki"}
-                    alt={business.name}
-                    className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                </div>
-                <div className="p-space-5 space-y-space-3">
-                  <div className="flex items-center justify-between gap-space-3">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
-                      {business.category?.name || "Geral"}
-                    </span>
-                    <span className="text-text-xs text-text-muted">
-                      {business.rating ? `${Number(business.rating).toFixed(1)} ★` : "Sem avaliação"}
-                    </span>
-                  </div>
-
-                  <div>
-                    <h2 className="text-text-xl font-bold text-text-primary line-clamp-2">{business.name}</h2>
-                    {business.main_product && (
-                      <p className="mt-space-1 text-text-sm text-text-secondary line-clamp-1">{business.main_product}</p>
-                    )}
-                  </div>
-
-                  <div className="space-y-space-2 text-text-sm text-text-secondary">
-                    <div className="flex items-start gap-space-2">
-                      <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-text-muted" />
-                      <span className="line-clamp-2">
-                        {[business.address, business.neighborhood, business.city].filter(Boolean).join(", ") || "Endereço não informado"}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-space-4">
-                      {business.phone && (
-                        <span className="inline-flex items-center gap-1">
-                          <Phone className="h-4 w-4 text-text-muted" />
-                          Telefone
-                        </span>
-                      )}
-                      {(business.whatsapp || business.phone) && (
-                        <span className="inline-flex items-center gap-1">
-                          <MessageCircle className="h-4 w-4 text-text-muted" />
-                          WhatsApp
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="pt-space-3 border-t border-border-default text-action-primary text-text-sm font-semibold inline-flex items-center gap-1">
-                    Ver detalhes
-                    <ChevronRight className="h-4 w-4" />
-                  </div>
-                </div>
-              </Link>
+              <BusinessListItem key={business.id} business={business} />
             ))}
           </div>
         ) : (

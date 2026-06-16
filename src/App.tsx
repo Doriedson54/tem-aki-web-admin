@@ -112,9 +112,9 @@ function UserAppLayout() {
   return (
     <div className="min-h-[100dvh] bg-surface-page">
       <header className="sticky top-0 z-50 bg-surface-section border-b border-border-default shadow-sm">
-        <div className="container mx-auto px-space-4 h-14 flex items-center">
+        <div className="container mx-auto px-space-4 h-12 flex items-center">
           <Link to="/app" className="flex items-center gap-space-3">
-            <img src={logo} alt="Tem Aki no Bairro" className="h-9 w-9 rounded-radius-lg border border-border-subtle object-cover bg-surface-card" />
+            <img src={logo} alt="Tem Aki no Bairro" className="h-8 w-8 rounded-radius-lg border border-border-subtle object-cover bg-surface-card" />
             <div className="leading-tight">
               <div className="text-text-sm font-bold text-text-primary">Tem Aki no Bairro</div>
               <div className="text-text-xs text-text-muted">Consulta rápida</div>
