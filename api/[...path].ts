@@ -28,6 +28,8 @@ const REVIEW_AUTHOR_NAME_MAX_LENGTH = 80;
 const REVIEW_CONTENT_MAX_LENGTH = 500;
 const NOMINATIM_BASE_URL = 'https://nominatim.openstreetmap.org/search';
 const GEOCODE_BATCH_DELAY_MS = 1200;
+const GEOCODE_BATCH_DEFAULT_LIMIT = 5;
+const GEOCODE_BATCH_MAX_LIMIT = 10;
 
 type ReviewStatus = (typeof REVIEW_STATUS_VALUES)[number];
 type BusinessEventType = (typeof BUSINESS_EVENT_TYPES)[number];
@@ -194,6 +196,15 @@ function isValidCoordinate(value: unknown): value is number | string {
   if (value === null || value === undefined) return false;
   if (typeof value === 'string' && value.trim() === '') return false;
   return Number.isFinite(Number(value));
+}
+
+function parseBatchOffset(value: unknown) {
+  if (typeof value === 'number' && Number.isFinite(value) && value >= 0) return Math.floor(value);
+  if (typeof value === 'string') {
+    const parsed = Number.parseInt(value, 10);
+    if (Number.isFinite(parsed) && parsed >= 0) return parsed;
+  }
+  return 0;
 }
 
 function normalizeReviewStatus(value: unknown): ReviewStatus | null {
@@ -931,26 +942,34 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
 
         const body = await readJson(req);
         const mode = body?.mode === 'apply' ? 'apply' : 'dry-run';
-        const limitRaw = typeof body?.limit === 'number' ? body.limit : typeof body?.limit === 'string' ? Number.parseInt(body.limit, 10) : 50;
-        const safeLimit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 200) : 50;
+        const limitRaw = typeof body?.limit === 'number' ? body.limit : typeof body?.limit === 'string' ? Number.parseInt(body.limit, 10) : GEOCODE_BATCH_DEFAULT_LIMIT;
+        const safeLimit =
+          Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, GEOCODE_BATCH_MAX_LIMIT) : GEOCODE_BATCH_DEFAULT_LIMIT;
+        const safeOffset = parseBatchOffset(body?.offset ?? body?.cursor);
 
-        const { data, error } = await supabase
+        const query = supabase
           .from('businesses')
-          .select('id, name, address, neighborhood, city, state, zip_code, latitude, longitude')
+          .select('id, name, address, neighborhood, city, state, zip_code, latitude, longitude', { count: 'exact' })
           .or('latitude.is.null,longitude.is.null')
           .order('created_at', { ascending: false })
-          .limit(safeLimit);
+          .range(safeOffset, safeOffset + safeLimit - 1);
+
+        const { data, error, count } = await query;
 
         if (error) return json(res, 500, { success: false, message: error.message });
 
         const items = Array.isArray(data) ? data : [];
+        let processed = 0;
         const report = {
           mode,
-          total: items.length,
+          processed,
+          totalRemaining: 0,
           found: [] as Array<Record<string, unknown>>,
           not_found: [] as Array<Record<string, unknown>>,
           dubious: [] as Array<Record<string, unknown>>,
           updated: [] as Array<Record<string, unknown>>,
+          nextOffset: null as number | null,
+          hasMore: false,
         };
 
         for (let index = 0; index < items.length; index += 1) {
@@ -958,6 +977,7 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
           const hasCoords = isValidCoordinate(business.latitude) && isValidCoordinate(business.longitude);
           if (hasCoords) continue;
 
+          processed += 1;
           const result = await geocodeAddressWithNominatim(business);
           const baseEntry = {
             id: business.id,
@@ -996,6 +1016,14 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
             await sleep(GEOCODE_BATCH_DELAY_MS);
           }
         }
+
+        const totalCandidates = typeof count === 'number' ? count : safeOffset + processed;
+        const advanceBy = mode === 'apply' ? processed - report.updated.length : processed;
+        const nextOffset = safeOffset + Math.max(advanceBy, 0);
+        report.processed = processed;
+        report.totalRemaining = Math.max(totalCandidates - processed, 0);
+        report.nextOffset = report.totalRemaining > 0 ? nextOffset : null;
+        report.hasMore = report.totalRemaining > 0;
 
         return json(res, 200, { success: true, data: report });
       }

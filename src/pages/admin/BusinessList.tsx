@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import axios from "axios";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../../services/api";
 import type { ApiResponse, Business } from "../../types";
@@ -20,12 +21,65 @@ type GeocodeBatchEntry = {
 
 type GeocodeBatchReport = {
     mode: "dry-run" | "apply";
-    total: number;
+    processed: number;
+    total: number | null;
     found: GeocodeBatchEntry[];
     not_found: GeocodeBatchEntry[];
     dubious: GeocodeBatchEntry[];
     updated: Array<{ id: string; name: string; latitude: number; longitude: number }>;
 };
+
+type GeocodeBatchResponse = {
+    mode: "dry-run" | "apply";
+    processed: number;
+    totalRemaining: number;
+    found: GeocodeBatchEntry[];
+    not_found: GeocodeBatchEntry[];
+    dubious: GeocodeBatchEntry[];
+    updated: Array<{ id: string; name: string; latitude: number; longitude: number }>;
+    nextOffset: number | null;
+    hasMore: boolean;
+};
+
+type GeocodeProgressState = {
+    processed: number;
+    total: number | null;
+    mode: "dry-run" | "apply";
+};
+
+const GEOCODE_BATCH_SIZE = 5;
+
+function mergeUniqueById<T extends { id: string }>(current: T[], next: T[]) {
+    const map = new Map<string, T>();
+    [...current, ...next].forEach((item) => map.set(item.id, item));
+    return Array.from(map.values());
+}
+
+function formatGeocodeError(error: unknown) {
+    if (axios.isAxiosError(error)) {
+        const status = error.response?.status;
+        const apiMessage =
+            typeof error.response?.data?.message === "string"
+                ? error.response.data.message
+                : typeof error.message === "string"
+                  ? error.message
+                  : "Falha ao atualizar coordenadas.";
+
+        let message = status ? `Erro HTTP ${status}: ${apiMessage}` : apiMessage;
+        if (status === 504) {
+            message += " Timeout do lote. O sistema usa lotes menores; tente novamente em instantes.";
+        } else if (status === 429) {
+            message += " O serviço de geocodificação limitou as requisições; aguarde um pouco e tente novamente.";
+        }
+        return message;
+    }
+
+    if (error instanceof Error && error.message) {
+        return error.message;
+    }
+
+    return "Falha ao atualizar coordenadas.";
+}
 
 export function BusinessList() {
     const [loading, setLoading] = useState(true);
@@ -34,6 +88,8 @@ export function BusinessList() {
     const [query, setQuery] = useState("");
     const [geocodeRunning, setGeocodeRunning] = useState(false);
     const [geocodeReport, setGeocodeReport] = useState<GeocodeBatchReport | null>(null);
+    const [geocodeProgress, setGeocodeProgress] = useState<GeocodeProgressState | null>(null);
+    const cancelGeocodeRef = useRef(false);
 
     const filtered = useMemo(() => {
         const q = query.trim().toLowerCase();
@@ -64,25 +120,82 @@ export function BusinessList() {
             if (!ok) return;
         }
 
+        cancelGeocodeRef.current = false;
         setGeocodeRunning(true);
         setError("");
+        setGeocodeProgress({ processed: 0, total: null, mode });
+
+        let aggregate: GeocodeBatchReport = {
+            mode,
+            processed: 0,
+            total: null,
+            found: [],
+            not_found: [],
+            dubious: [],
+            updated: [],
+        };
+        setGeocodeReport(aggregate);
+
+        let offset = 0;
+        let completed = false;
+
         try {
-            const resp = await api.post<ApiResponse<GeocodeBatchReport>>("/businesses/geocode/batch", {
-                mode,
-                limit: 120,
-            });
-            if (!resp.data.success || !resp.data.data) {
-                setError(resp.data.message || "Falha ao atualizar coordenadas.");
-                return;
+            while (true) {
+                if (cancelGeocodeRef.current) {
+                    setError("Processamento cancelado pelo usuário.");
+                    break;
+                }
+
+                const resp = await api.post<ApiResponse<GeocodeBatchResponse>>("/businesses/geocode/batch", {
+                    mode,
+                    limit: GEOCODE_BATCH_SIZE,
+                    offset,
+                });
+
+                if (!resp.data.success || !resp.data.data) {
+                    setError(resp.data.message || "Falha ao atualizar coordenadas.");
+                    break;
+                }
+
+                const batch = resp.data.data;
+                const total = aggregate.processed + batch.processed + batch.totalRemaining;
+
+                aggregate = {
+                    mode,
+                    processed: aggregate.processed + batch.processed,
+                    total,
+                    found: mergeUniqueById(aggregate.found, batch.found),
+                    dubious: mergeUniqueById(aggregate.dubious, batch.dubious),
+                    not_found: mergeUniqueById(aggregate.not_found, batch.not_found),
+                    updated: mergeUniqueById(aggregate.updated, batch.updated),
+                };
+
+                setGeocodeReport(aggregate);
+                setGeocodeProgress({ processed: aggregate.processed, total, mode });
+
+                if (!batch.hasMore || batch.nextOffset === null) {
+                    completed = true;
+                    break;
+                }
+
+                if (batch.processed === 0 && batch.nextOffset === offset) {
+                    throw new Error("O processamento de geocodificação não avançou para o próximo lote.");
+                }
+
+                offset = batch.nextOffset;
             }
-            setGeocodeReport(resp.data.data);
-            if (mode === "apply") {
+
+            if (completed && mode === "apply") {
                 await load();
             }
-        } catch {
-            setError("Falha ao atualizar coordenadas.");
+        } catch (err) {
+            setError(formatGeocodeError(err));
         } finally {
             setGeocodeRunning(false);
+            setGeocodeProgress((current) => {
+                if (!current) return null;
+                return current;
+            });
         }
     };
 
@@ -144,6 +257,9 @@ export function BusinessList() {
                         <div className="mt-space-1 text-text-sm text-text-secondary">
                             Rode primeiro em modo simular. Apenas negócios sem coordenadas entram no processo.
                         </div>
+                        <div className="mt-space-1 text-text-xs text-text-muted">
+                            Lote atual: {GEOCODE_BATCH_SIZE} negócio(s) por chamada.
+                        </div>
                     </div>
                     <div className="flex flex-wrap gap-space-3">
                         <Button type="button" variant="secondary" onClick={() => runGeocodeBatch("dry-run")} disabled={geocodeRunning}>
@@ -152,8 +268,25 @@ export function BusinessList() {
                         <Button type="button" onClick={() => runGeocodeBatch("apply")} disabled={geocodeRunning}>
                             Aplicar coordenadas
                         </Button>
+                        {geocodeRunning && (
+                            <Button type="button" variant="secondary" onClick={() => { cancelGeocodeRef.current = true; }}>
+                                Cancelar
+                            </Button>
+                        )}
                     </div>
                 </div>
+
+                {geocodeProgress && (
+                    <div className="mt-space-4 rounded-radius-lg border border-border-subtle bg-surface-subtle p-space-3">
+                        <div className="text-text-sm font-semibold text-text-primary">
+                            Processando {geocodeProgress.processed}
+                            {typeof geocodeProgress.total === "number" ? ` de ${geocodeProgress.total}` : ""}...
+                        </div>
+                        <div className="mt-space-1 text-text-xs text-text-secondary">
+                            Modo: {geocodeProgress.mode === "apply" ? "aplicar" : "simular"}
+                        </div>
+                    </div>
+                )}
 
                 {geocodeReport && (
                     <div className="mt-space-5 space-y-space-5">
@@ -164,7 +297,11 @@ export function BusinessList() {
                             </div>
                             <div className="rounded-radius-lg border border-border-subtle bg-surface-subtle p-space-3">
                                 <div className="text-text-xs text-text-muted font-semibold uppercase tracking-wide">Analisados</div>
-                                <div className="mt-space-1 text-text-base font-bold text-text-primary">{geocodeReport.total}</div>
+                                <div className="mt-space-1 text-text-base font-bold text-text-primary">{geocodeReport.processed}</div>
+                            </div>
+                            <div className="rounded-radius-lg border border-border-subtle bg-surface-subtle p-space-3">
+                                <div className="text-text-xs text-text-muted font-semibold uppercase tracking-wide">Total estimado</div>
+                                <div className="mt-space-1 text-text-base font-bold text-text-primary">{geocodeReport.total ?? geocodeReport.processed}</div>
                             </div>
                             <div className="rounded-radius-lg border border-border-subtle bg-surface-subtle p-space-3">
                                 <div className="text-text-xs text-text-muted font-semibold uppercase tracking-wide">Encontrados</div>
