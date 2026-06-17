@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { BrowserRouter as Router, Routes, Route, useLocation, Outlet, Link } from "react-router-dom";
+import { Grid2x2, Heart, Home as HomeIcon, Info, MapPinned, Menu, Share2, X } from "lucide-react";
 import { MainLayout } from "./layouts/MainLayout";
 import { Home } from "./pages/Home";
 import { Directory } from "./pages/Directory";
@@ -7,6 +8,7 @@ import { Login } from "./pages/Login";
 import { About } from "./pages/About";
 import { BusinessDetails } from "./pages/BusinessDetails";
 import { Download } from "./pages/Download";
+import { AppHome } from "./pages/AppHome";
 import { AppDirectory } from "./pages/AppDirectory";
 import { AppBusinessDetails } from "./pages/AppBusinessDetails";
 import { AdminLayout } from "./layouts/AdminLayout";
@@ -25,6 +27,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { PrivateRoute } from "./components/PrivateRoute";
 import { Card } from "./components/ui/Card";
 import logo from "./assets/logo.jpg";
+import { appMeta } from "./config/appMeta";
 
 function ScrollToTop() {
   const location = useLocation();
@@ -89,17 +92,17 @@ function DeveloperContactsPage() {
       <h1 className="text-text-3xl font-bold text-text-primary mb-space-6">Contatos do Desenvolvedor</h1>
       <Card className="border-border-subtle">
         <div className="space-y-space-4">
-          <div className="text-text-xl font-bold text-text-primary">Doriedson Serra</div>
+          <div className="text-text-xl font-bold text-text-primary">{appMeta.developer.name}</div>
           <div className="space-y-space-2">
             <div className="text-text-sm text-text-muted font-semibold">Email</div>
-            <a className="text-action-primary hover:underline font-semibold" href="mailto:dsdodo18@hotmail.com">
-              dsdodo18@hotmail.com
+            <a className="text-action-primary hover:underline font-semibold" href={`mailto:${appMeta.developer.email}`}>
+              {appMeta.developer.email}
             </a>
           </div>
           <div className="space-y-space-2">
             <div className="text-text-sm text-text-muted font-semibold">Telefone</div>
-            <a className="text-action-primary hover:underline font-semibold" href="tel:+5598999345232">
-              (98) 99934-5232
+            <a className="text-action-primary hover:underline font-semibold" href={`tel:${appMeta.developer.phoneHref}`}>
+              {appMeta.developer.phoneLabel}
             </a>
           </div>
         </div>
@@ -109,22 +112,149 @@ function DeveloperContactsPage() {
 }
 
 function UserAppLayout() {
+  const location = useLocation();
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [location.pathname, location.search, location.hash]);
+
+  const shareApp = async () => {
+    const url = typeof window !== "undefined" ? `${window.location.origin}/app` : "/app";
+    try {
+      const nav = typeof navigator !== "undefined" ? navigator : undefined;
+      if (nav?.share) {
+        await nav.share({ title: appMeta.name, url });
+        return;
+      }
+      if (nav?.clipboard?.writeText) {
+        await nav.clipboard.writeText(url);
+        alert("Link do aplicativo copiado!");
+        return;
+      }
+      alert(url);
+    } catch {
+    }
+  };
+
+  const primaryLinks = [
+    { label: "Início", to: "/app", icon: HomeIcon },
+    { label: "Categorias", to: "/app#categorias", icon: Grid2x2 },
+    { label: "Favoritos", to: "/app/lista?favorites=1", icon: Heart },
+    { label: "Mapa", to: "/app/mapa", icon: MapPinned },
+  ];
+
   return (
     <div className="min-h-[100dvh] bg-surface-page">
-      <header className="sticky top-0 z-50 bg-surface-section border-b border-border-default shadow-sm">
-        <div className="container mx-auto px-space-4 h-12 flex items-center">
-          <Link to="/app" className="flex items-center gap-space-3">
-            <img src={logo} alt="Tem Aki no Bairro" className="h-8 w-8 rounded-radius-lg border border-border-subtle object-cover bg-surface-card" />
+      <header className="fixed inset-x-0 top-0 z-[60] border-b border-border-default bg-surface-card/95 shadow-sm backdrop-blur">
+        <div className="container mx-auto flex h-16 items-center justify-between px-space-4">
+          <Link to="/app" className="flex min-w-0 items-center gap-space-3">
+            <img src={logo} alt="Tem Aki no Bairro" className="h-10 w-10 rounded-radius-lg border border-border-subtle object-cover bg-surface-card" />
             <div className="leading-tight">
-              <div className="text-text-sm font-bold text-text-primary">Tem Aki no Bairro</div>
-              <div className="text-text-xs text-text-muted">Consulta rápida</div>
+              <div className="text-text-base font-bold text-text-primary">{appMeta.name}</div>
+              <div className="text-text-xs text-text-muted">Busca local no Nova Terra</div>
             </div>
           </Link>
+          <button
+            type="button"
+            onClick={() => setMenuOpen(true)}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-radius-xl border border-border-subtle bg-surface-subtle text-text-primary"
+            aria-label="Abrir menu"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
         </div>
       </header>
-      <main>
+      <main className="pt-16">
         <Outlet />
       </main>
+
+      {menuOpen && (
+        <div className="fixed inset-0 z-[70]">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/45"
+            onClick={() => setMenuOpen(false)}
+            aria-label="Fechar menu"
+          />
+          <aside className="absolute right-0 top-0 h-full w-[88%] max-w-sm overflow-y-auto border-l border-border-subtle bg-surface-card p-space-5 shadow-2xl">
+            <div className="flex items-center justify-between gap-space-3">
+              <div className="flex items-center gap-space-3">
+                <img src={logo} alt="Tem Aki no Bairro" className="h-11 w-11 rounded-radius-lg border border-border-subtle object-cover bg-surface-card" />
+                <div>
+                  <div className="text-text-lg font-bold text-text-primary">{appMeta.name}</div>
+                  <div className="text-text-xs text-text-muted">Menu</div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMenuOpen(false)}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-radius-full text-text-muted"
+                aria-label="Fechar menu"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <nav className="mt-space-6 space-y-space-2">
+              {primaryLinks.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.label}
+                    to={item.to}
+                    className="flex items-center gap-space-3 rounded-radius-xl px-space-3 py-space-3 text-text-base font-medium text-text-primary hover:bg-surface-subtle"
+                  >
+                    <Icon className="h-5 w-5 text-action-primary" />
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </nav>
+
+            <div className="mt-space-6 border-t border-border-subtle pt-space-6">
+              <div className="mb-space-3 text-text-sm font-bold uppercase tracking-wide text-action-primary">Informações Gerais</div>
+              <div className="space-y-space-2">
+                {appMeta.infoLinks.map((item) => (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    className="flex items-center gap-space-3 rounded-radius-xl px-space-3 py-space-3 text-text-sm font-medium text-text-primary hover:bg-surface-subtle"
+                  >
+                    <Info className="h-4 w-4 text-text-muted" />
+                    <span>{item.label}</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-space-6 border-t border-border-subtle pt-space-6">
+              <div className="mb-space-3 text-text-sm font-bold uppercase tracking-wide text-action-primary">Contatos do Desenvolvedor</div>
+              <div className="space-y-space-3 rounded-radius-2xl border border-border-subtle bg-surface-subtle/60 p-space-4">
+                <div className="text-text-sm font-semibold text-text-primary">{appMeta.developer.name}</div>
+                <a className="block text-text-sm text-action-primary hover:underline" href={`mailto:${appMeta.developer.email}`}>
+                  {appMeta.developer.email}
+                </a>
+                <a className="block text-text-sm text-action-primary hover:underline" href={`tel:${appMeta.developer.phoneHref}`}>
+                  {appMeta.developer.phoneLabel}
+                </a>
+                <Link to="/developer-contacts" className="inline-flex text-text-sm font-semibold text-action-primary hover:underline">
+                  Ver detalhes
+                </Link>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={shareApp}
+              className="mt-space-6 flex w-full items-center justify-center gap-space-2 rounded-radius-xl bg-action-primary px-space-4 py-space-3 text-text-sm font-bold text-text-on-brand shadow-button-primary"
+            >
+              <Share2 className="h-4 w-4" />
+              Compartilhar Aplicativo
+            </button>
+          </aside>
+        </div>
+      )}
     </div>
   );
 }
@@ -199,9 +329,9 @@ Esses recursos ajudam a reconhecer sessões ativas, manter preferências básica
 
 Para dúvidas, solicitações relacionadas à privacidade ou exercício de direitos previstos na LGPD, entre em contato:
 
-Nome: Doriedson Serra
-E-mail: dsdodo18@hotmail.com
-Telefone: (98) 99934-5232
+Nome: ${appMeta.developer.name}
+E-mail: ${appMeta.developer.email}
+Telefone: ${appMeta.developer.phoneLabel}
 
 9. Atualização da política
 
@@ -235,7 +365,9 @@ Ao utilizar o sistema, você concorda em fornecer dados verdadeiros e respeitar 
       </Route>
 
       <Route path="app" element={<UserAppLayout />}>
-        <Route index element={<AppDirectory />} />
+        <Route index element={<AppHome />} />
+        <Route path="lista" element={<AppDirectory />} />
+        <Route path="mapa" element={<Geolocation />} />
         <Route path="business/:id" element={<AppBusinessDetails />} />
       </Route>
 

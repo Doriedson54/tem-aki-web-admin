@@ -5,6 +5,7 @@ import api from "../services/api";
 import type { ApiResponse, Business, Category, Subcategory } from "../types";
 import { Input } from "../components/ui/Input";
 import { Button } from "../components/ui/Button";
+import { appMeta } from "../config/appMeta";
 
 const BusinessListItem = memo(function BusinessListItem({ business }: { business: Business }) {
   const reviewCount = typeof business.review_count === "number" ? business.review_count : 0;
@@ -87,6 +88,18 @@ export function AppDirectory() {
   const [keyboardInset, setKeyboardInset] = useState(0);
   const filterCardRef = useRef<HTMLDivElement | null>(null);
   const blurTimeoutRef = useRef<number | null>(null);
+  const favoritesOnly = searchParams.get("favorites") === "1";
+
+  const getLocalFavoriteIds = () => {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = localStorage.getItem(appMeta.favoritesStorageKey);
+      const ids = raw ? (JSON.parse(raw) as string[]) : [];
+      return Array.isArray(ids) ? ids : [];
+    } catch {
+      return [];
+    }
+  };
 
   const allowedCategoryNames = useMemo(
     () => [
@@ -170,7 +183,11 @@ export function AppDirectory() {
         if (subcategory) params.subcategory = subcategory;
 
         const response = await api.get<ApiResponse<Business[]>>("/businesses", { params });
-        const items = Array.isArray(response.data?.data) ? response.data.data : [];
+        let items = Array.isArray(response.data?.data) ? response.data.data : [];
+        if (favoritesOnly) {
+          const favoriteIds = new Set(getLocalFavoriteIds());
+          items = items.filter((item) => favoriteIds.has(item.id));
+        }
         if (!cancelled) setBusinesses(items);
       } catch {
         if (!cancelled) setBusinesses([]);
@@ -182,7 +199,7 @@ export function AppDirectory() {
     return () => {
       cancelled = true;
     };
-  }, [searchParams]);
+  }, [favoritesOnly, searchParams]);
 
   useEffect(() => {
     if (!isFilterFocused) {
@@ -263,9 +280,13 @@ export function AppDirectory() {
       <section className="container mx-auto px-space-4 pt-space-4 pb-space-5 md:py-space-10">
         <div ref={filterCardRef} className="rounded-radius-2xl border border-border-subtle bg-surface-card p-space-4 md:p-space-8 shadow-card">
           <div className="max-w-2xl">
-            <h1 className="text-text-2xl md:text-text-4xl font-bold text-text-primary">Encontre no Tem Aki</h1>
+            <h1 className="text-text-2xl md:text-text-4xl font-bold text-text-primary">
+              {favoritesOnly ? "Seus Favoritos" : "Encontre no Tem Aki"}
+            </h1>
             <p className="mt-1 md:mt-space-2 text-text-secondary text-text-sm md:text-text-lg">
-              Consulte com rapidez comércios, serviços e instituições do bairro.
+              {favoritesOnly
+                ? "Veja os negocios que voce marcou como favoritos no aplicativo."
+                : "Consulte com rapidez comercios, servicos e instituicoes do bairro."}
             </p>
           </div>
 
@@ -345,7 +366,7 @@ export function AppDirectory() {
               <Button variant="secondary" onClick={clearFilters} size="sm" className="h-10 px-5">Limpar</Button>
             </div>
             <div className="text-text-sm text-text-muted">
-              {loading ? "Carregando..." : `${businesses.length} resultado(s)`}
+              {loading ? "Carregando..." : favoritesOnly ? `${businesses.length} favorito(s)` : `${businesses.length} resultado(s)`}
             </div>
           </div>
         </div>

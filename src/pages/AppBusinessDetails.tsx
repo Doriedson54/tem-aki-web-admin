@@ -6,8 +6,7 @@ import type { Business, BusinessImage, Review } from "../types";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { trackBusinessEvent } from "../services/businessEvents";
-
-const APP_FAVORITES_STORAGE_KEY = "temaki-app-favorites";
+import { appMeta } from "../config/appMeta";
 
 function buildWhatsAppLink(rawPhone: string, message: string): string | null {
   const digitsOnly = String(rawPhone || "").replace(/\D/g, "");
@@ -112,7 +111,7 @@ export function AppBusinessDetails() {
   useEffect(() => {
     if (!id || typeof window === "undefined") return;
     try {
-      const raw = localStorage.getItem(APP_FAVORITES_STORAGE_KEY);
+      const raw = localStorage.getItem(appMeta.favoritesStorageKey);
       const favoriteIds = raw ? (JSON.parse(raw) as string[]) : [];
       setIsFavorite(Array.isArray(favoriteIds) && favoriteIds.includes(id));
     } catch {
@@ -203,7 +202,7 @@ export function AppBusinessDetails() {
           : [...favoriteIds, id]
         : [id];
 
-      localStorage.setItem(APP_FAVORITES_STORAGE_KEY, JSON.stringify(nextIds));
+      localStorage.setItem(appMeta.favoritesStorageKey, JSON.stringify(nextIds));
       setIsFavorite(nextIds.includes(id));
       if (nextIds.includes(id)) {
         registerEvent("favorite", { location: "app_business_details" });
@@ -336,7 +335,7 @@ export function AppBusinessDetails() {
         <div className="rounded-radius-2xl border border-border-subtle bg-surface-card p-space-8 text-center shadow-card">
           <h1 className="text-text-2xl font-bold text-text-primary">Negócio não encontrado</h1>
           <p className="mt-space-2 text-text-secondary">Não foi possível localizar esse cadastro.</p>
-          <Link to="/app">
+          <Link to="/app/lista">
             <Button className="mt-space-5">Voltar para busca</Button>
           </Link>
         </div>
@@ -348,7 +347,7 @@ export function AppBusinessDetails() {
     <div className="min-h-screen bg-surface-page pb-28 md:pb-space-16">
       <section className="container mx-auto px-space-4 py-space-4">
         <div className="flex items-center justify-between gap-space-3">
-          <Link to="/app" className="inline-flex items-center gap-space-2 text-text-secondary hover:text-action-primary font-medium">
+          <Link to="/app/lista" className="inline-flex items-center gap-space-2 text-text-secondary hover:text-action-primary font-medium">
             <ArrowLeft className="h-5 w-5" />
             <span className="text-text-sm">Voltar</span>
           </Link>

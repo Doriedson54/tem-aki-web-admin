@@ -1,5 +1,6 @@
 import { Instagram, Facebook } from "lucide-react";
 import { Link } from "react-router-dom";
+import { appMeta } from "../../config/appMeta";
 
 export function Footer() {
     return (
@@ -40,15 +41,15 @@ export function Footer() {
                     <div>
                         <h4 className="font-semibold text-white mb-space-4">Contatos do Desenvolvedor</h4>
                         <ul className="space-y-space-2">
-                            <li className="text-text-muted font-semibold">Doriedson Serra</li>
+                            <li className="text-text-muted font-semibold">{appMeta.developer.name}</li>
                             <li>
-                                <a className="text-text-muted hover:text-white transition-colors" href="mailto:dsdodo18@hotmail.com">
-                                    dsdodo18@hotmail.com
+                                <a className="text-text-muted hover:text-white transition-colors" href={`mailto:${appMeta.developer.email}`}>
+                                    {appMeta.developer.email}
                                 </a>
                             </li>
                             <li>
-                                <a className="text-text-muted hover:text-white transition-colors" href="tel:+5598999345232">
-                                    (98) 99934-5232
+                                <a className="text-text-muted hover:text-white transition-colors" href={`tel:${appMeta.developer.phoneHref}`}>
+                                    {appMeta.developer.phoneLabel}
                                 </a>
                             </li>
                             <li className="pt-space-2">
