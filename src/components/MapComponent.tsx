@@ -1,4 +1,4 @@
-import { MapContainer, TileLayer, Marker, Popup, CircleMarker, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, CircleMarker, useMap, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { useEffect } from 'react';
@@ -21,6 +21,14 @@ export interface MapMarker {
     position: [number, number];
     title: string;
     popupContent?: ReactNode;
+    onClick?: () => void;
+}
+
+export interface MapViewportBounds {
+    north: number;
+    south: number;
+    east: number;
+    west: number;
 }
 
 interface MapComponentProps {
@@ -29,6 +37,7 @@ interface MapComponentProps {
     markers?: MapMarker[];
     userLocation?: [number, number] | null;
     className?: string;
+    onBoundsChange?: (bounds: MapViewportBounds) => void;
 }
 
 function MapViewSync({ center, zoom }: { center: [number, number]; zoom: number }) {
@@ -39,12 +48,53 @@ function MapViewSync({ center, zoom }: { center: [number, number]; zoom: number 
     return null;
 }
 
+function MapBoundsListener({ onBoundsChange }: { onBoundsChange?: (bounds: MapViewportBounds) => void }) {
+    const map = useMap();
+
+    useEffect(() => {
+        if (!onBoundsChange) return;
+        const bounds = map.getBounds();
+        onBoundsChange({
+            north: bounds.getNorth(),
+            south: bounds.getSouth(),
+            east: bounds.getEast(),
+            west: bounds.getWest(),
+        });
+    }, [map, onBoundsChange]);
+
+    useMapEvents({
+        moveend() {
+            if (!onBoundsChange) return;
+            const bounds = map.getBounds();
+            onBoundsChange({
+                north: bounds.getNorth(),
+                south: bounds.getSouth(),
+                east: bounds.getEast(),
+                west: bounds.getWest(),
+            });
+        },
+        zoomend() {
+            if (!onBoundsChange) return;
+            const bounds = map.getBounds();
+            onBoundsChange({
+                north: bounds.getNorth(),
+                south: bounds.getSouth(),
+                east: bounds.getEast(),
+                west: bounds.getWest(),
+            });
+        },
+    });
+
+    return null;
+}
+
 export function MapComponent({
     center = [-2.55, -44.06],
     zoom = 13,
     markers = [],
     userLocation = null,
     className = "h-[400px] w-full",
+    onBoundsChange,
 }: MapComponentProps) {
     return (
         <MapContainer
@@ -56,9 +106,10 @@ export function MapComponent({
             doubleClickZoom
             zoomControl
             tap
-            className={`rounded-xl z-0 overflow-hidden touch-none ${className}`}
+            className={`rounded-xl z-0 overflow-hidden touch-auto [touch-action:auto] ${className}`}
         >
             <MapViewSync center={center} zoom={zoom} />
+            <MapBoundsListener onBoundsChange={onBoundsChange} />
             <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -69,9 +120,9 @@ export function MapComponent({
                 </CircleMarker>
             )}
             {markers.map((marker) => (
-                <Marker key={marker.id} position={marker.position}>
+                <Marker key={marker.id} position={marker.position} eventHandlers={marker.onClick ? { click: marker.onClick } : undefined}>
                     <Popup>
-                        <div className="text-sm">
+                        <div className="min-w-[220px] max-w-[280px] text-sm">
                             <h3 className="font-bold">{marker.title}</h3>
                             {marker.popupContent}
                         </div>
