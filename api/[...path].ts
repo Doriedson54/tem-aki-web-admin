@@ -30,8 +30,8 @@ const NOMINATIM_BASE_URL = 'https://nominatim.openstreetmap.org/search';
 const GEOCODE_BATCH_DELAY_MS = 1200;
 const GEOCODE_BATCH_DEFAULT_LIMIT = 3;
 const GEOCODE_BATCH_MAX_LIMIT = 5;
-const NOVA_TERRA_PRIORITY_LAT = -2.5712107;
-const NOVA_TERRA_PRIORITY_LNG = -44.1521924;
+const NOVA_TERRA_CENTER_LAT = -2.5712107;
+const NOVA_TERRA_CENTER_LNG = -44.1521924;
 const TARGET_NEIGHBORHOOD = 'nova terra';
 const TARGET_CITY = 'sao jose de ribamar';
 const TARGET_STATE = 'maranhao';
@@ -152,7 +152,7 @@ type GeocodePreparedInput = {
 };
 
 type GeocodeStrategy = {
-  key: 'address_full' | 'name_neighborhood_city_state' | 'name_city_state' | 'name_neighborhood' | 'clean_address';
+  key: 'address_full' | 'name_neighborhood_city_state' | 'name_city_state' | 'name_neighborhood' | 'clean_address' | 'approx_street' | 'approx_neighborhood_center';
   label: string;
   buildQuery: (input: GeocodePreparedInput) => string;
 };
@@ -177,6 +177,17 @@ type GeocodeCandidate = {
   strategy_label: string;
   searched_address: string;
   distance_to_nova_terra_km: number | null;
+  location_type: 'Exata' | 'Aproximada';
+  source: 'Nominatim' | 'Rua' | 'Centro do bairro';
+};
+
+type GeocodeAttemptResult = {
+  status: 'found' | 'dubious' | 'not_found' | 'invalid';
+  message: string;
+  address: string;
+  strategy_key?: GeocodeStrategy['key'];
+  strategy_label?: string;
+  candidate: GeocodeCandidate | null;
 };
 
 function prepareGeocodeInput(input: Record<string, unknown>): GeocodePreparedInput {
@@ -219,6 +230,18 @@ function buildGeocodeStrategies(): GeocodeStrategy[] {
       buildQuery: (input) => buildSearchQuery([input.cleanedAddress, input.neighborhood, input.city, input.state, input.zipCode]),
     },
   ];
+}
+
+function extractStreetReference(input: GeocodePreparedInput) {
+  const base = input.cleanedAddress || input.address;
+  if (!base) return '';
+  return sanitizeText(base.split(',')[0], 120)
+    .replace(/\b(s\/n|sn)\b/gi, ' ')
+    .replace(/\b\d+[a-z]?\b/gi, ' ')
+    .replace(/[()]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/[,.-]+$/, '');
 }
 
 function geocodeStatusRank(value: 'found' | 'dubious' | 'not_found') {
@@ -281,7 +304,7 @@ function classifyGeocodeCandidate(
     .join(' ');
   const normalizedResultCity = normalizeTextForMatch(address.city || address.town || address.village || address.municipality);
   const normalizedResultState = normalizeTextForMatch(address.state);
-  const distanceToNovaTerraKm = haversineDistanceKm(lat, lng, NOVA_TERRA_PRIORITY_LAT, NOVA_TERRA_PRIORITY_LNG);
+  const distanceToNovaTerraKm = haversineDistanceKm(lat, lng, NOVA_TERRA_CENTER_LAT, NOVA_TERRA_CENTER_LNG);
 
   let geoScore = 0.15;
   if (distanceToNovaTerraKm <= 2) geoScore = 1;
@@ -307,7 +330,7 @@ function classifyGeocodeCandidate(
 
   const finalScore = clamp01(confidenceScore);
   const confidence: 'found' | 'dubious' | 'not_found' =
-    finalScore >= 0.9 ? 'found' : finalScore >= 0.6 ? 'dubious' : 'not_found';
+    finalScore >= 0.9 ? 'found' : finalScore >= 0.5 ? 'dubious' : 'not_found';
 
   return {
     lat,
@@ -321,6 +344,8 @@ function classifyGeocodeCandidate(
     strategy_label: query.strategyLabel,
     searched_address: query.searchTerm,
     distance_to_nova_terra_km: Number.isFinite(distanceToNovaTerraKm) ? Number(distanceToNovaTerraKm.toFixed(2)) : null,
+    location_type: 'Exata',
+    source: 'Nominatim',
   };
 }
 
@@ -328,7 +353,7 @@ async function sleep(ms: number) {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function searchGeocodeStrategy(query: GeocodeQueryContext) {
+async function searchGeocodeStrategy(query: GeocodeQueryContext): Promise<GeocodeAttemptResult> {
   const url = new URL(NOMINATIM_BASE_URL);
   url.searchParams.set('q', query.searchTerm);
   url.searchParams.set('format', 'jsonv2');
@@ -390,21 +415,44 @@ async function searchGeocodeStrategy(query: GeocodeQueryContext) {
   };
 }
 
+function buildNeighborhoodCenterFallback(prepared: GeocodePreparedInput): GeocodeAttemptResult {
+  const searchedAddress = buildSearchQuery([
+    prepared.businessName || prepared.cleanedAddress || prepared.address || 'Sem referencia detalhada',
+    prepared.neighborhood || 'Nova Terra',
+    prepared.city || 'São José de Ribamar',
+    prepared.state || 'MA',
+  ]);
+
+  return {
+    status: 'dubious',
+    message: 'Localização aproximada pelo centro do bairro Nova Terra.',
+    address: searchedAddress,
+    strategy_key: 'approx_neighborhood_center',
+    strategy_label: 'Centro do bairro',
+    candidate: {
+      lat: NOVA_TERRA_CENTER_LAT,
+      lng: NOVA_TERRA_CENTER_LNG,
+      display_name: 'Centro aproximado do bairro Nova Terra, São José de Ribamar - MA',
+      returned_name: prepared.businessName || 'Nova Terra',
+      importance: 0.2,
+      confidence_score: 0.5,
+      confidence: 'dubious',
+      strategy_key: 'approx_neighborhood_center',
+      strategy_label: 'Centro do bairro',
+      searched_address: searchedAddress,
+      distance_to_nova_terra_km: 0,
+      location_type: 'Aproximada',
+      source: 'Centro do bairro',
+    },
+  };
+}
+
 async function geocodeAddressWithNominatim(input: Record<string, unknown>) {
   const prepared = prepareGeocodeInput(input);
   const strategies = buildGeocodeStrategies();
   const executedSearchTerms = new Set<string>();
   let executedCalls = 0;
-  let bestResult:
-    | {
-        status: 'found' | 'dubious' | 'not_found' | 'invalid';
-        message: string;
-        address: string;
-        strategy_key?: GeocodeStrategy['key'];
-        strategy_label?: string;
-        candidate: GeocodeCandidate | null;
-      }
-    | null = null;
+  let bestResult: GeocodeAttemptResult | null = null;
 
   for (const strategy of strategies) {
     const searchTerm = strategy.buildQuery(prepared);
@@ -443,11 +491,53 @@ async function geocodeAddressWithNominatim(input: Record<string, unknown>) {
     }
   }
 
-  if (bestResult) return bestResult;
+  const streetReference = extractStreetReference(prepared);
+  if (streetReference) {
+    if (executedCalls > 0) {
+      await sleep(GEOCODE_BATCH_DELAY_MS);
+    }
+
+    const approxStreetResult = await searchGeocodeStrategy({
+      ...prepared,
+      strategyKey: 'approx_street',
+      strategyLabel: 'Rua dentro de Nova Terra',
+      searchTerm: buildSearchQuery([streetReference, prepared.neighborhood || 'Nova Terra', prepared.city || 'São José de Ribamar', prepared.state || 'MA']),
+      useBusinessName: false,
+      useAddress: true,
+    });
+
+    if (approxStreetResult.candidate) {
+      const forcedScore = Math.max(approxStreetResult.candidate.confidence_score, 0.5);
+      return {
+        ...approxStreetResult,
+        status: 'dubious',
+        message: 'Localização aproximada usando o centro estimado da rua no bairro.',
+        candidate: {
+          ...approxStreetResult.candidate,
+          confidence: 'dubious',
+          confidence_score: forcedScore,
+          strategy_key: 'approx_street',
+          strategy_label: 'Rua dentro de Nova Terra',
+          searched_address: approxStreetResult.address,
+          location_type: 'Aproximada',
+          source: 'Rua',
+        },
+      };
+    }
+  }
+
+  if (bestResult && bestResult.candidate) {
+    if (bestResult.status === 'dubious') return bestResult;
+    return buildNeighborhoodCenterFallback(prepared);
+  }
+
+  if (prepared.businessName || prepared.address || prepared.cleanedAddress || prepared.neighborhood || prepared.city || prepared.state) {
+    return buildNeighborhoodCenterFallback(prepared);
+  }
 
   return {
-    status: 'invalid' as const,
-    message: 'Endereço insuficiente para geocodificação.',
+    status: 'not_found' as const,
+    message: 'Nenhuma coordenada possível para este cadastro.',
     address: buildBusinessAddressFromParts(input),
     strategy_key: undefined,
     strategy_label: undefined,
@@ -1199,6 +1289,9 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
             strategy_label: result.candidate?.strategy_label ?? result.strategy_label ?? null,
             confidence_score: result.candidate?.confidence_score ?? null,
             returned_name: result.candidate?.returned_name ?? null,
+            location_type: result.candidate?.location_type ?? null,
+            source: result.candidate?.source ?? null,
+            distance_to_nova_terra_km: result.candidate?.distance_to_nova_terra_km ?? null,
           },
         });
       }
@@ -1259,6 +1352,8 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
             returned_name: result.candidate?.returned_name ?? null,
             confidence: result.candidate?.confidence ?? null,
             confidence_score: result.candidate?.confidence_score ?? null,
+            location_type: result.candidate?.location_type ?? null,
+            source: result.candidate?.source ?? null,
             distance_to_nova_terra_km: result.candidate?.distance_to_nova_terra_km ?? null,
             message: result.message,
           };

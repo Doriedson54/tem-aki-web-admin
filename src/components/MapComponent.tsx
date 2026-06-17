@@ -3,6 +3,7 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { useEffect } from 'react';
 import type { ReactNode } from 'react';
+import { NOVA_TERRA_CENTER, NOVA_TERRA_DEFAULT_ZOOM } from '../config/geo';
 
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
@@ -107,8 +108,8 @@ function MapBoundsListener({
 }
 
 export function MapComponent({
-    center = [-2.55, -44.06],
-    zoom = 13,
+    center = NOVA_TERRA_CENTER,
+    zoom = NOVA_TERRA_DEFAULT_ZOOM,
     markers = [],
     userLocation = null,
     highlightPoint = null,

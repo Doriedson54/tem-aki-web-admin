@@ -6,7 +6,9 @@ import type { ApiResponse, Business } from "../../types";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
-import { ExternalLink, Pencil, ToggleLeft, ToggleRight, Trash2 } from "lucide-react";
+import { ExternalLink, Pencil, ToggleLeft, ToggleRight, Trash2, X } from "lucide-react";
+import { MapComponent } from "../../components/MapComponent";
+import { NOVA_TERRA_CENTER, NOVA_TERRA_DEFAULT_ZOOM } from "../../config/geo";
 
 type GeocodeBatchEntry = {
     id: string;
@@ -21,6 +23,8 @@ type GeocodeBatchEntry = {
     returned_name?: string | null;
     confidence?: "found" | "dubious" | "not_found" | null;
     confidence_score?: number | null;
+    location_type?: "Exata" | "Aproximada" | null;
+    source?: "Nominatim" | "Rua" | "Centro do bairro" | null;
     distance_to_nova_terra_km?: number | null;
     message?: string | null;
 };
@@ -87,6 +91,12 @@ function formatGeocodeError(error: unknown) {
     return "Falha ao atualizar coordenadas.";
 }
 
+function formatDistanceFromNovaTerra(distanceKm?: number | null) {
+    if (typeof distanceKm !== "number" || !Number.isFinite(distanceKm)) return "Nao disponivel";
+    if (distanceKm < 1) return `${Math.round(distanceKm * 1000)}m`;
+    return `${distanceKm.toFixed(2).replace(".", ",")} km`;
+}
+
 export function BusinessList() {
     const [loading, setLoading] = useState(true);
     const [items, setItems] = useState<Business[]>([]);
@@ -95,12 +105,15 @@ export function BusinessList() {
     const [geocodeRunning, setGeocodeRunning] = useState(false);
     const [geocodeReport, setGeocodeReport] = useState<GeocodeBatchReport | null>(null);
     const [geocodeProgress, setGeocodeProgress] = useState<GeocodeProgressState | null>(null);
+    const [selectedGeocodeItem, setSelectedGeocodeItem] = useState<GeocodeBatchEntry | null>(null);
+    const [approvedDubiousItems, setApprovedDubiousItems] = useState<GeocodeBatchEntry[]>([]);
     const cancelGeocodeRef = useRef(false);
     const geocodeSuccessRate = useMemo(() => {
         if (!geocodeReport?.processed) return 0;
         const successful = geocodeReport.found.length + geocodeReport.dubious.length;
         return (successful / geocodeReport.processed) * 100;
     }, [geocodeReport]);
+    const approvedDubiousIds = useMemo(() => new Set(approvedDubiousItems.map((item) => item.id)), [approvedDubiousItems]);
 
     const filtered = useMemo(() => {
         const q = query.trim().toLowerCase();
@@ -134,6 +147,7 @@ export function BusinessList() {
         cancelGeocodeRef.current = false;
         setGeocodeRunning(true);
         setError("");
+        setApprovedDubiousItems([]);
         setGeocodeProgress({ processed: 0, total: null, mode });
 
         let aggregate: GeocodeBatchReport = {
@@ -210,6 +224,10 @@ export function BusinessList() {
         }
     };
 
+    const approveDubiousCoordinate = (item: GeocodeBatchEntry) => {
+        setApprovedDubiousItems((current) => mergeUniqueById(current, [item]));
+    };
+
     useEffect(() => {
         load();
     }, []);
@@ -242,6 +260,103 @@ export function BusinessList() {
         } catch {
             setError("Falha ao alterar status.");
         }
+    };
+
+    const selectedGeocodePosition = useMemo<[number, number] | null>(() => {
+        if (
+            !selectedGeocodeItem ||
+            typeof selectedGeocodeItem.latitude !== "number" ||
+            typeof selectedGeocodeItem.longitude !== "number"
+        ) {
+            return null;
+        }
+
+        return [selectedGeocodeItem.latitude, selectedGeocodeItem.longitude];
+    }, [selectedGeocodeItem]);
+
+    const renderGeocodeEntry = (item: GeocodeBatchEntry, tone: "neutral" | "warning" | "error") => {
+        const containerClass =
+            tone === "warning"
+                ? "rounded-radius-lg border border-status-warning/30 bg-status-warning/10 p-space-3 text-text-sm"
+                : tone === "error"
+                  ? "rounded-radius-lg border border-status-error/20 bg-status-error/10 p-space-3 text-text-sm"
+                  : "rounded-radius-lg border border-border-subtle bg-surface-card p-space-3 text-text-sm";
+
+        return (
+            <div key={item.id} className={containerClass}>
+                <div className="flex flex-col gap-space-3 md:flex-row md:items-start md:justify-between">
+                    <div className="min-w-0 flex-1">
+                        <div className="font-semibold text-text-primary">{item.name}</div>
+                        <div className="mt-space-1 text-text-xs font-semibold uppercase tracking-wide text-text-muted">Endereço pesquisado</div>
+                        <div className="text-text-secondary">{item.searched_address || item.address}</div>
+                        {item.strategy_label && (
+                            <>
+                                <div className="mt-space-2 text-text-xs font-semibold uppercase tracking-wide text-text-muted">Estratégia</div>
+                                <div className="text-text-secondary">{item.strategy_label}</div>
+                            </>
+                        )}
+                        {item.returned_name && (
+                            <>
+                                <div className="mt-space-2 text-text-xs font-semibold uppercase tracking-wide text-text-muted">Encontrado</div>
+                                <div className="text-text-secondary">{item.returned_name}</div>
+                            </>
+                        )}
+                        {(typeof item.latitude === "number" || typeof item.longitude === "number") && (
+                            <>
+                                <div className="mt-space-2 text-text-xs font-semibold uppercase tracking-wide text-text-muted">Coordenadas</div>
+                                <div className="text-text-secondary text-text-xs">
+                                    Lat: {item.latitude} | Lng: {item.longitude}
+                                </div>
+                            </>
+                        )}
+                        {typeof item.confidence_score === "number" && (
+                            <>
+                                <div className="mt-space-2 text-text-xs font-semibold uppercase tracking-wide text-text-muted">Confiança</div>
+                                <div className="text-text-secondary">{item.confidence_score.toFixed(2)}</div>
+                            </>
+                        )}
+                        {item.message && <div className="mt-space-2 text-text-xs text-text-secondary">{item.message}</div>}
+                        <div className="mt-space-2 grid gap-space-2 text-text-xs text-text-secondary md:grid-cols-3">
+                            <div>
+                                <div className="font-semibold uppercase tracking-wide text-text-muted">Tipo</div>
+                                <div>{item.location_type || "-"}</div>
+                            </div>
+                            <div>
+                                <div className="font-semibold uppercase tracking-wide text-text-muted">Fonte</div>
+                                <div>{item.source || "-"}</div>
+                            </div>
+                            <div>
+                                <div className="font-semibold uppercase tracking-wide text-text-muted">Distância Nova Terra</div>
+                                <div>{formatDistanceFromNovaTerra(item.distance_to_nova_terra_km)}</div>
+                            </div>
+                        </div>
+                        {item.display_name && <div className="text-text-muted text-text-xs mt-space-2">{item.display_name}</div>}
+                        {approvedDubiousIds.has(item.id) && (
+                            <div className="mt-space-2 inline-flex rounded-radius-full bg-status-success/10 px-space-3 py-space-1 text-text-xs font-semibold text-status-success">
+                                Coordenada aprovada manualmente
+                            </div>
+                        )}
+                    </div>
+                    <div className="flex shrink-0 flex-wrap gap-space-2">
+                        {(typeof item.latitude === "number" && typeof item.longitude === "number") && (
+                            <Button type="button" variant="secondary" size="sm" onClick={() => setSelectedGeocodeItem(item)}>
+                                Ver no mapa
+                            </Button>
+                        )}
+                        {item.confidence === "dubious" && (
+                            <Button
+                                type="button"
+                                size="sm"
+                                onClick={() => approveDubiousCoordinate(item)}
+                                disabled={approvedDubiousIds.has(item.id)}
+                            >
+                                {approvedDubiousIds.has(item.id) ? "Aprovada" : "Aprovar coordenada"}
+                            </Button>
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
     };
 
     return (
@@ -350,44 +465,23 @@ export function BusinessList() {
                             </div>
                         )}
 
+                        {approvedDubiousItems.length > 0 && (
+                            <div>
+                                <div className="text-text-sm font-semibold text-text-primary">Coordenadas aprovadas manualmente</div>
+                                <div className="mt-space-1 text-text-xs text-text-secondary">
+                                    Itens aprovados para aplicação manual posterior, sem gravação automática no banco.
+                                </div>
+                                <div className="mt-space-2 space-y-space-2">
+                                    {approvedDubiousItems.map((item) => renderGeocodeEntry(item, "warning"))}
+                                </div>
+                            </div>
+                        )}
+
                         {geocodeReport.found.length > 0 && (
                             <div>
                                 <div className="text-text-sm font-semibold text-text-primary">Encontrados com boa confiança</div>
                                 <div className="mt-space-2 space-y-space-2">
-                                    {geocodeReport.found.slice(0, 10).map((item) => (
-                                        <div key={item.id} className="rounded-radius-lg border border-border-subtle bg-surface-card p-space-3 text-text-sm">
-                                            <div className="font-semibold text-text-primary">{item.name}</div>
-                                            <div className="mt-space-1 text-text-xs font-semibold uppercase tracking-wide text-text-muted">Endereço pesquisado</div>
-                                            <div className="text-text-secondary">{item.searched_address || item.address}</div>
-                                            {item.strategy_label && (
-                                                <>
-                                                    <div className="mt-space-2 text-text-xs font-semibold uppercase tracking-wide text-text-muted">Estratégia</div>
-                                                    <div className="text-text-secondary">{item.strategy_label}</div>
-                                                </>
-                                            )}
-                                            {item.returned_name && (
-                                                <>
-                                                    <div className="mt-space-2 text-text-xs font-semibold uppercase tracking-wide text-text-muted">Encontrado</div>
-                                                    <div className="text-text-secondary">{item.returned_name}</div>
-                                                </>
-                                            )}
-                                            {(typeof item.latitude === "number" || typeof item.longitude === "number") && (
-                                                <>
-                                                    <div className="mt-space-2 text-text-xs font-semibold uppercase tracking-wide text-text-muted">Coordenadas</div>
-                                                    <div className="text-text-secondary text-text-xs">
-                                                        Lat: {item.latitude} | Lng: {item.longitude}
-                                                    </div>
-                                                </>
-                                            )}
-                                            {typeof item.confidence_score === "number" && (
-                                                <>
-                                                    <div className="mt-space-2 text-text-xs font-semibold uppercase tracking-wide text-text-muted">Confiança</div>
-                                                    <div className="text-text-secondary">{item.confidence_score.toFixed(2)}</div>
-                                                </>
-                                            )}
-                                            {item.display_name && <div className="text-text-muted text-text-xs mt-space-2">{item.display_name}</div>}
-                                        </div>
-                                    ))}
+                                    {geocodeReport.found.slice(0, 10).map((item) => renderGeocodeEntry(item, "neutral"))}
                                 </div>
                             </div>
                         )}
@@ -396,40 +490,7 @@ export function BusinessList() {
                             <div>
                                 <div className="text-text-sm font-semibold text-text-primary">Resultados duvidosos</div>
                                 <div className="mt-space-2 space-y-space-2">
-                                    {geocodeReport.dubious.slice(0, 10).map((item) => (
-                                        <div key={item.id} className="rounded-radius-lg border border-status-warning/30 bg-status-warning/10 p-space-3 text-text-sm">
-                                            <div className="font-semibold text-text-primary">{item.name}</div>
-                                            <div className="mt-space-1 text-text-xs font-semibold uppercase tracking-wide text-text-muted">Endereço pesquisado</div>
-                                            <div className="text-text-secondary">{item.searched_address || item.address}</div>
-                                            {item.strategy_label && (
-                                                <>
-                                                    <div className="mt-space-2 text-text-xs font-semibold uppercase tracking-wide text-text-muted">Estratégia</div>
-                                                    <div className="text-text-secondary">{item.strategy_label}</div>
-                                                </>
-                                            )}
-                                            {item.returned_name && (
-                                                <>
-                                                    <div className="mt-space-2 text-text-xs font-semibold uppercase tracking-wide text-text-muted">Encontrado</div>
-                                                    <div className="text-text-secondary">{item.returned_name}</div>
-                                                </>
-                                            )}
-                                            {(typeof item.latitude === "number" || typeof item.longitude === "number") && (
-                                                <>
-                                                    <div className="mt-space-2 text-text-xs font-semibold uppercase tracking-wide text-text-muted">Coordenadas</div>
-                                                    <div className="text-text-secondary text-text-xs">
-                                                        Lat: {item.latitude} | Lng: {item.longitude}
-                                                    </div>
-                                                </>
-                                            )}
-                                            {typeof item.confidence_score === "number" && (
-                                                <>
-                                                    <div className="mt-space-2 text-text-xs font-semibold uppercase tracking-wide text-text-muted">Confiança</div>
-                                                    <div className="text-text-secondary">{item.confidence_score.toFixed(2)}</div>
-                                                </>
-                                            )}
-                                            {item.display_name && <div className="text-text-muted text-text-xs mt-space-2">{item.display_name}</div>}
-                                        </div>
-                                    ))}
+                                    {geocodeReport.dubious.slice(0, 10).map((item) => renderGeocodeEntry(item, "warning"))}
                                 </div>
                             </div>
                         )}
@@ -438,38 +499,124 @@ export function BusinessList() {
                             <div>
                                 <div className="text-text-sm font-semibold text-text-primary">Não encontrados</div>
                                 <div className="mt-space-2 space-y-space-2">
-                                    {geocodeReport.not_found.slice(0, 10).map((item) => (
-                                        <div key={item.id} className="rounded-radius-lg border border-status-error/20 bg-status-error/10 p-space-3 text-text-sm">
-                                            <div className="font-semibold text-text-primary">{item.name}</div>
-                                            <div className="mt-space-1 text-text-xs font-semibold uppercase tracking-wide text-text-muted">Endereço pesquisado</div>
-                                            <div className="text-text-secondary">{item.searched_address || item.address}</div>
-                                            {item.strategy_label && (
-                                                <>
-                                                    <div className="mt-space-2 text-text-xs font-semibold uppercase tracking-wide text-text-muted">Estratégia</div>
-                                                    <div className="text-text-secondary">{item.strategy_label}</div>
-                                                </>
-                                            )}
-                                            {item.returned_name && (
-                                                <>
-                                                    <div className="mt-space-2 text-text-xs font-semibold uppercase tracking-wide text-text-muted">Encontrado</div>
-                                                    <div className="text-text-secondary">{item.returned_name}</div>
-                                                </>
-                                            )}
-                                            {typeof item.confidence_score === "number" && (
-                                                <>
-                                                    <div className="mt-space-2 text-text-xs font-semibold uppercase tracking-wide text-text-muted">Confiança</div>
-                                                    <div className="text-text-secondary">{item.confidence_score.toFixed(2)}</div>
-                                                </>
-                                            )}
-                                            {item.display_name && <div className="text-text-muted text-text-xs mt-space-2">{item.display_name}</div>}
-                                        </div>
-                                    ))}
+                                    {geocodeReport.not_found.slice(0, 10).map((item) => renderGeocodeEntry(item, "error"))}
                                 </div>
                             </div>
                         )}
                     </div>
                 )}
             </Card>
+
+            {selectedGeocodeItem && selectedGeocodePosition && (
+                <div
+                    className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-space-4"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label={`Mapa da geocodificação de ${selectedGeocodeItem.name}`}
+                    onClick={() => setSelectedGeocodeItem(null)}
+                >
+                    <div
+                        className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-radius-xl bg-surface-card shadow-2xl"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <div className="flex items-start justify-between gap-space-3 border-b border-border-subtle p-space-4">
+                            <div>
+                                <div className="text-text-lg font-bold text-text-primary">{selectedGeocodeItem.name}</div>
+                                <div className="mt-space-1 text-text-sm text-text-secondary">
+                                    {selectedGeocodeItem.location_type || "Localização"} via {selectedGeocodeItem.source || "fonte não informada"}
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                className="inline-flex h-10 w-10 items-center justify-center rounded-radius-md border border-border-default bg-surface-subtle text-text-secondary transition-colors hover:text-text-primary"
+                                onClick={() => setSelectedGeocodeItem(null)}
+                                aria-label="Fechar mapa"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+                        <div className="grid gap-space-4 overflow-auto p-space-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
+                            <MapComponent
+                                center={selectedGeocodePosition}
+                                zoom={selectedGeocodeItem.location_type === "Aproximada" ? NOVA_TERRA_DEFAULT_ZOOM : 16}
+                                className="h-[420px] w-full"
+                                highlightPoint={{
+                                    position: selectedGeocodePosition,
+                                    label: selectedGeocodeItem.name,
+                                    popupContent: (
+                                        <div className="space-y-1 text-text-xs">
+                                            <div>{selectedGeocodeItem.display_name || selectedGeocodeItem.returned_name || "Coordenada encontrada"}</div>
+                                            <div>
+                                                Lat: {selectedGeocodeItem.latitude} | Lng: {selectedGeocodeItem.longitude}
+                                            </div>
+                                        </div>
+                                    ),
+                                }}
+                            />
+                            <div className="space-y-space-3">
+                                <div className="rounded-radius-lg border border-border-subtle bg-surface-subtle p-space-3">
+                                    <div className="text-text-xs font-semibold uppercase tracking-wide text-text-muted">Latitude</div>
+                                    <div className="mt-space-1 text-text-sm text-text-primary">{selectedGeocodeItem.latitude}</div>
+                                </div>
+                                <div className="rounded-radius-lg border border-border-subtle bg-surface-subtle p-space-3">
+                                    <div className="text-text-xs font-semibold uppercase tracking-wide text-text-muted">Longitude</div>
+                                    <div className="mt-space-1 text-text-sm text-text-primary">{selectedGeocodeItem.longitude}</div>
+                                </div>
+                                <div className="rounded-radius-lg border border-border-subtle bg-surface-subtle p-space-3">
+                                    <div className="text-text-xs font-semibold uppercase tracking-wide text-text-muted">Score de confiança</div>
+                                    <div className="mt-space-1 text-text-sm text-text-primary">
+                                        {typeof selectedGeocodeItem.confidence_score === "number"
+                                            ? selectedGeocodeItem.confidence_score.toFixed(2)
+                                            : "-"}
+                                    </div>
+                                </div>
+                                <div className="rounded-radius-lg border border-border-subtle bg-surface-subtle p-space-3">
+                                    <div className="text-text-xs font-semibold uppercase tracking-wide text-text-muted">Endereço pesquisado</div>
+                                    <div className="mt-space-1 text-text-sm text-text-secondary">
+                                        {selectedGeocodeItem.searched_address || selectedGeocodeItem.address || "-"}
+                                    </div>
+                                </div>
+                                <div className="rounded-radius-lg border border-border-subtle bg-surface-subtle p-space-3">
+                                    <div className="text-text-xs font-semibold uppercase tracking-wide text-text-muted">Endereço retornado</div>
+                                    <div className="mt-space-1 text-text-sm text-text-secondary">
+                                        {selectedGeocodeItem.display_name || selectedGeocodeItem.returned_name || "-"}
+                                    </div>
+                                </div>
+                                <div className="rounded-radius-lg border border-border-subtle bg-surface-subtle p-space-3">
+                                    <div className="grid gap-space-2 text-text-sm text-text-secondary sm:grid-cols-3">
+                                        <div>
+                                            <div className="text-text-xs font-semibold uppercase tracking-wide text-text-muted">Tipo</div>
+                                            <div className="mt-space-1">{selectedGeocodeItem.location_type || "-"}</div>
+                                        </div>
+                                        <div>
+                                            <div className="text-text-xs font-semibold uppercase tracking-wide text-text-muted">Fonte</div>
+                                            <div className="mt-space-1">{selectedGeocodeItem.source || "-"}</div>
+                                        </div>
+                                        <div>
+                                            <div className="text-text-xs font-semibold uppercase tracking-wide text-text-muted">Distância Nova Terra</div>
+                                            <div className="mt-space-1">{formatDistanceFromNovaTerra(selectedGeocodeItem.distance_to_nova_terra_km)}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {selectedGeocodeItem.message && (
+                                    <div className="rounded-radius-lg border border-status-warning/20 bg-status-warning/10 p-space-3 text-text-sm text-text-secondary">
+                                        {selectedGeocodeItem.message}
+                                    </div>
+                                )}
+                                {selectedGeocodeItem.confidence === "dubious" && (
+                                    <Button
+                                        type="button"
+                                        onClick={() => approveDubiousCoordinate(selectedGeocodeItem)}
+                                        disabled={approvedDubiousIds.has(selectedGeocodeItem.id)}
+                                    >
+                                        {approvedDubiousIds.has(selectedGeocodeItem.id) ? "Coordenada aprovada" : "Aprovar coordenada"}
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {error && (
                 <Card className="border-border-subtle p-space-4">
