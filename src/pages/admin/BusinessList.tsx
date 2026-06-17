@@ -12,10 +12,16 @@ type GeocodeBatchEntry = {
     id: string;
     name: string;
     address: string;
+    searched_address?: string | null;
+    strategy_key?: string | null;
+    strategy_label?: string | null;
     latitude?: number | null;
     longitude?: number | null;
     display_name?: string | null;
-    confidence?: string | null;
+    returned_name?: string | null;
+    confidence?: "found" | "dubious" | "not_found" | null;
+    confidence_score?: number | null;
+    distance_to_nova_terra_km?: number | null;
     message?: string | null;
 };
 
@@ -47,7 +53,7 @@ type GeocodeProgressState = {
     mode: "dry-run" | "apply";
 };
 
-const GEOCODE_BATCH_SIZE = 5;
+const GEOCODE_BATCH_SIZE = 3;
 
 function mergeUniqueById<T extends { id: string }>(current: T[], next: T[]) {
     const map = new Map<string, T>();
@@ -90,6 +96,11 @@ export function BusinessList() {
     const [geocodeReport, setGeocodeReport] = useState<GeocodeBatchReport | null>(null);
     const [geocodeProgress, setGeocodeProgress] = useState<GeocodeProgressState | null>(null);
     const cancelGeocodeRef = useRef(false);
+    const geocodeSuccessRate = useMemo(() => {
+        if (!geocodeReport?.processed) return 0;
+        const successful = geocodeReport.found.length + geocodeReport.dubious.length;
+        return (successful / geocodeReport.processed) * 100;
+    }, [geocodeReport]);
 
     const filtered = useMemo(() => {
         const q = query.trim().toLowerCase();
@@ -290,7 +301,7 @@ export function BusinessList() {
 
                 {geocodeReport && (
                     <div className="mt-space-5 space-y-space-5">
-                        <div className="grid grid-cols-2 gap-space-3 md:grid-cols-5">
+                        <div className="grid grid-cols-2 gap-space-3 md:grid-cols-6">
                             <div className="rounded-radius-lg border border-border-subtle bg-surface-subtle p-space-3">
                                 <div className="text-text-xs text-text-muted font-semibold uppercase tracking-wide">Modo</div>
                                 <div className="mt-space-1 text-text-base font-bold text-text-primary">{geocodeReport.mode}</div>
@@ -314,6 +325,12 @@ export function BusinessList() {
                             <div className="rounded-radius-lg border border-border-subtle bg-surface-subtle p-space-3">
                                 <div className="text-text-xs text-text-muted font-semibold uppercase tracking-wide">Não encontrados</div>
                                 <div className="mt-space-1 text-text-base font-bold text-status-error">{geocodeReport.not_found.length}</div>
+                            </div>
+                            <div className="rounded-radius-lg border border-border-subtle bg-surface-subtle p-space-3">
+                                <div className="text-text-xs text-text-muted font-semibold uppercase tracking-wide">Sucesso</div>
+                                <div className="mt-space-1 text-text-base font-bold text-action-primary">
+                                    {geocodeSuccessRate.toFixed(1).replace(".", ",")}%
+                                </div>
                             </div>
                         </div>
 
@@ -340,13 +357,35 @@ export function BusinessList() {
                                     {geocodeReport.found.slice(0, 10).map((item) => (
                                         <div key={item.id} className="rounded-radius-lg border border-border-subtle bg-surface-card p-space-3 text-text-sm">
                                             <div className="font-semibold text-text-primary">{item.name}</div>
-                                            <div className="text-text-secondary">{item.address}</div>
-                                            {(typeof item.latitude === "number" || typeof item.longitude === "number") && (
-                                                <div className="text-text-secondary text-text-xs mt-space-1">
-                                                    {item.latitude}, {item.longitude}
-                                                </div>
+                                            <div className="mt-space-1 text-text-xs font-semibold uppercase tracking-wide text-text-muted">Endereço pesquisado</div>
+                                            <div className="text-text-secondary">{item.searched_address || item.address}</div>
+                                            {item.strategy_label && (
+                                                <>
+                                                    <div className="mt-space-2 text-text-xs font-semibold uppercase tracking-wide text-text-muted">Estratégia</div>
+                                                    <div className="text-text-secondary">{item.strategy_label}</div>
+                                                </>
                                             )}
-                                            {item.display_name && <div className="text-text-muted text-text-xs mt-space-1">{item.display_name}</div>}
+                                            {item.returned_name && (
+                                                <>
+                                                    <div className="mt-space-2 text-text-xs font-semibold uppercase tracking-wide text-text-muted">Encontrado</div>
+                                                    <div className="text-text-secondary">{item.returned_name}</div>
+                                                </>
+                                            )}
+                                            {(typeof item.latitude === "number" || typeof item.longitude === "number") && (
+                                                <>
+                                                    <div className="mt-space-2 text-text-xs font-semibold uppercase tracking-wide text-text-muted">Coordenadas</div>
+                                                    <div className="text-text-secondary text-text-xs">
+                                                        Lat: {item.latitude} | Lng: {item.longitude}
+                                                    </div>
+                                                </>
+                                            )}
+                                            {typeof item.confidence_score === "number" && (
+                                                <>
+                                                    <div className="mt-space-2 text-text-xs font-semibold uppercase tracking-wide text-text-muted">Confiança</div>
+                                                    <div className="text-text-secondary">{item.confidence_score.toFixed(2)}</div>
+                                                </>
+                                            )}
+                                            {item.display_name && <div className="text-text-muted text-text-xs mt-space-2">{item.display_name}</div>}
                                         </div>
                                     ))}
                                 </div>
@@ -360,13 +399,35 @@ export function BusinessList() {
                                     {geocodeReport.dubious.slice(0, 10).map((item) => (
                                         <div key={item.id} className="rounded-radius-lg border border-status-warning/30 bg-status-warning/10 p-space-3 text-text-sm">
                                             <div className="font-semibold text-text-primary">{item.name}</div>
-                                            <div className="text-text-secondary">{item.address}</div>
-                                            {(typeof item.latitude === "number" || typeof item.longitude === "number") && (
-                                                <div className="text-text-secondary text-text-xs mt-space-1">
-                                                    {item.latitude}, {item.longitude}
-                                                </div>
+                                            <div className="mt-space-1 text-text-xs font-semibold uppercase tracking-wide text-text-muted">Endereço pesquisado</div>
+                                            <div className="text-text-secondary">{item.searched_address || item.address}</div>
+                                            {item.strategy_label && (
+                                                <>
+                                                    <div className="mt-space-2 text-text-xs font-semibold uppercase tracking-wide text-text-muted">Estratégia</div>
+                                                    <div className="text-text-secondary">{item.strategy_label}</div>
+                                                </>
                                             )}
-                                            {item.display_name && <div className="text-text-muted text-text-xs mt-space-1">{item.display_name}</div>}
+                                            {item.returned_name && (
+                                                <>
+                                                    <div className="mt-space-2 text-text-xs font-semibold uppercase tracking-wide text-text-muted">Encontrado</div>
+                                                    <div className="text-text-secondary">{item.returned_name}</div>
+                                                </>
+                                            )}
+                                            {(typeof item.latitude === "number" || typeof item.longitude === "number") && (
+                                                <>
+                                                    <div className="mt-space-2 text-text-xs font-semibold uppercase tracking-wide text-text-muted">Coordenadas</div>
+                                                    <div className="text-text-secondary text-text-xs">
+                                                        Lat: {item.latitude} | Lng: {item.longitude}
+                                                    </div>
+                                                </>
+                                            )}
+                                            {typeof item.confidence_score === "number" && (
+                                                <>
+                                                    <div className="mt-space-2 text-text-xs font-semibold uppercase tracking-wide text-text-muted">Confiança</div>
+                                                    <div className="text-text-secondary">{item.confidence_score.toFixed(2)}</div>
+                                                </>
+                                            )}
+                                            {item.display_name && <div className="text-text-muted text-text-xs mt-space-2">{item.display_name}</div>}
                                         </div>
                                     ))}
                                 </div>
@@ -380,7 +441,27 @@ export function BusinessList() {
                                     {geocodeReport.not_found.slice(0, 10).map((item) => (
                                         <div key={item.id} className="rounded-radius-lg border border-status-error/20 bg-status-error/10 p-space-3 text-text-sm">
                                             <div className="font-semibold text-text-primary">{item.name}</div>
-                                            <div className="text-text-secondary">{item.address}</div>
+                                            <div className="mt-space-1 text-text-xs font-semibold uppercase tracking-wide text-text-muted">Endereço pesquisado</div>
+                                            <div className="text-text-secondary">{item.searched_address || item.address}</div>
+                                            {item.strategy_label && (
+                                                <>
+                                                    <div className="mt-space-2 text-text-xs font-semibold uppercase tracking-wide text-text-muted">Estratégia</div>
+                                                    <div className="text-text-secondary">{item.strategy_label}</div>
+                                                </>
+                                            )}
+                                            {item.returned_name && (
+                                                <>
+                                                    <div className="mt-space-2 text-text-xs font-semibold uppercase tracking-wide text-text-muted">Encontrado</div>
+                                                    <div className="text-text-secondary">{item.returned_name}</div>
+                                                </>
+                                            )}
+                                            {typeof item.confidence_score === "number" && (
+                                                <>
+                                                    <div className="mt-space-2 text-text-xs font-semibold uppercase tracking-wide text-text-muted">Confiança</div>
+                                                    <div className="text-text-secondary">{item.confidence_score.toFixed(2)}</div>
+                                                </>
+                                            )}
+                                            {item.display_name && <div className="text-text-muted text-text-xs mt-space-2">{item.display_name}</div>}
                                         </div>
                                     ))}
                                 </div>

@@ -28,8 +28,24 @@ const REVIEW_AUTHOR_NAME_MAX_LENGTH = 80;
 const REVIEW_CONTENT_MAX_LENGTH = 500;
 const NOMINATIM_BASE_URL = 'https://nominatim.openstreetmap.org/search';
 const GEOCODE_BATCH_DELAY_MS = 1200;
-const GEOCODE_BATCH_DEFAULT_LIMIT = 5;
-const GEOCODE_BATCH_MAX_LIMIT = 10;
+const GEOCODE_BATCH_DEFAULT_LIMIT = 3;
+const GEOCODE_BATCH_MAX_LIMIT = 5;
+const NOVA_TERRA_PRIORITY_LAT = -2.5712107;
+const NOVA_TERRA_PRIORITY_LNG = -44.1521924;
+const TARGET_NEIGHBORHOOD = 'nova terra';
+const TARGET_CITY = 'sao jose de ribamar';
+const TARGET_STATE = 'maranhao';
+const POPULAR_REFERENCE_PATTERNS = [
+  /\bem frente ao\b.*$/i,
+  /\bproximo ao\b.*$/i,
+  /\bpr[oó]ximo ao\b.*$/i,
+  /\bao lado de\b.*$/i,
+  /\bponto final\b.*$/i,
+  /\besquina com\b.*$/i,
+  /\batras de\b.*$/i,
+  /\batr[aá]s de\b.*$/i,
+  /\bperto de\b.*$/i,
+];
 
 type ReviewStatus = (typeof REVIEW_STATUS_VALUES)[number];
 type BusinessEventType = (typeof BUSINESS_EVENT_TYPES)[number];
@@ -78,32 +94,160 @@ function buildBusinessAddressFromParts(input: Record<string, unknown>) {
   return parts.join(', ');
 }
 
+function buildSearchQuery(parts: unknown[], options?: { includeBrazil?: boolean }) {
+  const cleanedParts = parts
+    .map((value) => sanitizeText(value, 160))
+    .filter(Boolean);
+
+  if (options?.includeBrazil !== false) {
+    cleanedParts.push('Brasil');
+  }
+
+  return cleanedParts.join(', ');
+}
+
+function removePopularAddressReferences(value: unknown) {
+  let cleaned = sanitizeText(value, 160);
+  if (!cleaned) return '';
+
+  cleaned = cleaned.replace(/\([^)]*\)/g, ' ');
+  for (const pattern of POPULAR_REFERENCE_PATTERNS) {
+    cleaned = cleaned.replace(pattern, ' ');
+  }
+
+  return cleaned
+    .replace(/[-;]+/g, ' ')
+    .replace(/\s*,\s*/g, ', ')
+    .replace(/\s+/g, ' ')
+    .replace(/,\s*,/g, ', ')
+    .trim()
+    .replace(/[,.-]+$/, '');
+}
+
+function haversineDistanceKm(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const earthRadiusKm = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return earthRadiusKm * c;
+}
+
+function clamp01(value: number) {
+  if (value <= 0) return 0;
+  if (value >= 1) return 1;
+  return value;
+}
+
+type GeocodePreparedInput = {
+  businessName: string;
+  address: string;
+  cleanedAddress: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+  zipCode: string;
+};
+
+type GeocodeStrategy = {
+  key: 'address_full' | 'name_neighborhood_city_state' | 'name_city_state' | 'name_neighborhood' | 'clean_address';
+  label: string;
+  buildQuery: (input: GeocodePreparedInput) => string;
+};
+
+type GeocodeQueryContext = GeocodePreparedInput & {
+  strategyKey: GeocodeStrategy['key'];
+  strategyLabel: string;
+  searchTerm: string;
+  useBusinessName: boolean;
+  useAddress: boolean;
+};
+
 type GeocodeCandidate = {
   lat: number;
   lng: number;
   display_name: string;
+  returned_name: string;
   importance: number;
-  confidence: 'high' | 'medium' | 'low';
-  score: number;
+  confidence_score: number;
+  confidence: 'found' | 'dubious' | 'not_found';
+  strategy_key: GeocodeStrategy['key'];
+  strategy_label: string;
+  searched_address: string;
+  distance_to_nova_terra_km: number | null;
 };
 
+function prepareGeocodeInput(input: Record<string, unknown>): GeocodePreparedInput {
+  return {
+    businessName: sanitizeText(input.name, 160),
+    address: sanitizeText(input.address, 160),
+    cleanedAddress: removePopularAddressReferences(input.address),
+    neighborhood: sanitizeText(input.neighborhood, 120),
+    city: sanitizeText(input.city, 120),
+    state: sanitizeText(input.state, 80),
+    zipCode: sanitizeText(input.zip_code ?? input.zipCode, 40),
+  };
+}
+
+function buildGeocodeStrategies(): GeocodeStrategy[] {
+  return [
+    {
+      key: 'address_full',
+      label: 'Endereco completo',
+      buildQuery: (input) => buildSearchQuery([input.address, input.neighborhood, input.city, input.state, input.zipCode]),
+    },
+    {
+      key: 'name_neighborhood_city_state',
+      label: 'Nome + Bairro + Cidade',
+      buildQuery: (input) => buildSearchQuery([input.businessName, input.neighborhood, input.city, input.state], { includeBrazil: false }),
+    },
+    {
+      key: 'name_city_state',
+      label: 'Nome + Cidade',
+      buildQuery: (input) => buildSearchQuery([input.businessName, input.city, input.state], { includeBrazil: false }),
+    },
+    {
+      key: 'name_neighborhood',
+      label: 'Nome + Bairro',
+      buildQuery: (input) => buildSearchQuery([input.businessName, input.neighborhood], { includeBrazil: false }),
+    },
+    {
+      key: 'clean_address',
+      label: 'Endereco sem referencia popular',
+      buildQuery: (input) => buildSearchQuery([input.cleanedAddress, input.neighborhood, input.city, input.state, input.zipCode]),
+    },
+  ];
+}
+
+function geocodeStatusRank(value: 'found' | 'dubious' | 'not_found') {
+  if (value === 'found') return 3;
+  if (value === 'dubious') return 2;
+  return 1;
+}
+
 function classifyGeocodeCandidate(
-  query: { address?: unknown; neighborhood?: unknown; city?: unknown; state?: unknown },
-  candidate: { display_name?: unknown; address?: Record<string, unknown> | null; importance?: unknown; lat?: unknown; lon?: unknown }
+  query: GeocodeQueryContext,
+  candidate: { display_name?: unknown; name?: unknown; address?: Record<string, unknown> | null; importance?: unknown; lat?: unknown; lon?: unknown }
 ): GeocodeCandidate | null {
   const lat = Number(candidate.lat);
   const lng = Number(candidate.lon);
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
 
   const displayName = typeof candidate.display_name === 'string' ? candidate.display_name : '';
+  const returnedName = typeof candidate.name === 'string' ? candidate.name : displayName.split(',')[0] || displayName;
   const normalizedDisplay = normalizeTextForMatch(displayName);
-  const normalizedStreet = normalizeTextForMatch(String(query.address || '').split(',')[0]);
+  const normalizedReturnedName = normalizeTextForMatch(returnedName);
+  const normalizedStreet = normalizeTextForMatch(String(query.useAddress ? query.address || query.cleanedAddress : '').split(',')[0]);
+  const normalizedBusinessName = normalizeTextForMatch(query.businessName);
   const normalizedNeighborhood = normalizeTextForMatch(query.neighborhood);
   const normalizedCity = normalizeTextForMatch(query.city);
   const normalizedState = normalizeTextForMatch(query.state);
   const address = candidate.address || {};
 
   const addressValues = [
+    candidate.name,
     address.road,
     address.pedestrian,
     address.footway,
@@ -121,24 +265,62 @@ function classifyGeocodeCandidate(
     .map((value) => normalizeTextForMatch(value))
     .filter(Boolean);
 
+  const hasBusinessName =
+    !query.useBusinessName ||
+    normalizedReturnedName.includes(normalizedBusinessName) ||
+    normalizedDisplay.includes(normalizedBusinessName) ||
+    addressValues.some((value) => value.includes(normalizedBusinessName));
   const hasStreet = !normalizedStreet || normalizedDisplay.includes(normalizedStreet) || addressValues.some((value) => value.includes(normalizedStreet));
   const hasNeighborhood =
     !normalizedNeighborhood || normalizedDisplay.includes(normalizedNeighborhood) || addressValues.some((value) => value.includes(normalizedNeighborhood));
   const hasCity = !normalizedCity || normalizedDisplay.includes(normalizedCity) || addressValues.some((value) => value.includes(normalizedCity));
   const hasState = !normalizedState || normalizedDisplay.includes(normalizedState) || addressValues.some((value) => value.includes(normalizedState));
-
-  const score = [hasStreet, hasNeighborhood, hasCity, hasState].filter(Boolean).length;
   const importance = typeof candidate.importance === 'number' ? candidate.importance : Number(candidate.importance) || 0;
-  const confidence: 'high' | 'medium' | 'low' =
-    score >= 3 || (hasStreet && hasCity && hasState) ? 'high' : score >= 2 ? 'medium' : 'low';
+  const normalizedResultNeighborhood = [address.suburb, address.neighbourhood, address.quarter, address.city_district]
+    .map((value) => normalizeTextForMatch(value))
+    .join(' ');
+  const normalizedResultCity = normalizeTextForMatch(address.city || address.town || address.village || address.municipality);
+  const normalizedResultState = normalizeTextForMatch(address.state);
+  const distanceToNovaTerraKm = haversineDistanceKm(lat, lng, NOVA_TERRA_PRIORITY_LAT, NOVA_TERRA_PRIORITY_LNG);
+
+  let geoScore = 0.15;
+  if (distanceToNovaTerraKm <= 2) geoScore = 1;
+  else if (distanceToNovaTerraKm <= 5) geoScore = 0.92;
+  else if (distanceToNovaTerraKm <= 10) geoScore = 0.75;
+  else if (distanceToNovaTerraKm <= 20) geoScore = 0.45;
+  else geoScore = 0.1;
+
+  let confidenceScore = 0;
+  if (query.useBusinessName) confidenceScore += hasBusinessName ? 0.24 : 0;
+  if (query.useAddress) confidenceScore += hasStreet ? 0.22 : 0;
+  if (normalizedNeighborhood) confidenceScore += hasNeighborhood ? 0.14 : -0.08;
+  if (normalizedCity) confidenceScore += hasCity ? 0.14 : -0.14;
+  if (normalizedState) confidenceScore += hasState ? 0.08 : -0.1;
+  confidenceScore += clamp01(importance / 0.35) * 0.16;
+  confidenceScore += geoScore * 0.18;
+
+  if (normalizedResultNeighborhood.includes(TARGET_NEIGHBORHOOD)) confidenceScore += 0.08;
+  if (normalizedResultCity.includes(TARGET_CITY)) confidenceScore += 0.06;
+  if (normalizedResultState.includes(TARGET_STATE)) confidenceScore += 0.04;
+  if (normalizedResultCity && !normalizedResultCity.includes(TARGET_CITY)) confidenceScore -= 0.1;
+  if (normalizedResultState && !normalizedResultState.includes(TARGET_STATE)) confidenceScore -= 0.08;
+
+  const finalScore = clamp01(confidenceScore);
+  const confidence: 'found' | 'dubious' | 'not_found' =
+    finalScore >= 0.9 ? 'found' : finalScore >= 0.6 ? 'dubious' : 'not_found';
 
   return {
     lat,
     lng,
     display_name: displayName,
+    returned_name: returnedName,
     importance,
     confidence,
-    score,
+    confidence_score: finalScore,
+    strategy_key: query.strategyKey,
+    strategy_label: query.strategyLabel,
+    searched_address: query.searchTerm,
+    distance_to_nova_terra_km: Number.isFinite(distanceToNovaTerraKm) ? Number(distanceToNovaTerraKm.toFixed(2)) : null,
   };
 }
 
@@ -146,14 +328,9 @@ async function sleep(ms: number) {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function geocodeAddressWithNominatim(input: Record<string, unknown>) {
-  const fullAddress = buildBusinessAddressFromParts(input);
-  if (!fullAddress) {
-    return { status: 'invalid' as const, message: 'Endereço insuficiente para geocodificação.', address: fullAddress, candidate: null };
-  }
-
+async function searchGeocodeStrategy(query: GeocodeQueryContext) {
   const url = new URL(NOMINATIM_BASE_URL);
-  url.searchParams.set('q', fullAddress);
+  url.searchParams.set('q', query.searchTerm);
   url.searchParams.set('format', 'jsonv2');
   url.searchParams.set('addressdetails', '1');
   url.searchParams.set('limit', '5');
@@ -173,23 +350,109 @@ async function geocodeAddressWithNominatim(input: Record<string, unknown>) {
 
   const payload = (await response.json()) as Array<Record<string, unknown>>;
   const candidates = payload
-    .map((item) => classifyGeocodeCandidate(input, item))
+    .map((item) => classifyGeocodeCandidate(query, item))
     .filter((item): item is GeocodeCandidate => Boolean(item))
     .sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score;
+      if (geocodeStatusRank(b.confidence) !== geocodeStatusRank(a.confidence)) {
+        return geocodeStatusRank(b.confidence) - geocodeStatusRank(a.confidence);
+      }
+      if (b.confidence_score !== a.confidence_score) return b.confidence_score - a.confidence_score;
       return b.importance - a.importance;
     });
 
   const best = candidates[0] || null;
   if (!best) {
-    return { status: 'not_found' as const, message: 'Nenhum resultado encontrado.', address: fullAddress, candidate: null };
+    return {
+      status: 'not_found' as const,
+      message: 'Nenhum resultado encontrado.',
+      address: query.searchTerm,
+      strategy_key: query.strategyKey,
+      strategy_label: query.strategyLabel,
+      candidate: null,
+    };
   }
 
-  if (best.confidence === 'high') {
-    return { status: 'found' as const, message: 'Coordenadas encontradas com boa confiança.', address: fullAddress, candidate: best };
+  const status = best.confidence;
+  const message =
+    status === 'found'
+      ? 'Coordenadas encontradas com boa confiança.'
+      : status === 'dubious'
+        ? 'Resultado encontrado, mas com confiança intermediária.'
+        : 'Resultado encontrado, mas a confiança ficou baixa.';
+
+  return {
+    status,
+    message,
+    address: query.searchTerm,
+    strategy_key: query.strategyKey,
+    strategy_label: query.strategyLabel,
+    candidate: best,
+  };
+}
+
+async function geocodeAddressWithNominatim(input: Record<string, unknown>) {
+  const prepared = prepareGeocodeInput(input);
+  const strategies = buildGeocodeStrategies();
+  const executedSearchTerms = new Set<string>();
+  let executedCalls = 0;
+  let bestResult:
+    | {
+        status: 'found' | 'dubious' | 'not_found' | 'invalid';
+        message: string;
+        address: string;
+        strategy_key?: GeocodeStrategy['key'];
+        strategy_label?: string;
+        candidate: GeocodeCandidate | null;
+      }
+    | null = null;
+
+  for (const strategy of strategies) {
+    const searchTerm = strategy.buildQuery(prepared);
+    const normalizedSearchTerm = normalizeTextForMatch(searchTerm);
+    if (!searchTerm || !normalizedSearchTerm || executedSearchTerms.has(normalizedSearchTerm)) continue;
+
+    executedSearchTerms.add(normalizedSearchTerm);
+    if (executedCalls > 0) {
+      await sleep(GEOCODE_BATCH_DELAY_MS);
+    }
+
+    executedCalls += 1;
+    const result = await searchGeocodeStrategy({
+      ...prepared,
+      strategyKey: strategy.key,
+      strategyLabel: strategy.label,
+      searchTerm,
+      useBusinessName: strategy.key !== 'address_full' && strategy.key !== 'clean_address',
+      useAddress: strategy.key === 'address_full' || strategy.key === 'clean_address',
+    });
+
+    if (!bestResult) {
+      bestResult = result;
+    } else {
+      const currentRank = geocodeStatusRank(result.status === 'invalid' ? 'not_found' : result.status);
+      const bestRank = geocodeStatusRank(bestResult.status === 'invalid' ? 'not_found' : bestResult.status);
+      const currentScore = result.candidate?.confidence_score ?? 0;
+      const bestScore = bestResult.candidate?.confidence_score ?? 0;
+      if (currentRank > bestRank || (currentRank === bestRank && currentScore > bestScore)) {
+        bestResult = result;
+      }
+    }
+
+    if (result.status === 'found') {
+      return result;
+    }
   }
 
-  return { status: 'dubious' as const, message: 'Resultado encontrado, mas com confiança insuficiente para aplicar automaticamente.', address: fullAddress, candidate: best };
+  if (bestResult) return bestResult;
+
+  return {
+    status: 'invalid' as const,
+    message: 'Endereço insuficiente para geocodificação.',
+    address: buildBusinessAddressFromParts(input),
+    strategy_key: undefined,
+    strategy_label: undefined,
+    candidate: null,
+  };
 }
 
 function isValidCoordinate(value: unknown): value is number | string {
@@ -932,6 +1195,10 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
             ...result,
             latitude: result.candidate?.lat ?? null,
             longitude: result.candidate?.lng ?? null,
+            strategy_key: result.candidate?.strategy_key ?? result.strategy_key ?? null,
+            strategy_label: result.candidate?.strategy_label ?? result.strategy_label ?? null,
+            confidence_score: result.candidate?.confidence_score ?? null,
+            returned_name: result.candidate?.returned_name ?? null,
           },
         });
       }
@@ -983,10 +1250,16 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
             id: business.id,
             name: business.name,
             address: result.address,
+            searched_address: result.address,
+            strategy_key: result.candidate?.strategy_key ?? result.strategy_key ?? null,
+            strategy_label: result.candidate?.strategy_label ?? result.strategy_label ?? null,
             latitude: result.candidate?.lat ?? null,
             longitude: result.candidate?.lng ?? null,
             display_name: result.candidate?.display_name ?? null,
+            returned_name: result.candidate?.returned_name ?? null,
             confidence: result.candidate?.confidence ?? null,
+            confidence_score: result.candidate?.confidence_score ?? null,
+            distance_to_nova_terra_km: result.candidate?.distance_to_nova_terra_km ?? null,
             message: result.message,
           };
 
@@ -1021,7 +1294,7 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
         const advanceBy = mode === 'apply' ? processed - report.updated.length : processed;
         const nextOffset = safeOffset + Math.max(advanceBy, 0);
         report.processed = processed;
-        report.totalRemaining = Math.max(totalCandidates - processed, 0);
+        report.totalRemaining = Math.max(totalCandidates - (safeOffset + processed), 0);
         report.nextOffset = report.totalRemaining > 0 ? nextOffset : null;
         report.hasMore = report.totalRemaining > 0;
 
