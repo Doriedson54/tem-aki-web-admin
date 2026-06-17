@@ -190,6 +190,12 @@ async function geocodeAddressWithNominatim(input: Record<string, unknown>) {
   return { status: 'dubious' as const, message: 'Resultado encontrado, mas com confiança insuficiente para aplicar automaticamente.', address: fullAddress, candidate: best };
 }
 
+function isValidCoordinate(value: unknown): value is number | string {
+  if (value === null || value === undefined) return false;
+  if (typeof value === 'string' && value.trim() === '') return false;
+  return Number.isFinite(Number(value));
+}
+
 function normalizeReviewStatus(value: unknown): ReviewStatus | null {
   if (typeof value !== 'string') return null;
   const normalized = value.trim().toLowerCase();
@@ -949,7 +955,7 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
 
         for (let index = 0; index < items.length; index += 1) {
           const business = items[index] as Record<string, unknown>;
-          const hasCoords = Number.isFinite(Number(business.latitude)) && Number.isFinite(Number(business.longitude));
+          const hasCoords = isValidCoordinate(business.latitude) && isValidCoordinate(business.longitude);
           if (hasCoords) continue;
 
           const result = await geocodeAddressWithNominatim(business);
