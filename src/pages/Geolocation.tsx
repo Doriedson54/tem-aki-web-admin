@@ -4,10 +4,14 @@ import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import api from "../services/api";
 import type { ApiResponse, Business } from "../types";
+import { NOVA_TERRA_CENTER, NOVA_TERRA_DEFAULT_ZOOM, USER_LOCATION_ZOOM } from "../config/geo";
 
 export function Geolocation() {
-    const [center, setCenter] = useState<[number, number]>([-2.55, -44.06]);
+    const [center, setCenter] = useState<[number, number]>(NOVA_TERRA_CENTER);
+    const [zoom, setZoom] = useState<number>(NOVA_TERRA_DEFAULT_ZOOM);
+    const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
     const [loading, setLoading] = useState(true);
+    const [locating, setLocating] = useState(false);
     const [businesses, setBusinesses] = useState<Business[]>([]);
     const [error, setError] = useState("");
 
@@ -42,27 +46,28 @@ export function Geolocation() {
             }));
     }, [businesses]);
 
-    useEffect(() => {
-        if (!markers.length) return;
-        const sum = markers.reduce(
-            (acc, m) => ({ lat: acc.lat + m.position[0], lng: acc.lng + m.position[1] }),
-            { lat: 0, lng: 0 }
-        );
-        setCenter([sum.lat / markers.length, sum.lng / markers.length]);
-    }, [markers]);
-
     const locateMe = () => {
         setError("");
         if (!navigator.geolocation) {
             setError("Geolocalização não suportada.");
             return;
         }
+        setLocating(true);
         navigator.geolocation.getCurrentPosition(
             (pos) => {
-                setCenter([pos.coords.latitude, pos.coords.longitude]);
+                const next: [number, number] = [pos.coords.latitude, pos.coords.longitude];
+                setUserLocation(next);
+                setCenter(next);
+                setZoom(USER_LOCATION_ZOOM);
+                setLocating(false);
             },
-            () => {
-                setError("Não foi possível obter sua localização.");
+            (err) => {
+                if (err?.code === 1) {
+                    setError("Permissão negada. Ative a localização nas configurações do navegador para centralizar no seu ponto.");
+                } else {
+                    setError("Não foi possível obter sua localização agora. Tente novamente.");
+                }
+                setLocating(false);
             },
             { enableHighAccuracy: true, timeout: 10000 }
         );
@@ -72,7 +77,22 @@ export function Geolocation() {
         <div className="container mx-auto px-space-4 py-space-10">
             <div className="flex items-center justify-between mb-space-6">
                 <h1 className="text-text-3xl font-bold text-text-primary">Mapa</h1>
-                <Button variant="secondary" onClick={locateMe}>Usar minha localização</Button>
+                <div className="flex gap-space-2">
+                    <Button
+                        variant="secondary"
+                        onClick={() => {
+                            setUserLocation(null);
+                            setCenter(NOVA_TERRA_CENTER);
+                            setZoom(NOVA_TERRA_DEFAULT_ZOOM);
+                            setError("");
+                        }}
+                    >
+                        Nova Terra
+                    </Button>
+                    <Button variant="secondary" onClick={locateMe} disabled={locating}>
+                        {locating ? "Localizando..." : "Usar minha localização"}
+                    </Button>
+                </div>
             </div>
             {error && (
                 <Card className="border-border-subtle mb-space-6">
@@ -84,7 +104,7 @@ export function Geolocation() {
                     <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-action-primary"></div>
                 </div>
             ) : (
-                <MapComponent center={center} zoom={13} markers={markers} className="h-[520px] w-full" />
+                <MapComponent center={center} zoom={zoom} userLocation={userLocation} markers={markers} className="h-[520px] w-full" />
             )}
         </div>
     );
