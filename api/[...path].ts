@@ -26,6 +26,8 @@ const REVIEW_STATUS_VALUES = ['pending', 'approved', 'rejected'] as const;
 const BUSINESS_EVENT_TYPES = ['profile_view', 'phone_click', 'whatsapp_click', 'map_click', 'share', 'favorite'] as const;
 const REVIEW_AUTHOR_NAME_MAX_LENGTH = 80;
 const REVIEW_CONTENT_MAX_LENGTH = 500;
+const NOMINATIM_BASE_URL = 'https://nominatim.openstreetmap.org/search';
+const GEOCODE_BATCH_DELAY_MS = 1200;
 
 type ReviewStatus = (typeof REVIEW_STATUS_VALUES)[number];
 type BusinessEventType = (typeof BUSINESS_EVENT_TYPES)[number];
@@ -49,6 +51,143 @@ function sanitizeText(value: unknown, maxLength: number, options?: { multiline?:
     : withoutControlChars.replace(/\s+/g, ' ').trim();
 
   return trimmed.slice(0, maxLength);
+}
+
+function normalizeTextForMatch(value: unknown): string {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s,-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function buildBusinessAddressFromParts(input: Record<string, unknown>) {
+  const parts = [
+    sanitizeText(input.address, 160),
+    sanitizeText(input.neighborhood, 120),
+    sanitizeText(input.city, 120),
+    sanitizeText(input.state, 80),
+    sanitizeText(input.zip_code ?? input.zipCode, 40),
+    'Brasil',
+  ].filter(Boolean);
+
+  return parts.join(', ');
+}
+
+type GeocodeCandidate = {
+  lat: number;
+  lng: number;
+  display_name: string;
+  importance: number;
+  confidence: 'high' | 'medium' | 'low';
+  score: number;
+};
+
+function classifyGeocodeCandidate(
+  query: { address?: unknown; neighborhood?: unknown; city?: unknown; state?: unknown },
+  candidate: { display_name?: unknown; address?: Record<string, unknown> | null; importance?: unknown; lat?: unknown; lon?: unknown }
+): GeocodeCandidate | null {
+  const lat = Number(candidate.lat);
+  const lng = Number(candidate.lon);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+  const displayName = typeof candidate.display_name === 'string' ? candidate.display_name : '';
+  const normalizedDisplay = normalizeTextForMatch(displayName);
+  const normalizedStreet = normalizeTextForMatch(String(query.address || '').split(',')[0]);
+  const normalizedNeighborhood = normalizeTextForMatch(query.neighborhood);
+  const normalizedCity = normalizeTextForMatch(query.city);
+  const normalizedState = normalizeTextForMatch(query.state);
+  const address = candidate.address || {};
+
+  const addressValues = [
+    address.road,
+    address.pedestrian,
+    address.footway,
+    address.residential,
+    address.suburb,
+    address.neighbourhood,
+    address.quarter,
+    address.city_district,
+    address.city,
+    address.town,
+    address.village,
+    address.municipality,
+    address.state,
+  ]
+    .map((value) => normalizeTextForMatch(value))
+    .filter(Boolean);
+
+  const hasStreet = !normalizedStreet || normalizedDisplay.includes(normalizedStreet) || addressValues.some((value) => value.includes(normalizedStreet));
+  const hasNeighborhood =
+    !normalizedNeighborhood || normalizedDisplay.includes(normalizedNeighborhood) || addressValues.some((value) => value.includes(normalizedNeighborhood));
+  const hasCity = !normalizedCity || normalizedDisplay.includes(normalizedCity) || addressValues.some((value) => value.includes(normalizedCity));
+  const hasState = !normalizedState || normalizedDisplay.includes(normalizedState) || addressValues.some((value) => value.includes(normalizedState));
+
+  const score = [hasStreet, hasNeighborhood, hasCity, hasState].filter(Boolean).length;
+  const importance = typeof candidate.importance === 'number' ? candidate.importance : Number(candidate.importance) || 0;
+  const confidence: 'high' | 'medium' | 'low' =
+    score >= 3 || (hasStreet && hasCity && hasState) ? 'high' : score >= 2 ? 'medium' : 'low';
+
+  return {
+    lat,
+    lng,
+    display_name: displayName,
+    importance,
+    confidence,
+    score,
+  };
+}
+
+async function sleep(ms: number) {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function geocodeAddressWithNominatim(input: Record<string, unknown>) {
+  const fullAddress = buildBusinessAddressFromParts(input);
+  if (!fullAddress) {
+    return { status: 'invalid' as const, message: 'Endereço insuficiente para geocodificação.', address: fullAddress, candidate: null };
+  }
+
+  const url = new URL(NOMINATIM_BASE_URL);
+  url.searchParams.set('q', fullAddress);
+  url.searchParams.set('format', 'jsonv2');
+  url.searchParams.set('addressdetails', '1');
+  url.searchParams.set('limit', '5');
+  url.searchParams.set('countrycodes', 'br');
+
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+    'User-Agent': 'Tem Aki no Bairro geocoder/1.0',
+  };
+  const contactEmail = process.env.GEOCODING_CONTACT_EMAIL;
+  if (contactEmail) headers.From = contactEmail;
+
+  const response = await fetch(url.toString(), { headers });
+  if (!response.ok) {
+    throw new Error(`Falha no serviço de geocodificação: ${response.status}`);
+  }
+
+  const payload = (await response.json()) as Array<Record<string, unknown>>;
+  const candidates = payload
+    .map((item) => classifyGeocodeCandidate(input, item))
+    .filter((item): item is GeocodeCandidate => Boolean(item))
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return b.importance - a.importance;
+    });
+
+  const best = candidates[0] || null;
+  if (!best) {
+    return { status: 'not_found' as const, message: 'Nenhum resultado encontrado.', address: fullAddress, candidate: null };
+  }
+
+  if (best.confidence === 'high') {
+    return { status: 'found' as const, message: 'Coordenadas encontradas com boa confiança.', address: fullAddress, candidate: best };
+  }
+
+  return { status: 'dubious' as const, message: 'Resultado encontrado, mas com confiança insuficiente para aplicar automaticamente.', address: fullAddress, candidate: best };
 }
 
 function normalizeReviewStatus(value: unknown): ReviewStatus | null {
@@ -762,6 +901,98 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
         }
       })();
       const isAdmin = requester?.role === 'admin';
+
+      if (a === 'geocode' && b === 'resolve' && req.method === 'POST') {
+        const user = await requireAuth(req);
+        requireRole(user, ['admin']);
+
+        const body = await readJson(req);
+        const result = await geocodeAddressWithNominatim((body && typeof body === 'object' ? body : {}) as Record<string, unknown>);
+
+        return json(res, 200, {
+          success: true,
+          data: {
+            ...result,
+            latitude: result.candidate?.lat ?? null,
+            longitude: result.candidate?.lng ?? null,
+          },
+        });
+      }
+
+      if (a === 'geocode' && b === 'batch' && req.method === 'POST') {
+        const user = await requireAuth(req);
+        requireRole(user, ['admin']);
+
+        const body = await readJson(req);
+        const mode = body?.mode === 'apply' ? 'apply' : 'dry-run';
+        const limitRaw = typeof body?.limit === 'number' ? body.limit : typeof body?.limit === 'string' ? Number.parseInt(body.limit, 10) : 50;
+        const safeLimit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 200) : 50;
+
+        const { data, error } = await supabase
+          .from('businesses')
+          .select('id, name, address, neighborhood, city, state, zip_code, latitude, longitude')
+          .or('latitude.is.null,longitude.is.null')
+          .order('created_at', { ascending: false })
+          .limit(safeLimit);
+
+        if (error) return json(res, 500, { success: false, message: error.message });
+
+        const items = Array.isArray(data) ? data : [];
+        const report = {
+          mode,
+          total: items.length,
+          found: [] as Array<Record<string, unknown>>,
+          not_found: [] as Array<Record<string, unknown>>,
+          dubious: [] as Array<Record<string, unknown>>,
+          updated: [] as Array<Record<string, unknown>>,
+        };
+
+        for (let index = 0; index < items.length; index += 1) {
+          const business = items[index] as Record<string, unknown>;
+          const hasCoords = Number.isFinite(Number(business.latitude)) && Number.isFinite(Number(business.longitude));
+          if (hasCoords) continue;
+
+          const result = await geocodeAddressWithNominatim(business);
+          const baseEntry = {
+            id: business.id,
+            name: business.name,
+            address: result.address,
+            latitude: result.candidate?.lat ?? null,
+            longitude: result.candidate?.lng ?? null,
+            display_name: result.candidate?.display_name ?? null,
+            confidence: result.candidate?.confidence ?? null,
+            message: result.message,
+          };
+
+          if (result.status === 'found') {
+            report.found.push(baseEntry);
+            if (mode === 'apply' && typeof business.id === 'string' && result.candidate) {
+              const updateRes = await supabase
+                .from('businesses')
+                .update({ latitude: result.candidate.lat, longitude: result.candidate.lng })
+                .eq('id', business.id)
+                .is('latitude', null)
+                .is('longitude', null)
+                .select('id, name, latitude, longitude')
+                .single();
+
+              if (!updateRes.error && updateRes.data) {
+                report.updated.push(updateRes.data as Record<string, unknown>);
+              }
+            }
+          } else if (result.status === 'dubious') {
+            report.dubious.push(baseEntry);
+          } else {
+            report.not_found.push(baseEntry);
+          }
+
+          if (index < items.length - 1) {
+            await sleep(GEOCODE_BATCH_DELAY_MS);
+          }
+        }
+
+        return json(res, 200, { success: true, data: report });
+      }
 
       if (!a && req.method === 'GET') {
         const search = getQuery(req, 'search');

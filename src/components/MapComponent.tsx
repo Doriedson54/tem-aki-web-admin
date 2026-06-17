@@ -24,6 +24,12 @@ export interface MapMarker {
     onClick?: () => void;
 }
 
+export interface MapHighlightPoint {
+    position: [number, number];
+    label?: string;
+    popupContent?: ReactNode;
+}
+
 export interface MapViewportBounds {
     north: number;
     south: number;
@@ -36,8 +42,10 @@ interface MapComponentProps {
     zoom?: number;
     markers?: MapMarker[];
     userLocation?: [number, number] | null;
+    highlightPoint?: MapHighlightPoint | null;
     className?: string;
     onBoundsChange?: (bounds: MapViewportBounds) => void;
+    onMapClick?: (position: [number, number]) => void;
 }
 
 function MapViewSync({ center, zoom }: { center: [number, number]; zoom: number }) {
@@ -48,7 +56,13 @@ function MapViewSync({ center, zoom }: { center: [number, number]; zoom: number 
     return null;
 }
 
-function MapBoundsListener({ onBoundsChange }: { onBoundsChange?: (bounds: MapViewportBounds) => void }) {
+function MapBoundsListener({
+    onBoundsChange,
+    onMapClick,
+}: {
+    onBoundsChange?: (bounds: MapViewportBounds) => void;
+    onMapClick?: (position: [number, number]) => void;
+}) {
     const map = useMap();
 
     useEffect(() => {
@@ -63,6 +77,10 @@ function MapBoundsListener({ onBoundsChange }: { onBoundsChange?: (bounds: MapVi
     }, [map, onBoundsChange]);
 
     useMapEvents({
+        click(event) {
+            if (!onMapClick) return;
+            onMapClick([event.latlng.lat, event.latlng.lng]);
+        },
         moveend() {
             if (!onBoundsChange) return;
             const bounds = map.getBounds();
@@ -93,8 +111,10 @@ export function MapComponent({
     zoom = 13,
     markers = [],
     userLocation = null,
+    highlightPoint = null,
     className = "h-[400px] w-full",
     onBoundsChange,
+    onMapClick,
 }: MapComponentProps) {
     return (
         <MapContainer
@@ -109,7 +129,7 @@ export function MapComponent({
             className={`rounded-xl z-0 overflow-hidden touch-auto [touch-action:auto] ${className}`}
         >
             <MapViewSync center={center} zoom={zoom} />
-            <MapBoundsListener onBoundsChange={onBoundsChange} />
+            <MapBoundsListener onBoundsChange={onBoundsChange} onMapClick={onMapClick} />
             <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -117,6 +137,16 @@ export function MapComponent({
             {userLocation && (
                 <CircleMarker center={userLocation} radius={10} pathOptions={{ color: "#2563eb", weight: 2, fillColor: "#3b82f6", fillOpacity: 0.35 }}>
                     <Popup>Você está aqui</Popup>
+                </CircleMarker>
+            )}
+            {highlightPoint && (
+                <CircleMarker center={highlightPoint.position} radius={9} pathOptions={{ color: "#ea580c", weight: 2, fillColor: "#fb923c", fillOpacity: 0.4 }}>
+                    <Popup>
+                        <div className="text-sm">
+                            <h3 className="font-bold">{highlightPoint.label || 'Ponto selecionado'}</h3>
+                            {highlightPoint.popupContent}
+                        </div>
+                    </Popup>
                 </CircleMarker>
             )}
             {markers.map((marker) => (

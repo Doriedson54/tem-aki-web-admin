@@ -5,6 +5,20 @@ import type { ApiResponse, Business, BusinessImage, Category, Subcategory } from
 import { Card } from "../../components/ui/Card";
 import { Input } from "../../components/ui/Input";
 import { Button } from "../../components/ui/Button";
+import { MapComponent } from "../../components/MapComponent";
+import { NOVA_TERRA_CENTER, NOVA_TERRA_DEFAULT_ZOOM } from "../../config/geo";
+
+type GeocodeResolveResponse = {
+    status: "found" | "dubious" | "not_found" | "invalid";
+    message: string;
+    address: string;
+    latitude: number | null;
+    longitude: number | null;
+    candidate?: {
+        display_name?: string | null;
+        confidence?: "high" | "medium" | "low" | null;
+    } | null;
+};
 
 type FormState = {
     name: string;
@@ -77,6 +91,9 @@ export function BusinessForm() {
     const [galleryUploading, setGalleryUploading] = useState(false);
     const [galleryLoading, setGalleryLoading] = useState(false);
     const [galleryItems, setGalleryItems] = useState<BusinessImage[]>([]);
+    const [geocoding, setGeocoding] = useState(false);
+    const [geoMessage, setGeoMessage] = useState("");
+    const [showMapPicker, setShowMapPicker] = useState(false);
 
     const selectedCategory = useMemo(() => form.category_id, [form.category_id]);
 
@@ -160,6 +177,55 @@ export function BusinessForm() {
 
     const update = (key: keyof FormState, value: string) => {
         setForm((prev) => ({ ...prev, [key]: value }));
+    };
+
+    const mapCenter = useMemo<[number, number]>(() => {
+        const lat = Number(form.latitude);
+        const lng = Number(form.longitude);
+        if (Number.isFinite(lat) && Number.isFinite(lng)) return [lat, lng];
+        return NOVA_TERRA_CENTER;
+    }, [form.latitude, form.longitude]);
+
+    const mapZoom = useMemo(() => {
+        const lat = Number(form.latitude);
+        const lng = Number(form.longitude);
+        return Number.isFinite(lat) && Number.isFinite(lng) ? 16 : NOVA_TERRA_DEFAULT_ZOOM;
+    }, [form.latitude, form.longitude]);
+
+    const handleResolveCoordinates = async () => {
+        setError("");
+        setMessage("");
+        setGeoMessage("");
+        setGeocoding(true);
+        try {
+            const resp = await api.post<ApiResponse<GeocodeResolveResponse>>("/businesses/geocode/resolve", {
+                address: form.address,
+                neighborhood: form.neighborhood,
+                city: form.city,
+                state: form.state,
+                zip_code: form.zip_code,
+            });
+            if (!resp.data.success || !resp.data.data) {
+                setError(resp.data.message || "Falha ao obter coordenadas.");
+                return;
+            }
+
+            const result = resp.data.data;
+            if (typeof result.latitude === "number" && typeof result.longitude === "number" && result.status === "found") {
+                setForm((prev) => ({
+                    ...prev,
+                    latitude: String(result.latitude),
+                    longitude: String(result.longitude),
+                }));
+            }
+
+            const confidenceLabel = result.candidate?.confidence ? ` Confiança: ${result.candidate.confidence}.` : "";
+            setGeoMessage(`${result.message}${confidenceLabel}${result.candidate?.display_name ? ` Resultado: ${result.candidate.display_name}` : ""}`);
+        } catch {
+            setError("Falha ao obter coordenadas.");
+        } finally {
+            setGeocoding(false);
+        }
     };
 
     const uploadFile = async (file: File, businessId?: string) => {
@@ -458,6 +524,52 @@ export function BusinessForm() {
                                         <Input value={form.longitude} onChange={(e) => update("longitude", e.target.value)} placeholder="-44.1234" />
                                     </div>
                                 </div>
+
+                                <div className="mt-space-4 flex flex-wrap gap-space-3">
+                                    <Button type="button" variant="secondary" onClick={handleResolveCoordinates} disabled={geocoding}>
+                                        {geocoding ? "Consultando..." : "Obter coordenadas pelo endereço"}
+                                    </Button>
+                                    <Button type="button" variant="secondary" onClick={() => setShowMapPicker((prev) => !prev)}>
+                                        {showMapPicker ? "Fechar mapa" : "Escolher ponto no mapa"}
+                                    </Button>
+                                </div>
+
+                                {geoMessage && (
+                                    <div className="mt-space-3 rounded-radius-md bg-action-primary/10 p-space-3 text-text-sm text-action-primary">
+                                        {geoMessage}
+                                    </div>
+                                )}
+
+                                {showMapPicker && (
+                                    <div className="mt-space-4 space-y-space-3">
+                                        <div className="text-text-sm text-text-secondary">
+                                            Toque no mapa para posicionar o negócio. As coordenadas serão preenchidas automaticamente e você ainda poderá ajustar manualmente depois.
+                                        </div>
+                                        <MapComponent
+                                            center={mapCenter}
+                                            zoom={mapZoom}
+                                            onMapClick={(position) => {
+                                                setForm((prev) => ({
+                                                    ...prev,
+                                                    latitude: position[0].toFixed(6),
+                                                    longitude: position[1].toFixed(6),
+                                                }));
+                                            }}
+                                            highlightPoint={{
+                                                position: mapCenter,
+                                                label: "Ponto selecionado",
+                                                popupContent: (
+                                                    <div className="text-text-xs text-text-muted">
+                                                        {form.latitude && form.longitude
+                                                            ? `${form.latitude}, ${form.longitude}`
+                                                            : "Toque no mapa para marcar."}
+                                                    </div>
+                                                ),
+                                            }}
+                                            className="h-[360px] w-full"
+                                        />
+                                    </div>
+                                )}
                             </Card>
 
                             <Card className="border-border-subtle p-space-4">
