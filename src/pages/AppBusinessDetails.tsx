@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, ChevronLeft, ChevronRight, Clock, Globe, Heart, Instagram, MapPin, MessageCircle, Phone, Share2, X } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Clock, Globe, Heart, Instagram, MapPin, MessageCircle, Phone, Share2, Star, X } from "lucide-react";
 import api from "../services/api";
-import type { Business, BusinessImage } from "../types";
+import type { Business, BusinessImage, Review } from "../types";
 import { Button } from "../components/ui/Button";
+import { Input } from "../components/ui/Input";
+import { trackBusinessEvent } from "../services/businessEvents";
 
 const APP_FAVORITES_STORAGE_KEY = "temaki-app-favorites";
 
@@ -34,25 +36,42 @@ function normalizeInstagramUrl(value: unknown): string | null {
   return `https://instagram.com/${encodeURIComponent(withoutAt)}`;
 }
 
+function safeDateLabel(value: unknown): string | null {
+  if (typeof value !== "string" || !value) return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString("pt-BR");
+}
+
 export function AppBusinessDetails() {
   const { id } = useParams<{ id: string }>();
   const [business, setBusiness] = useState<Business | null>(null);
   const [images, setImages] = useState<BusinessImage[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
+  const [authorName, setAuthorName] = useState("");
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [reviewFeedback, setReviewFeedback] = useState("");
+  const [reviewError, setReviewError] = useState("");
   const galleryTrackRef = useRef<HTMLDivElement | null>(null);
   const viewerTrackRef = useRef<HTMLDivElement | null>(null);
+  const trackedViewRef = useRef<string | null>(null);
+  const eventSource = "app";
 
   useEffect(() => {
     let cancelled = false;
 
     const fetchData = async () => {
       try {
-        const [businessResponse, imagesResponse] = await Promise.all([
+        const [businessResponse, imagesResponse, reviewsResponse] = await Promise.all([
           api.get(`/businesses/${id}`),
           api.get(`/business-images/${id}`),
+          api.get(`/reviews/${id}`),
         ]);
 
         const businessData = businessResponse.data?.data ?? businessResponse.data;
@@ -61,15 +80,22 @@ export function AppBusinessDetails() {
           : Array.isArray(imagesResponse.data)
             ? imagesResponse.data
             : [];
+        const reviewsData = Array.isArray(reviewsResponse.data?.data)
+          ? reviewsResponse.data.data
+          : Array.isArray(reviewsResponse.data)
+            ? reviewsResponse.data
+            : [];
 
         if (!cancelled) {
           setBusiness(businessData as Business);
           setImages(imagesData as BusinessImage[]);
+          setReviews(reviewsData as Review[]);
         }
       } catch {
         if (!cancelled) {
           setBusiness(null);
           setImages([]);
+          setReviews([]);
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -153,6 +179,19 @@ export function AppBusinessDetails() {
     scrollToIndex(isViewerOpen ? viewerTrackRef.current : galleryTrackRef.current, next);
   }, [activeImageIndex, imageUrls.length, isViewerOpen, scrollToIndex]);
 
+  const registerEvent = useCallback(
+    (eventType: "profile_view" | "phone_click" | "whatsapp_click" | "map_click" | "share" | "favorite", metadata?: Record<string, unknown>) => {
+      if (!id) return;
+      void trackBusinessEvent({
+        business_id: id,
+        event_type: eventType,
+        source: eventSource,
+        metadata: metadata || {},
+      });
+    },
+    [eventSource, id]
+  );
+
   const handleToggleFavorite = useCallback(() => {
     if (!id || typeof window === "undefined") return;
     try {
@@ -166,9 +205,12 @@ export function AppBusinessDetails() {
 
       localStorage.setItem(APP_FAVORITES_STORAGE_KEY, JSON.stringify(nextIds));
       setIsFavorite(nextIds.includes(id));
+      if (nextIds.includes(id)) {
+        registerEvent("favorite", { location: "app_business_details" });
+      }
     } catch {
     }
-  }, [id]);
+  }, [id, registerEvent]);
 
   const handleShare = useCallback(async () => {
     const url = typeof window !== "undefined" ? window.location.href : "";
@@ -177,19 +219,22 @@ export function AppBusinessDetails() {
       const nav = typeof navigator !== "undefined" ? navigator : undefined;
       if (nav?.share) {
         await nav.share({ title, url });
+        registerEvent("share", { method: "web_share" });
         return;
       }
 
       if (nav?.clipboard?.writeText) {
         await nav.clipboard.writeText(url);
+        registerEvent("share", { method: "clipboard" });
         alert("Link copiado!");
         return;
       }
 
+      registerEvent("share", { method: "fallback_alert" });
       alert(url);
     } catch {
     }
-  }, [business?.name]);
+  }, [business?.name, registerEvent]);
 
   const handleGalleryScroll = useCallback((container: HTMLDivElement | null) => {
     if (!container) return;
@@ -203,6 +248,57 @@ export function AppBusinessDetails() {
     if (!isViewerOpen) return;
     scrollToIndex(viewerTrackRef.current, activeImageIndex);
   }, [activeImageIndex, isViewerOpen, scrollToIndex]);
+
+  useEffect(() => {
+    if (!business?.id || trackedViewRef.current === business.id) return;
+    trackedViewRef.current = business.id;
+    registerEvent("profile_view", { path: typeof window !== "undefined" ? window.location.pathname : "" });
+  }, [business?.id, registerEvent]);
+
+  const handleSubmitReview = useCallback(async (event: FormEvent) => {
+    event.preventDefault();
+    if (!id) return;
+
+    setReviewError("");
+    setReviewFeedback("");
+
+    const trimmedAuthorName = authorName.trim();
+    const trimmedComment = comment.trim();
+
+    if (!trimmedAuthorName) {
+      setReviewError("Informe seu nome ou apelido.");
+      return;
+    }
+
+    if (rating < 1 || rating > 5) {
+      setReviewError("Selecione uma nota de 1 a 5 estrelas.");
+      return;
+    }
+
+    setSubmittingReview(true);
+    try {
+      const response = await api.post("/reviews", {
+        business_id: id,
+        rating,
+        author_name: trimmedAuthorName,
+        content: trimmedComment,
+      });
+
+      if (response.data?.success) {
+        setAuthorName("");
+        setRating(0);
+        setComment("");
+        setReviewFeedback("Obrigado! Sua avaliação foi enviada e será analisada antes da publicação.");
+      } else {
+        setReviewError(response.data?.message || "Erro ao enviar avaliação. Tente novamente.");
+      }
+    } catch (error) {
+      console.error("Erro ao enviar avaliação no app", error);
+      setReviewError("Erro ao enviar avaliação. Tente novamente.");
+    } finally {
+      setSubmittingReview(false);
+    }
+  }, [authorName, comment, id, rating]);
 
   const whatsappLink = buildWhatsAppLink(business?.whatsapp || business?.phone || "", "Olá, vi seu perfil no Tem Aki no Bairro!");
   const openingHoursText =
@@ -218,6 +314,13 @@ export function AppBusinessDetails() {
       : business?.address
         ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(business.address)}`
         : "https://www.google.com/maps";
+
+  const avgRating = useMemo(() => {
+    if (typeof business?.rating === "number" && Number.isFinite(business.rating)) return business.rating;
+    if (!reviews.length) return null;
+    const total = reviews.reduce((sum, review) => sum + (typeof review.rating === "number" ? review.rating : 0), 0);
+    return total / Math.max(reviews.length, 1);
+  }, [business?.rating, reviews]);
 
   if (loading) {
     return (
@@ -292,6 +395,13 @@ export function AppBusinessDetails() {
                 {business.main_product && (
                   <p className="mt-space-2 text-text-lg text-text-secondary">{business.main_product}</p>
                 )}
+                <div className="mt-space-3 flex items-center gap-space-2 text-text-sm text-text-secondary">
+                  <div className="flex items-center gap-1">
+                    <Star className="h-4 w-4 fill-status-warning text-status-warning" />
+                    <span className="font-semibold text-text-primary">{typeof avgRating === "number" ? avgRating.toFixed(1) : "Novo"}</span>
+                  </div>
+                  <span>({reviews.length} avaliações)</span>
+                </div>
               </div>
 
               <div className="flex flex-wrap gap-space-2">
@@ -322,6 +432,7 @@ export function AppBusinessDetails() {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex h-10 items-center justify-center rounded-full border border-border-subtle bg-surface-card px-space-4 text-text-sm font-medium text-text-secondary"
+                  onClick={() => registerEvent("map_click", { location: "top_actions" })}
                 >
                   <MapPin className="h-4 w-4 mr-2" />
                   Localização
@@ -332,6 +443,7 @@ export function AppBusinessDetails() {
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex h-10 items-center justify-center rounded-full border border-border-subtle bg-surface-card px-space-4 text-text-sm font-medium text-text-secondary"
+                    onClick={() => registerEvent("whatsapp_click", { location: "top_actions" })}
                   >
                     <MessageCircle className="h-4 w-4 mr-2" />
                     WhatsApp
@@ -405,6 +517,114 @@ export function AppBusinessDetails() {
                     )}
                   </section>
                 )}
+
+                <section className="rounded-radius-2xl border border-border-subtle bg-surface-card p-space-6">
+                  <h2 className="text-text-xl font-bold text-text-primary">Avaliações</h2>
+                  <p className="mt-space-2 text-text-sm text-text-secondary">
+                    Envie sua opinião. Ela fica pendente até a análise do administrador.
+                  </p>
+
+                  <form onSubmit={handleSubmitReview} className="mt-space-5 space-y-space-4">
+                    <div>
+                      <label htmlFor="app-review-author" className="block text-text-sm font-semibold text-text-primary mb-space-2">
+                        Nome ou apelido
+                      </label>
+                      <Input
+                        id="app-review-author"
+                        value={authorName}
+                        onChange={(e) => setAuthorName(e.target.value)}
+                        maxLength={80}
+                        placeholder="Ex.: Maria, Joao do Bairro"
+                        disabled={submittingReview}
+                      />
+                    </div>
+
+                    <div>
+                      <div className="text-text-sm font-semibold text-text-primary mb-space-3">Sua nota</div>
+                      <div className="flex items-center justify-between gap-space-2">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <button
+                            key={star}
+                            type="button"
+                            onClick={() => setRating(star)}
+                            disabled={submittingReview}
+                            className="flex h-12 w-12 items-center justify-center rounded-full border border-border-subtle bg-surface-subtle transition-transform hover:scale-105 disabled:opacity-60"
+                            aria-label={`${star} estrela${star > 1 ? "s" : ""}`}
+                          >
+                            <Star className={`h-7 w-7 ${star <= rating ? "fill-status-warning text-status-warning" : "text-text-muted"}`} />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label htmlFor="app-review-comment" className="block text-text-sm font-semibold text-text-primary mb-space-2">
+                        Comentário opcional
+                      </label>
+                      <textarea
+                        id="app-review-comment"
+                        value={comment}
+                        onChange={(e) => setComment(e.target.value)}
+                        maxLength={500}
+                        disabled={submittingReview}
+                        placeholder="Conte como foi sua experiência."
+                        className="min-h-[120px] w-full resize-none rounded-radius-xl border border-border-default bg-surface-subtle p-space-4 text-text-primary outline-none transition-all focus:border-border-focus focus:bg-surface-card focus:ring-4 focus:ring-border-focus/10"
+                      />
+                      <div className="mt-space-2 text-text-xs text-text-muted">{comment.length}/500 caracteres</div>
+                    </div>
+
+                    {reviewError && (
+                      <div className="rounded-radius-xl border border-status-error/20 bg-status-error/10 px-space-4 py-space-3 text-text-sm text-status-error">
+                        {reviewError}
+                      </div>
+                    )}
+
+                    {reviewFeedback && (
+                      <div className="rounded-radius-xl border border-status-success/20 bg-status-success/10 px-space-4 py-space-3 text-text-sm text-status-success">
+                        {reviewFeedback}
+                      </div>
+                    )}
+
+                    <Button type="submit" className="w-full h-12" disabled={submittingReview || rating < 1 || !authorName.trim()}>
+                      {submittingReview ? "Enviando..." : "Enviar Avaliação"}
+                    </Button>
+                  </form>
+
+                  <div className="mt-space-6 space-y-space-4">
+                    {reviews.length ? (
+                      reviews.map((review) => (
+                        <div key={review.id} className="rounded-radius-2xl border border-border-subtle bg-surface-subtle/40 p-space-4">
+                          <div className="flex items-start justify-between gap-space-3">
+                            <div>
+                              <div className="font-semibold text-text-primary">
+                                {review.author_name || review.user?.username || review.user?.name || "Cliente"}
+                              </div>
+                              <div className="mt-1 flex items-center gap-space-2">
+                                <div className="flex">
+                                  {[1, 2, 3, 4, 5].map((star) => (
+                                    <Star key={star} className={`h-4 w-4 ${star <= review.rating ? "fill-status-warning text-status-warning" : "text-text-muted"}`} />
+                                  ))}
+                                </div>
+                                {safeDateLabel(review.created_at) && (
+                                  <span className="text-text-xs text-text-muted">{safeDateLabel(review.created_at)}</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          {review.content ? (
+                            <p className="mt-space-3 whitespace-pre-line text-text-secondary">{review.content}</p>
+                          ) : (
+                            <p className="mt-space-3 text-text-sm text-text-muted">Sem comentário adicional.</p>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="rounded-radius-2xl border border-border-subtle bg-surface-subtle/40 p-space-4 text-text-secondary">
+                        Nenhuma avaliação aprovada ainda.
+                      </div>
+                    )}
+                  </div>
+                </section>
               </div>
 
               <div className="space-y-space-4">
@@ -413,7 +633,18 @@ export function AppBusinessDetails() {
                   <div className="mt-space-4 space-y-space-4 text-text-secondary">
                     <div>
                       <div className="text-text-xs font-bold uppercase tracking-wider text-text-muted">Telefone</div>
-                      <div className="mt-space-1">{business.phone ? formatPhone(business.phone) : "Não informado"}</div>
+                      {business.phone ? (
+                        <a
+                          href={`tel:${business.phone}`}
+                          onClick={() => registerEvent("phone_click", { location: "contact_card" })}
+                          className="mt-space-1 inline-flex items-center gap-2 text-action-primary hover:underline"
+                        >
+                          <Phone className="h-4 w-4" />
+                          {formatPhone(business.phone)}
+                        </a>
+                      ) : (
+                        <div className="mt-space-1">Não informado</div>
+                      )}
                     </div>
                     <div>
                       <div className="text-text-xs font-bold uppercase tracking-wider text-text-muted">WhatsApp</div>
@@ -451,7 +682,13 @@ export function AppBusinessDetails() {
                     <div>
                       {[business.address, business.neighborhood, business.city, business.state].filter(Boolean).join(", ") || "Endereço não informado"}
                     </div>
-                    <a href={mapLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-action-primary font-semibold hover:underline">
+                    <a
+                      href={mapLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-action-primary font-semibold hover:underline"
+                      onClick={() => registerEvent("map_click", { location: "address_card" })}
+                    >
                       <MapPin className="h-4 w-4" />
                       Abrir no mapa
                     </a>
@@ -568,7 +805,11 @@ export function AppBusinessDetails() {
       <div className="fixed bottom-0 left-0 right-0 z-[60] border-t border-border-subtle bg-surface-card/95 backdrop-blur md:hidden">
         <div className="container mx-auto px-space-4 py-space-3 grid grid-cols-2 gap-space-3">
           {business.phone ? (
-            <a href={`tel:${business.phone}`} className="block">
+            <a
+              href={`tel:${business.phone}`}
+              className="block"
+              onClick={() => registerEvent("phone_click", { location: "bottom_cta" })}
+            >
               <Button className="w-full h-12 bg-[#B56422] hover:bg-[#9d561e] border-none">
                 <Phone className="h-5 w-5 mr-space-2" />
                 Ligar
@@ -582,7 +823,13 @@ export function AppBusinessDetails() {
           )}
 
           {whatsappLink ? (
-            <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className="block">
+            <a
+              href={whatsappLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block"
+              onClick={() => registerEvent("whatsapp_click", { location: "bottom_cta" })}
+            >
               <Button className="w-full h-12 bg-status-success border-none">
                 <MessageCircle className="h-5 w-5 mr-space-2" />
                 WhatsApp

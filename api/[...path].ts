@@ -22,9 +22,63 @@ const STANDARD_CATEGORIES = [
   { name: 'Instituições Comunitárias', icon: '🤝' },
   { name: 'Instituições Religiosas', icon: '⛪' },
 ];
+const REVIEW_STATUS_VALUES = ['pending', 'approved', 'rejected'] as const;
+const BUSINESS_EVENT_TYPES = ['profile_view', 'phone_click', 'whatsapp_click', 'map_click', 'share', 'favorite'] as const;
+const REVIEW_AUTHOR_NAME_MAX_LENGTH = 80;
+const REVIEW_CONTENT_MAX_LENGTH = 500;
+
+type ReviewStatus = (typeof REVIEW_STATUS_VALUES)[number];
+type BusinessEventType = (typeof BUSINESS_EVENT_TYPES)[number];
 
 const normalizeCategoryName = (value: unknown) => String(value || '').trim().toLowerCase();
 const STANDARD_CATEGORY_NAME_SET = new Set(STANDARD_CATEGORIES.map((c) => normalizeCategoryName(c.name)));
+
+function sanitizeText(value: unknown, maxLength: number, options?: { multiline?: boolean }): string {
+  if (typeof value !== 'string') return '';
+
+  const withoutTags = value.replace(/<[^>]*>/g, ' ');
+  const normalizedLineBreaks = withoutTags.replace(/\r\n?/g, '\n');
+  const withoutControlChars = normalizedLineBreaks.replace(/[^\S\n]+/g, ' ').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '');
+  const trimmed = options?.multiline
+    ? withoutControlChars
+      .split('\n')
+      .map((line) => line.trim())
+      .join('\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
+    : withoutControlChars.replace(/\s+/g, ' ').trim();
+
+  return trimmed.slice(0, maxLength);
+}
+
+function normalizeReviewStatus(value: unknown): ReviewStatus | null {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().toLowerCase();
+  return REVIEW_STATUS_VALUES.includes(normalized as ReviewStatus) ? (normalized as ReviewStatus) : null;
+}
+
+function normalizeBusinessEventType(value: unknown): BusinessEventType | null {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().toLowerCase();
+  return BUSINESS_EVENT_TYPES.includes(normalized as BusinessEventType) ? (normalized as BusinessEventType) : null;
+}
+
+function mapReviewRecord(record: unknown) {
+  const rr = record as Record<string, unknown>;
+  const content = typeof rr.content === 'string' ? rr.content : typeof rr.comment === 'string' ? rr.comment : '';
+  const userIdValue = typeof rr.user_id === 'string' ? rr.user_id : typeof rr.profile_id === 'string' ? rr.profile_id : null;
+  const authorName =
+    typeof rr.author_name === 'string' && rr.author_name.trim().length > 0
+      ? rr.author_name
+      : typeof (rr.user as { username?: unknown; name?: unknown } | undefined)?.username === 'string'
+        ? String((rr.user as { username?: unknown }).username)
+        : typeof (rr.user as { name?: unknown } | undefined)?.name === 'string'
+          ? String((rr.user as { name?: unknown }).name)
+          : null;
+  const status = normalizeReviewStatus(rr.status);
+
+  return { ...rr, content, user_id: userIdValue, author_name: authorName, status };
+}
 
 function getPathSegments(req: ApiRequest): string[] {
   const raw = req.query?.path;
@@ -1131,6 +1185,56 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
       return json(res, 201, { success: true, data });
     }
 
+    if (resource === 'business-events') {
+      if (req.method !== 'POST') return methodNotAllowed(res);
+
+      const body = await readJson(req);
+      const businessId = body?.business_id;
+      const eventType = normalizeBusinessEventType(body?.event_type);
+      const source = sanitizeText(body?.source || 'site', 40);
+      const metadata =
+        body?.metadata && typeof body.metadata === 'object' && !Array.isArray(body.metadata)
+          ? body.metadata
+          : {};
+
+      if (!businessId || typeof businessId !== 'string') {
+        return json(res, 400, { success: false, message: 'business_id é obrigatório' });
+      }
+
+      if (!eventType) {
+        return json(res, 400, {
+          success: false,
+          message: `event_type inválido. Use: ${BUSINESS_EVENT_TYPES.join(', ')}`,
+        });
+      }
+
+      const supabase = getSupabaseAdmin();
+      const { data, error } = await supabase
+        .from('business_events')
+        .insert([
+          {
+            business_id: businessId,
+            event_type: eventType,
+            source: source || 'site',
+            metadata,
+          },
+        ])
+        .select('*')
+        .single();
+
+      if (error) {
+        console.error('[business-events] POST failed', {
+          businessId,
+          eventType,
+          error: normalizeSupabaseError(error),
+        });
+        const resp = supabaseErrorResponse(error);
+        return json(res, resp.status, resp.body);
+      }
+
+      return json(res, 201, { success: true, data });
+    }
+
     if (resource === 'upload' && a === 'image') {
       if (req.method !== 'POST') return methodNotAllowed(res);
       const { fields, file } = await parseMultipart(req);
@@ -1160,13 +1264,14 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
         requireRole(user, ['admin']);
 
         const limitRaw = getQuery(req, 'limit');
+        const statusFilter = normalizeReviewStatus(getQuery(req, 'status'));
         const limit = limitRaw ? Number.parseInt(limitRaw, 10) : 200;
         const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.min(limit, 500) : 200;
 
         const attempt = async (options: { withProfile: boolean; withBusiness: boolean; useCommentField: boolean; useProfileId: boolean }) => {
           const contentField = options.useCommentField ? 'comment' : 'content';
           const userIdField = options.useProfileId ? 'profile_id' : 'user_id';
-          const base = `id, business_id, ${userIdField}, rating, ${contentField}, created_at`;
+          const base = `id, business_id, ${userIdField}, author_name, rating, ${contentField}, status, created_at`;
           const select = [
             base,
             options.withBusiness ? 'business:businesses(id,name)' : null,
@@ -1175,7 +1280,9 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
             .filter(Boolean)
             .join(', ');
 
-          return supabase.from('reviews').select(select).order('created_at', { ascending: false }).limit(safeLimit);
+          let query = supabase.from('reviews').select(select).order('created_at', { ascending: false }).limit(safeLimit);
+          if (statusFilter) query = query.eq('status', statusFilter);
+          return query;
         };
 
         let { data, error } = await attempt({ withProfile: true, withBusiness: true, useCommentField: false, useProfileId: false });
@@ -1194,19 +1301,16 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
           }));
         }
         if (error) {
+          const missingColumns = findMissingColumns(error, ['author_name', 'status']);
+          if (missingColumns.length > 0) {
+            return json(res, 500, { success: false, message: missingColumnsMessage(missingColumns), error: { missingColumns } });
+          }
           console.error('[reviews] LIST failed', { error: normalizeSupabaseError(error) });
           const resp = supabaseErrorResponse(error);
           return json(res, resp.status, resp.body);
         }
 
-        const mapped = Array.isArray(data)
-          ? data.map((r) => {
-            const rr = r as Record<string, unknown>;
-            const content = typeof rr.content === 'string' ? rr.content : typeof rr.comment === 'string' ? rr.comment : '';
-            const userIdValue = typeof rr.user_id === 'string' ? rr.user_id : typeof rr.profile_id === 'string' ? rr.profile_id : null;
-            return { ...rr, content, user_id: userIdValue };
-          })
-          : [];
+        const mapped = Array.isArray(data) ? data.map(mapReviewRecord) : [];
 
         return json(res, 200, { success: true, data: mapped });
       }
@@ -1215,10 +1319,15 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
         const attempt = async (options: { withProfile: boolean; useCommentField: boolean; useProfileId: boolean }) => {
           const contentField = options.useCommentField ? 'comment' : 'content';
           const userIdField = options.useProfileId ? 'profile_id' : 'user_id';
-          const base = `id, business_id, ${userIdField}, rating, ${contentField}, created_at`;
+          const base = `id, business_id, ${userIdField}, author_name, rating, ${contentField}, status, created_at`;
           const select = options.withProfile ? `${base}, user:profiles(id, username)` : base;
 
-          return supabase.from('reviews').select(select).eq('business_id', a).order('created_at', { ascending: false });
+          return supabase
+            .from('reviews')
+            .select(select)
+            .eq('business_id', a)
+            .eq('status', 'approved')
+            .order('created_at', { ascending: false });
         };
 
         let { data, error } = await attempt({ withProfile: true, useCommentField: false, useProfileId: false });
@@ -1237,21 +1346,76 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
         }
 
         if (error) {
+          const missingColumns = findMissingColumns(error, ['author_name', 'status']);
+          if (missingColumns.length > 0) {
+            return json(res, 500, { success: false, message: missingColumnsMessage(missingColumns), error: { missingColumns } });
+          }
           console.error('[reviews] GET failed', { businessId: a, error: normalizeSupabaseError(error) });
           const resp = supabaseErrorResponse(error);
           return json(res, resp.status, resp.body);
         }
 
-        const mapped = Array.isArray(data)
-          ? data.map((r) => {
-            const rr = r as Record<string, unknown>;
-            const content = typeof rr.content === 'string' ? rr.content : typeof rr.comment === 'string' ? rr.comment : '';
-            const userIdValue = typeof rr.user_id === 'string' ? rr.user_id : typeof rr.profile_id === 'string' ? rr.profile_id : null;
-            return { ...rr, content, user_id: userIdValue };
-          })
-          : [];
+        const mapped = Array.isArray(data) ? data.map(mapReviewRecord) : [];
 
         return json(res, 200, { success: true, data: mapped });
+      }
+
+      if (a && req.method === 'PATCH') {
+        const user = await requireAuth(req);
+        requireRole(user, ['admin']);
+
+        const body = await readJson(req);
+        const nextStatus = normalizeReviewStatus(body?.status);
+
+        if (!nextStatus) {
+          return json(res, 400, {
+            success: false,
+            message: `status inválido. Use: ${REVIEW_STATUS_VALUES.join(', ')}`,
+          });
+        }
+
+        const attemptUpdate = async (options: { withProfile: boolean; withBusiness: boolean; useCommentField: boolean; useProfileId: boolean }) => {
+          const contentField = options.useCommentField ? 'comment' : 'content';
+          const userIdField = options.useProfileId ? 'profile_id' : 'user_id';
+          const base = `id, business_id, ${userIdField}, author_name, rating, ${contentField}, status, created_at`;
+          const select = [
+            base,
+            options.withBusiness ? 'business:businesses(id,name)' : null,
+            options.withProfile ? 'user:profiles(id, username)' : null,
+          ]
+            .filter(Boolean)
+            .join(', ');
+
+          return supabase.from('reviews').update({ status: nextStatus }).eq('id', a).select(select).single();
+        };
+
+        let { data, error } = await attemptUpdate({ withProfile: true, withBusiness: true, useCommentField: false, useProfileId: false });
+        if (error && isMissingColumnError(error, 'content')) {
+          ({ data, error } = await attemptUpdate({ withProfile: true, withBusiness: true, useCommentField: true, useProfileId: false }));
+        }
+        if (error && isMissingColumnError(error, 'user_id')) {
+          ({ data, error } = await attemptUpdate({ withProfile: true, withBusiness: true, useCommentField: isMissingColumnError(error, 'content'), useProfileId: true }));
+        }
+        if (error) {
+          ({ data, error } = await attemptUpdate({
+            withProfile: false,
+            withBusiness: true,
+            useCommentField: isMissingColumnError(error, 'content'),
+            useProfileId: isMissingColumnError(error, 'user_id'),
+          }));
+        }
+
+        if (error) {
+          const missingColumns = findMissingColumns(error, ['author_name', 'status']);
+          if (missingColumns.length > 0) {
+            return json(res, 500, { success: false, message: missingColumnsMessage(missingColumns), error: { missingColumns } });
+          }
+          console.error('[reviews] PATCH failed', { reviewId: a, status: nextStatus, error: normalizeSupabaseError(error) });
+          const resp = supabaseErrorResponse(error);
+          return json(res, resp.status, resp.body);
+        }
+
+        return json(res, 200, { success: true, data: data ? mapReviewRecord(data) : data });
       }
 
       if (a && req.method === 'DELETE') {
@@ -1268,66 +1432,77 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
       }
 
       if (req.method === 'POST') {
-        const user = await requireAuth(req);
         const body = await readJson(req);
         const businessId = body?.business_id;
-        const rating = body?.rating;
-        const commentOrContent = body?.comment ?? body?.content;
+        const ratingValue = typeof body?.rating === 'number' ? body.rating : typeof body?.rating === 'string' ? Number(body.rating) : NaN;
+        const authorNameRaw = body?.author_name ?? body?.authorName;
+        const commentOrContent = body?.comment ?? body?.content ?? null;
+        const authorName = sanitizeText(authorNameRaw, REVIEW_AUTHOR_NAME_MAX_LENGTH);
+        const content = sanitizeText(commentOrContent, REVIEW_CONTENT_MAX_LENGTH, { multiline: true });
 
         if (!businessId || typeof businessId !== 'string') return json(res, 400, { success: false, message: 'business_id é obrigatório' });
-        if (!Number.isFinite(rating) || typeof rating !== 'number') return json(res, 400, { success: false, message: 'rating é obrigatório' });
-        if (!commentOrContent || typeof commentOrContent !== 'string') return json(res, 400, { success: false, message: 'comment é obrigatório' });
+        if (!Number.isFinite(ratingValue)) return json(res, 400, { success: false, message: 'rating é obrigatório' });
+        if (Math.round(ratingValue) < 1 || Math.round(ratingValue) > 5) {
+          return json(res, 400, { success: false, message: 'rating deve estar entre 1 e 5' });
+        }
+        if (!authorName) return json(res, 400, { success: false, message: 'author_name é obrigatório' });
+        if (commentOrContent != null && typeof commentOrContent !== 'string') {
+          return json(res, 400, { success: false, message: 'content deve ser texto' });
+        }
 
-        const safeRating = Math.max(1, Math.min(5, Math.round(rating)));
+        const safeRating = Math.round(ratingValue);
 
         const attemptInsert = async (options: { withProfile: boolean; useCommentField: boolean; useProfileId: boolean }) => {
           const contentField = options.useCommentField ? 'comment' : 'content';
           const userIdField = options.useProfileId ? 'profile_id' : 'user_id';
 
-          const selectBase = `id, business_id, ${userIdField}, rating, ${contentField}, created_at`;
+          const selectBase = `id, business_id, ${userIdField}, author_name, rating, ${contentField}, status, created_at`;
           const select = options.withProfile ? `${selectBase}, user:profiles(id, username)` : selectBase;
 
           const payload: Record<string, unknown> = {
             business_id: businessId,
+            author_name: authorName,
             rating: safeRating,
-            [userIdField]: user.id,
-            [contentField]: commentOrContent,
+            status: 'pending',
+            [userIdField]: null,
+            [contentField]: content || null,
           };
 
           return supabase.from('reviews').insert([payload]).select(select).single();
         };
 
-        let { data, error } = await attemptInsert({ withProfile: true, useCommentField: false, useProfileId: false });
+        let { data, error } = await attemptInsert({ withProfile: false, useCommentField: false, useProfileId: false });
         if (error && isMissingColumnError(error, 'content')) {
-          ({ data, error } = await attemptInsert({ withProfile: true, useCommentField: true, useProfileId: false }));
+          ({ data, error } = await attemptInsert({ withProfile: false, useCommentField: true, useProfileId: false }));
         }
         if (error && isMissingColumnError(error, 'user_id')) {
-          ({ data, error } = await attemptInsert({ withProfile: true, useCommentField: isMissingColumnError(error, 'content'), useProfileId: true }));
+          ({ data, error } = await attemptInsert({ withProfile: false, useCommentField: isMissingColumnError(error, 'content'), useProfileId: true }));
         }
         if (error) {
-          ({ data, error } = await attemptInsert({ withProfile: false, useCommentField: isMissingColumnError(error, 'content'), useProfileId: isMissingColumnError(error, 'user_id') }));
+          ({ data, error } = await attemptInsert({
+            withProfile: false,
+            useCommentField: isMissingColumnError(error, 'content'),
+            useProfileId: isMissingColumnError(error, 'user_id'),
+          }));
         }
 
         if (error) {
+          const missingColumns = findMissingColumns(error, ['author_name', 'status']);
+          if (missingColumns.length > 0) {
+            return json(res, 500, { success: false, message: missingColumnsMessage(missingColumns), error: { missingColumns } });
+          }
           console.error('[reviews] POST failed', {
             businessId,
-            userId: user.id,
+            authorName,
             error: normalizeSupabaseError(error),
           });
           const resp = supabaseErrorResponse(error);
           return json(res, resp.status, resp.body);
         }
 
-        const mapped = (data && typeof data === 'object'
-          ? (() => {
-            const rr = data as Record<string, unknown>;
-            const content = typeof rr.content === 'string' ? rr.content : typeof rr.comment === 'string' ? rr.comment : '';
-            const userIdValue = typeof rr.user_id === 'string' ? rr.user_id : typeof rr.profile_id === 'string' ? rr.profile_id : null;
-            return { ...rr, content, user_id: userIdValue };
-          })()
-          : data) as unknown;
+        const mapped = (data && typeof data === 'object' ? mapReviewRecord(data) : data) as unknown;
 
-        return json(res, 201, { success: true, data: mapped });
+        return json(res, 201, { success: true, message: 'Avaliação enviada para moderação.', data: mapped });
       }
 
       return methodNotAllowed(res);

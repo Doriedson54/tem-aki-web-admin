@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import axios from "axios";
 import { useLocation, useNavigate, useParams, Link } from "react-router-dom";
 import { ArrowLeft, CheckCircle2, Clock, Facebook, Globe, Instagram, MapPin, MessageCircle, Phone, Share2, Star } from "lucide-react";
@@ -6,8 +6,10 @@ import { Heart } from "lucide-react";
 import api from "../services/api";
 import type { Business, BusinessImage, Review } from "../types";
 import { Button } from "../components/ui/Button";
+import { Input } from "../components/ui/Input";
 import { MapComponent, type MapMarker } from "../components/MapComponent";
 import { favoritesService } from "../services/favorites";
+import { trackBusinessEvent } from "../services/businessEvents";
 import { useAuth } from "../contexts/AuthContext";
 
 function buildWhatsAppLink(rawPhone: string, message: string): string | null {
@@ -65,12 +67,15 @@ export function BusinessDetails({ mode = "site", backTo }: BusinessDetailsProps)
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
   const [imageViewerIndex, setImageViewerIndex] = useState(0);
   const [isFavorite, setIsFavorite] = useState(false);
+  const [authorName, setAuthorName] = useState("");
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [reviewFeedback, setReviewFeedback] = useState("");
+  const [reviewError, setReviewError] = useState("");
+  const trackedViewRef = useRef<string | null>(null);
 
   const { user } = useAuth();
-  const isLoggedIn = Boolean(user);
   const allowAccountFeatures = mode === "site";
   const resolvedBackTo = backTo || (mode === "app" ? "/app" : "/directory");
 
@@ -171,8 +176,12 @@ export function BusinessDetails({ mode = "site", backTo }: BusinessDetailsProps)
     try {
       const next = !isFavorite;
       setIsFavorite(next);
-      if (next) await favoritesService.add(id);
-      else await favoritesService.remove(id);
+      if (next) {
+        await favoritesService.add(id);
+        registerEvent("favorite", { location: "business_details" });
+      } else {
+        await favoritesService.remove(id);
+      }
     } catch (e: unknown) {
       setIsFavorite((prev) => !prev);
       if (axios.isAxiosError(e)) {
@@ -197,13 +206,16 @@ export function BusinessDetails({ mode = "site", backTo }: BusinessDetailsProps)
       const nav = typeof navigator !== "undefined" ? navigator : null;
       if (nav?.share) {
         await nav.share({ title, url });
+        registerEvent("share", { method: "web_share" });
         return;
       }
       if (nav?.clipboard?.writeText) {
         await nav.clipboard.writeText(url);
+        registerEvent("share", { method: "clipboard" });
         alert("Link copiado!");
         return;
       }
+      registerEvent("share", { method: "fallback_alert" });
       alert(url);
     } catch {
     }
@@ -211,34 +223,49 @@ export function BusinessDetails({ mode = "site", backTo }: BusinessDetailsProps)
 
   const handleSubmitReview = async (e: FormEvent) => {
     e.preventDefault();
-    if (!allowAccountFeatures) return;
     if (!id) return;
-    if (!user) return navigate("/login", { state: { from: location } });
-    if (rating < 1 || rating > 5) {
-      alert("Selecione uma nota de 1 a 5 estrelas.");
+    setReviewError("");
+    setReviewFeedback("");
+
+    const trimmedAuthorName = authorName.trim();
+    const trimmedComment = comment.trim();
+
+    if (!trimmedAuthorName) {
+      setReviewError('Informe seu nome ou apelido.');
       return;
     }
+    if (rating < 1 || rating > 5) {
+      setReviewError("Selecione uma nota de 1 a 5 estrelas.");
+      return;
+    }
+
     setSubmittingReview(true);
     try {
-      const response = await api.post("/reviews", { business_id: id, rating, comment });
-      if (response.data?.success && response.data?.data) {
-        setReviews((prev) => [response.data.data as Review, ...prev]);
+      const response = await api.post("/reviews", {
+        business_id: id,
+        rating,
+        author_name: trimmedAuthorName,
+        content: trimmedComment,
+      });
+      if (response.data?.success) {
+        setAuthorName("");
         setComment("");
         setRating(0);
-        alert("Avaliação enviada com sucesso!");
+        setReviewFeedback("Obrigado! Sua avaliação foi enviada e será analisada antes da publicação.");
       } else {
         console.error("Erro ao enviar avaliação", response.data);
-        alert("Erro ao enviar avaliação. Tente novamente.");
+        setReviewError(response.data?.message || "Erro ao enviar avaliação. Tente novamente.");
       }
     } catch (e: unknown) {
       if (axios.isAxiosError(e)) {
         const status = e.response?.status;
         const msg = (e.response?.data as { message?: string } | undefined)?.message;
         console.error("Erro ao enviar avaliação", { status, message: msg, data: e.response?.data });
+        setReviewError(msg || "Erro ao enviar avaliação. Tente novamente.");
       } else {
         console.error("Erro ao enviar avaliação", e);
+        setReviewError("Erro ao enviar avaliação. Tente novamente.");
       }
-      alert("Erro ao enviar avaliação. Tente novamente.");
     } finally {
       setSubmittingReview(false);
     }
@@ -258,6 +285,20 @@ export function BusinessDetails({ mode = "site", backTo }: BusinessDetailsProps)
   const whatsappMessage = "Olá, vi seu perfil no Tem Aki no Bairro!";
   const whatsappValue = business?.whatsapp || business?.phone || "";
   const whatsappLink = buildWhatsAppLink(whatsappValue, whatsappMessage);
+  const eventSource = mode === "app" ? "app" : "site";
+
+  const registerEvent = useCallback(
+    (eventType: "profile_view" | "phone_click" | "whatsapp_click" | "map_click" | "share" | "favorite", metadata?: Record<string, unknown>) => {
+      if (!id) return;
+      void trackBusinessEvent({
+        business_id: id,
+        event_type: eventType,
+        source: eventSource,
+        metadata: metadata || {},
+      });
+    },
+    [eventSource, id]
+  );
 
   const openingHoursText =
     typeof business?.opening_hours === "string"
@@ -279,6 +320,12 @@ export function BusinessDetails({ mode = "site", backTo }: BusinessDetailsProps)
     const sum = reviews.reduce((acc, r) => acc + (typeof r.rating === "number" ? r.rating : 0), 0);
     return sum / Math.max(reviews.length, 1);
   }, [business?.rating, reviews]);
+
+  useEffect(() => {
+    if (!business?.id || trackedViewRef.current === business.id) return;
+    trackedViewRef.current = business.id;
+    registerEvent("profile_view", { path: typeof window !== "undefined" ? window.location.pathname : "" });
+  }, [business?.id, registerEvent]);
 
   if (loading) {
     return (
@@ -383,7 +430,15 @@ export function BusinessDetails({ mode = "site", backTo }: BusinessDetailsProps)
                 <Share2 className="h-space-4 w-space-4 md:mr-space-2" />
                 <span className="hidden md:inline">Compartilhar</span>
               </Button>
-              <a href={whatsappLink || undefined} target="_blank" rel="noopener noreferrer" className="flex-1 md:flex-none">
+              <a
+                href={whatsappLink || undefined}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 md:flex-none"
+                onClick={() => {
+                  if (whatsappLink) registerEvent("whatsapp_click", { location: "hero" });
+                }}
+              >
                 <Button disabled={!whatsappLink} className="w-full bg-status-success hover:shadow-lg transition-all border-none">
                   <MessageCircle className="h-space-4 w-space-4 mr-space-2" />
                   WhatsApp
@@ -474,85 +529,126 @@ export function BusinessDetails({ mode = "site", backTo }: BusinessDetailsProps)
               )}
             </section>
 
-            {allowAccountFeatures && (
-              <section>
-                <h2 className="text-text-2xl font-bold text-text-primary mb-space-8 flex items-center gap-space-2">
-                  <span className="w-1.5 h-space-8 bg-status-warning rounded-radius-full"></span>
-                  Avaliações
-                </h2>
+            <section>
+              <h2 className="text-text-2xl font-bold text-text-primary mb-space-8 flex items-center gap-space-2">
+                <span className="w-1.5 h-space-8 bg-status-warning rounded-radius-full"></span>
+                Avaliações
+              </h2>
 
-                {isLoggedIn ? (
-                  <div className="bg-surface-card p-space-8 rounded-radius-2xl shadow-sm border border-border-subtle mb-space-8">
-                    <h3 className="font-bold text-text-lg mb-space-6 text-text-primary">Como foi sua experiência?</h3>
-                    <form onSubmit={handleSubmitReview}>
-                      <div className="flex gap-space-2 mb-space-6">
+              <div className="bg-surface-card p-space-8 rounded-radius-2xl shadow-sm border border-border-subtle mb-space-8">
+                <h3 className="font-bold text-text-lg mb-space-2 text-text-primary">Como foi sua experiência?</h3>
+                <p className="text-text-sm text-text-secondary mb-space-6">
+                  Sua avaliação fica pendente até a aprovação do administrador.
+                </p>
+                <form onSubmit={handleSubmitReview} className="space-y-space-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-space-4">
+                    <div>
+                      <label htmlFor="review-author-name" className="block text-text-sm font-semibold text-text-primary mb-space-2">
+                        Nome ou apelido
+                      </label>
+                      <Input
+                        id="review-author-name"
+                        value={authorName}
+                        onChange={(e) => setAuthorName(e.target.value)}
+                        maxLength={80}
+                        placeholder="Ex.: Maria, Joao do Bairro"
+                        disabled={submittingReview}
+                      />
+                    </div>
+                    <div>
+                      <div className="block text-text-sm font-semibold text-text-primary mb-space-2">
+                        Sua nota
+                      </div>
+                      <div className="flex gap-space-2">
                         {[1, 2, 3, 4, 5].map((star) => (
                           <button
                             key={star}
                             type="button"
                             onClick={() => setRating(star)}
-                            className="focus:outline-none transition-transform hover:scale-110 active:scale-95"
+                            disabled={submittingReview}
+                            className="focus:outline-none transition-transform hover:scale-110 active:scale-95 disabled:opacity-60"
+                            aria-label={`${star} estrela${star > 1 ? "s" : ""}`}
                           >
                             <Star
-                              className={`h-space-8 w-space-8 ${star <= rating ? "text-status-warning fill-status-warning drop-shadow-sm" : "text-text-muted"
-                                }`}
+                              className={`h-space-8 w-space-8 ${star <= rating ? "text-status-warning fill-status-warning drop-shadow-sm" : "text-text-muted"}`}
                             />
                           </button>
                         ))}
                       </div>
-                      <textarea
-                        value={comment}
-                        onChange={(e) => setComment(e.target.value)}
-                        placeholder="Conte detalhes sobre o atendimento, produtos..."
-                        className="w-full p-space-4 rounded-radius-xl border border-border-default bg-surface-subtle focus:bg-surface-card focus:border-border-focus focus:ring-4 focus:ring-border-focus/10 outline-none transition-all min-h-[120px] mb-space-4 resize-none text-text-primary"
-                        required
-                      />
-                      <Button type="submit" disabled={submittingReview || rating < 1} className="rounded-radius-xl px-space-8 py-space-3 shadow-lg">
-                        {submittingReview ? "Enviando..." : "Publicar Avaliação"}
-                      </Button>
-                    </form>
+                    </div>
                   </div>
-                ) : (
-                  <div className="bg-surface-subtle p-space-6 rounded-radius-2xl border border-border-subtle mb-space-8">
-                    <div className="text-text-secondary">Faça login para avaliar este negócio.</div>
-                    <Link to="/login" state={{ from: location }}>
-                      <Button variant="secondary" className="mt-space-4">
-                        Ir para Login
-                      </Button>
-                    </Link>
-                  </div>
-                )}
 
-                <div className="space-y-space-4">
-                  {reviews.length ? (
-                    reviews.map((r) => (
-                      <div key={r.id} className="bg-surface-card p-space-6 rounded-radius-2xl border border-border-subtle">
-                        <div className="flex items-start justify-between gap-space-4">
-                          <div className="min-w-0">
-                            <div className="font-bold text-text-primary">
-                              {r.user?.username || r.user?.name || "Usuário"}
-                            </div>
-                            <div className="flex items-center gap-space-2 mt-space-1">
-                              <div className="flex">
-                                {[1, 2, 3, 4, 5].map((s) => (
-                                  <Star key={s} className={`h-4 w-4 ${s <= r.rating ? "text-status-warning fill-status-warning" : "text-text-muted"}`} />
-                                ))}
-                              </div>
-                              {safeDateLabel(r.created_at) && <span className="text-text-xs text-text-muted">{safeDateLabel(r.created_at)}</span>}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="mt-space-4 text-text-secondary whitespace-pre-line">{r.content}</div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="bg-surface-card p-space-8 rounded-radius-2xl border border-border-subtle text-text-secondary">
-                      Nenhuma avaliação ainda.
+                  <div>
+                    <label htmlFor="review-comment" className="block text-text-sm font-semibold text-text-primary mb-space-2">
+                      Comentário opcional
+                    </label>
+                    <textarea
+                      id="review-comment"
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                      placeholder="Conte detalhes sobre o atendimento, produtos ou serviço."
+                      className="w-full p-space-4 rounded-radius-xl border border-border-default bg-surface-subtle focus:bg-surface-card focus:border-border-focus focus:ring-4 focus:ring-border-focus/10 outline-none transition-all min-h-[120px] resize-none text-text-primary"
+                      maxLength={500}
+                      disabled={submittingReview}
+                    />
+                    <div className="mt-space-2 text-text-xs text-text-muted">{comment.length}/500 caracteres</div>
+                  </div>
+
+                  {reviewError && (
+                    <div className="rounded-radius-xl border border-status-error/20 bg-status-error/10 px-space-4 py-space-3 text-text-sm text-status-error">
+                      {reviewError}
                     </div>
                   )}
-                </div>
-              </section>
-            )}
+
+                  {reviewFeedback && (
+                    <div className="rounded-radius-xl border border-status-success/20 bg-status-success/10 px-space-4 py-space-3 text-text-sm text-status-success">
+                      {reviewFeedback}
+                    </div>
+                  )}
+
+                  <Button
+                    type="submit"
+                    disabled={submittingReview || rating < 1 || !authorName.trim()}
+                    className="rounded-radius-xl px-space-8 py-space-3 shadow-lg"
+                  >
+                    {submittingReview ? "Enviando..." : "Enviar Avaliação"}
+                  </Button>
+                </form>
+              </div>
+
+              <div className="space-y-space-4">
+                {reviews.length ? (
+                  reviews.map((r) => (
+                    <div key={r.id} className="bg-surface-card p-space-6 rounded-radius-2xl border border-border-subtle">
+                      <div className="flex items-start justify-between gap-space-4">
+                        <div className="min-w-0">
+                          <div className="font-bold text-text-primary">
+                            {r.author_name || r.user?.username || r.user?.name || "Cliente"}
+                          </div>
+                          <div className="flex items-center gap-space-2 mt-space-1">
+                            <div className="flex">
+                              {[1, 2, 3, 4, 5].map((s) => (
+                                <Star key={s} className={`h-4 w-4 ${s <= r.rating ? "text-status-warning fill-status-warning" : "text-text-muted"}`} />
+                              ))}
+                            </div>
+                            {safeDateLabel(r.created_at) && <span className="text-text-xs text-text-muted">{safeDateLabel(r.created_at)}</span>}
+                          </div>
+                        </div>
+                      </div>
+                      {r.content ? (
+                        <div className="mt-space-4 text-text-secondary whitespace-pre-line">{r.content}</div>
+                      ) : (
+                        <div className="mt-space-4 text-text-sm text-text-muted">Sem comentário adicional.</div>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <div className="bg-surface-card p-space-8 rounded-radius-2xl border border-border-subtle text-text-secondary">
+                    Nenhuma avaliação aprovada ainda.
+                  </div>
+                )}
+              </div>
+            </section>
           </div>
 
           <div className="lg:col-span-4 space-y-space-8">
@@ -574,6 +670,7 @@ export function BusinessDetails({ mode = "site", backTo }: BusinessDetailsProps)
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center mt-space-3 text-text-sm font-bold text-action-primary hover:underline"
+                        onClick={() => registerEvent("map_click", { location: "sidebar" })}
                       >
                         Abrir no mapa
                       </a>
@@ -590,6 +687,7 @@ export function BusinessDetails({ mode = "site", backTo }: BusinessDetailsProps)
                         <a
                           className="block mt-space-2 text-text-lg font-bold text-text-primary hover:underline"
                           href={`tel:${business.phone}`}
+                          onClick={() => registerEvent("phone_click", { location: "sidebar" })}
                         >
                           {formatPhone(business.phone)}
                         </a>
@@ -619,7 +717,15 @@ export function BusinessDetails({ mode = "site", backTo }: BusinessDetailsProps)
                 </div>
 
                 <div className="mt-space-6">
-                  <a href={whatsappLink || undefined} target="_blank" rel="noopener noreferrer" className="block">
+                  <a
+                    href={whatsappLink || undefined}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block"
+                    onClick={() => {
+                      if (whatsappLink) registerEvent("whatsapp_click", { location: "sidebar_cta" });
+                    }}
+                  >
                     <Button disabled={!whatsappLink} className="w-full h-12 bg-status-success border-none">
                       <MessageCircle className="h-5 w-5 mr-space-2" /> Mandar Mensagem
                     </Button>

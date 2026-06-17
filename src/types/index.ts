@@ -54,19 +54,35 @@ export interface BusinessImage {
     created_at: string;
 }
 
+export type ReviewStatus = 'pending' | 'approved' | 'rejected';
+
 export interface Review {
     id: number | string;
     business_id: string;
-    user_id: string;
+    user_id: string | null;
     rating: number;
+    author_name?: string | null;
     content: string;
+    status?: ReviewStatus;
     created_at: string;
     user?: {
         id: string;
         name: string;
         username?: string;
     };
+    business?: {
+        id: string;
+        name: string;
+    };
 }
+
+export type BusinessEventType =
+    | 'profile_view'
+    | 'phone_click'
+    | 'whatsapp_click'
+    | 'map_click'
+    | 'share'
+    | 'favorite';
 
 export interface ApiResponse<T> {
     success: boolean;
