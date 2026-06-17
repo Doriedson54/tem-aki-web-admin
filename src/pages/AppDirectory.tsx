@@ -7,6 +7,10 @@ import { Input } from "../components/ui/Input";
 import { Button } from "../components/ui/Button";
 
 const BusinessListItem = memo(function BusinessListItem({ business }: { business: Business }) {
+  const reviewCount = typeof business.review_count === "number" ? business.review_count : 0;
+  const reviewsLabel = reviewCount === 1 ? "avaliação" : "avaliações";
+  const ratingText = business.rating ? Number(business.rating).toFixed(1) : null;
+
   return (
     <Link
       to={`/app/business/${business.id}`}
@@ -27,7 +31,7 @@ const BusinessListItem = memo(function BusinessListItem({ business }: { business
             {business.category?.name || "Geral"}
           </span>
           <span className="text-text-xs text-text-muted">
-            {business.rating ? `${Number(business.rating).toFixed(1)} ★` : "Sem avaliação"}
+            {ratingText ? `★ ${ratingText}${reviewCount > 0 ? ` (${reviewCount} ${reviewsLabel})` : ""}` : "Sem avaliação"}
           </span>
         </div>
 
@@ -167,7 +171,6 @@ export function AppDirectory() {
 
         const response = await api.get<ApiResponse<Business[]>>("/businesses", { params });
         const items = Array.isArray(response.data?.data) ? response.data.data : [];
-        items.sort((a, b) => (b.rating || 0) - (a.rating || 0));
         if (!cancelled) setBusinesses(items);
       } catch {
         if (!cancelled) setBusinesses([]);

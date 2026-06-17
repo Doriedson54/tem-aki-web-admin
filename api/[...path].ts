@@ -80,6 +80,89 @@ function mapReviewRecord(record: unknown) {
   return { ...rr, content, user_id: userIdValue, author_name: authorName, status };
 }
 
+async function attachBusinessReviewMetricsAndSort(supabase: ReturnType<typeof getSupabaseAdmin>, businesses: unknown[]) {
+  const list = Array.isArray(businesses) ? (businesses as Array<Record<string, unknown>>) : [];
+  if (!list.length) return list;
+
+  const ids = list
+    .map((b) => b?.id)
+    .filter((id): id is string => typeof id === 'string' && id.length > 0);
+
+  if (!ids.length) return list;
+
+  const { data, error } = await supabase
+    .from('reviews')
+    .select('business_id, rating')
+    .in('business_id', ids)
+    .eq('status', 'approved');
+
+  if (error) {
+    const missingColumns = findMissingColumns(error, ['status']);
+    if (missingColumns.length > 0) {
+      const e = new Error(missingColumnsMessage(missingColumns)) as Error & { statusCode?: number };
+      e.statusCode = 500;
+      throw e;
+    }
+    throw error;
+  }
+
+  const stats = new Map<string, { sum: number; count: number }>();
+  for (const row of data || []) {
+    const businessId = (row as { business_id?: unknown }).business_id;
+    const rating = (row as { rating?: unknown }).rating;
+    if (typeof businessId !== 'string' || !businessId) continue;
+    const value = typeof rating === 'number' && Number.isFinite(rating) ? rating : null;
+    if (value == null) continue;
+    const current = stats.get(businessId) || { sum: 0, count: 0 };
+    current.sum += value;
+    current.count += 1;
+    stats.set(businessId, current);
+  }
+
+  const withMetrics = list.map((business, index) => {
+    const id = typeof business?.id === 'string' ? business.id : '';
+    const s = id ? stats.get(id) : null;
+    const count = s?.count || 0;
+    const avg = count > 0 ? s!.sum / count : null;
+    const score = avg != null ? avg * Math.log10(count + 1) : 0;
+
+    return {
+      ...business,
+      rating: avg != null ? avg : null,
+      review_count: count > 0 ? count : 0,
+      rating_score: score,
+      __original_index: index,
+    };
+  });
+
+  withMetrics.sort((a, b) => {
+    const aCount = typeof a.review_count === 'number' ? a.review_count : 0;
+    const bCount = typeof b.review_count === 'number' ? b.review_count : 0;
+    const aHas = aCount > 0;
+    const bHas = bCount > 0;
+    if (aHas !== bHas) return aHas ? -1 : 1;
+
+    const aScore = typeof a.rating_score === 'number' && Number.isFinite(a.rating_score) ? a.rating_score : 0;
+    const bScore = typeof b.rating_score === 'number' && Number.isFinite(b.rating_score) ? b.rating_score : 0;
+    if (bScore !== aScore) return bScore - aScore;
+
+    const aAvg = typeof a.rating === 'number' && Number.isFinite(a.rating) ? a.rating : 0;
+    const bAvg = typeof b.rating === 'number' && Number.isFinite(b.rating) ? b.rating : 0;
+    if (bAvg !== aAvg) return bAvg - aAvg;
+
+    if (bCount !== aCount) return bCount - aCount;
+
+    const aIdx = typeof a.__original_index === 'number' ? a.__original_index : 0;
+    const bIdx = typeof b.__original_index === 'number' ? b.__original_index : 0;
+    return aIdx - bIdx;
+  });
+
+  return withMetrics.map((b) => {
+    const { __original_index, ...rest } = b as Record<string, unknown>;
+    return rest;
+  });
+}
+
 function getPathSegments(req: ApiRequest): string[] {
   const raw = req.query?.path;
   if (!raw) {
@@ -718,7 +801,9 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
         }
 
         if (error) return json(res, 500, { success: false, message: error.message });
-        return json(res, 200, { success: true, data: data || [] });
+        const list = Array.isArray(data) ? data : [];
+        const sorted = !isAdmin ? await attachBusinessReviewMetricsAndSort(supabase, list) : list;
+        return json(res, 200, { success: true, data: sorted });
       }
 
       if (!a && req.method === 'POST') {
@@ -801,7 +886,9 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
         const { data, error } = await q;
 
         if (error) return json(res, 500, { success: false, message: error.message });
-        return json(res, 200, { success: true, data: data || [] });
+        const list = Array.isArray(data) ? data : [];
+        const sorted = !isAdmin ? await attachBusinessReviewMetricsAndSort(supabase, list) : list;
+        return json(res, 200, { success: true, data: sorted });
       }
 
       if (a === 'subcategory' && b && req.method === 'GET') {
@@ -814,7 +901,9 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
         const { data, error } = await q;
 
         if (error) return json(res, 500, { success: false, message: error.message });
-        return json(res, 200, { success: true, data: data || [] });
+        const list = Array.isArray(data) ? data : [];
+        const sorted = !isAdmin ? await attachBusinessReviewMetricsAndSort(supabase, list) : list;
+        return json(res, 200, { success: true, data: sorted });
       }
 
       if (a === 'search' && req.method === 'GET') {
@@ -846,7 +935,9 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
         }
 
         if (error) return json(res, 500, { success: false, message: error.message });
-        return json(res, 200, { success: true, data: data || [] });
+        const list = Array.isArray(data) ? data : [];
+        const sorted = !isAdmin ? await attachBusinessReviewMetricsAndSort(supabase, list) : list;
+        return json(res, 200, { success: true, data: sorted });
       }
 
       if (a && req.method === 'GET') {

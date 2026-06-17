@@ -18,6 +18,10 @@ function joinPath(prefix: string | undefined, path: string) {
 }
 
 export function BusinessCard({ business, isFavorite, onToggleFavorite, detailsPathPrefix, showFavorite = true }: BusinessCardProps) {
+    const reviewCount = typeof business.review_count === "number" ? business.review_count : 0;
+    const hasReviews = (typeof business.rating === "number" && business.rating > 0) || reviewCount > 0;
+    const reviewsLabel = reviewCount === 1 ? "avaliação" : "avaliações";
+
     return (
         <Link to={joinPath(detailsPathPrefix, `business/${business.id}`)} className="group relative block h-full cursor-pointer">
             <article className="bg-surface-card rounded-radius-2xl border border-border-subtle shadow-card hover:shadow-card-hover hover:-translate-y-1.5 transition-all duration-300 overflow-hidden h-full flex flex-col">
@@ -43,8 +47,8 @@ export function BusinessCard({ business, isFavorite, onToggleFavorite, detailsPa
                 </div>
 
                 <div className="p-space-6 flex flex-col flex-1">
-                    {business.rating && business.rating > 0 ? (
-                        <div className="flex items-center gap-space-2 mb-space-3">
+                    {hasReviews ? (
+                        <div className="flex items-center justify-between gap-space-2 mb-space-3">
                             <div className="flex items-center gap-space-1">
                                 {[1, 2, 3, 4, 5].map((star) => (
                                     <Star
@@ -56,9 +60,16 @@ export function BusinessCard({ business, isFavorite, onToggleFavorite, detailsPa
                                     />
                                 ))}
                             </div>
-                            <span className="text-text-xl font-bold text-text-primary">
-                                {Number(business.rating).toFixed(1)}
-                            </span>
+                            <div className="flex items-baseline gap-space-2">
+                                <span className="text-text-xl font-bold text-text-primary">
+                                    {typeof business.rating === "number" ? Number(business.rating).toFixed(1) : "0,0"}
+                                </span>
+                                {reviewCount > 0 && (
+                                    <span className="text-text-sm text-text-muted">
+                                        ({reviewCount} {reviewsLabel})
+                                    </span>
+                                )}
+                            </div>
                         </div>
                     ) : (
                         <div className="flex items-center gap-space-2 mb-space-3">

@@ -35,6 +35,8 @@ export interface Business {
     category?: Category;
     subcategory?: Subcategory;
     rating?: number;
+    review_count?: number;
+    rating_score?: number;
     neighborhood?: string;
     city?: string;
     state?: string;

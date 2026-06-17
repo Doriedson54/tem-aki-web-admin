@@ -155,8 +155,6 @@ export function Directory({ mode = "site", detailsPathPrefix }: DirectoryProps) 
           }
         }
 
-        fetchedBusinesses.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-
         if (!cancelled) setBusinesses(fetchedBusinesses);
       } catch {
         if (!cancelled) setBusinesses([]);
