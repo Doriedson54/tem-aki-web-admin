@@ -75,6 +75,14 @@ function getCategoryPresentation(category: Category, subcategoryCount: number) {
   };
 }
 
+function SectionDivider() {
+  return (
+    <div className="container mx-auto px-space-4">
+      <div className="my-space-5 h-px bg-gradient-to-r from-transparent via-[rgba(184,106,26,0.32)] to-transparent shadow-[0_0_20px_rgba(184,106,26,0.18)]" />
+    </div>
+  );
+}
+
 export function AppHome() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -158,30 +166,31 @@ export function AppHome() {
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0)_28%,rgba(246,241,235,0.45)_100%)]" />
 
         <div className="relative container mx-auto px-space-4 pb-10 pt-10">
-          <div className="grid min-h-[340px] grid-cols-[minmax(0,1fr)_145px] items-center gap-space-3">
+          <div className="grid min-h-[356px] grid-cols-[minmax(0,1fr)_158px] items-center gap-space-2">
             <div className="text-white">
-              <h1 className="max-w-[260px] text-[2.35rem] font-bold leading-[1.02] text-white">
-                Tudo o que voce procura esta aqui
-              </h1>
-              <p className="mt-space-4 max-w-[280px] text-text-base leading-relaxed text-white/92">
-                Comercios, servicos, profissionais e instituicoes do Nova Terra ao seu alcance.
-              </p>
-              <div className="mt-space-5 inline-flex items-center gap-space-2 rounded-[20px] bg-white px-space-4 py-space-3 text-left shadow-[0_14px_30px_rgba(15,23,42,0.16)]">
+              <div className="mb-space-4 inline-flex items-center gap-space-2 rounded-[18px] bg-white/92 px-space-4 py-space-3 text-left shadow-[0_14px_30px_rgba(15,23,42,0.18)] ring-1 ring-white/55">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#FFF1E2] text-[#B86A1A]">
                   <MapPin className="h-4 w-4" />
                 </div>
                 <div>
                   <div className="text-text-sm font-bold text-text-primary">Nova Terra</div>
-                  <div className="text-[13px] text-text-secondary">Sao Jose de Ribamar - MA</div>
+                  <div className="text-[13px] text-text-secondary">São José de Ribamar - MA</div>
                 </div>
               </div>
+              <h1 className="max-w-[265px] text-[2.3rem] font-bold leading-[1.02] text-white [text-shadow:0_6px_24px_rgba(0,0,0,0.30)]">
+                Tudo o que você precisa na palma da sua mão
+              </h1>
+              <p className="mt-space-4 max-w-[280px] text-[1.02rem] leading-relaxed text-white/95 [text-shadow:0_4px_16px_rgba(0,0,0,0.25)]">
+                Comércios, serviços, profissionais e instituições do Bairro ao seu alcance.
+              </p>
             </div>
 
             <div className="relative flex justify-end self-end">
+              <div className="absolute inset-x-4 bottom-5 top-8 rounded-[28px] bg-white/10 blur-xl" />
               <img
                 src={handPhoneImage}
                 alt="Celular com Tem Aki no Bairro"
-                className="w-full max-w-[150px] translate-y-5 object-contain drop-shadow-[0_25px_40px_rgba(0,0,0,0.35)]"
+                className="relative w-full max-w-[164px] translate-y-3 object-contain [filter:drop-shadow(0_20px_28px_rgba(0,0,0,0.45))_drop-shadow(0_0_6px_rgba(255,255,255,0.18))]"
               />
             </div>
           </div>
@@ -189,49 +198,58 @@ export function AppHome() {
       </section>
 
       <section className="container mx-auto -mt-8 px-space-4">
-        <Card className="rounded-[28px] border border-[#EFE4D6] bg-white p-space-5 shadow-[0_20px_45px_rgba(15,23,42,0.10)]">
+        <Card className="rounded-[30px] border border-[#EEDDC8] bg-white p-space-5 shadow-[0_20px_45px_rgba(15,23,42,0.10)] ring-1 ring-white/75">
           <div className="flex items-center gap-space-2 text-text-lg font-bold text-text-primary">
             <Search className="h-5 w-5 text-[#B86A1A]" />
-            <span>Buscar negocios</span>
+            <span>Buscar negócios</span>
           </div>
-          <div className="mt-space-4 grid grid-cols-[minmax(0,1fr)_132px] gap-space-3">
-            <div className="relative rounded-[18px] border border-border-subtle bg-[#FAF7F3]">
+          <div className="mt-space-4 grid grid-cols-[minmax(0,1fr)_118px] gap-space-3 rounded-[22px] border border-[#EEE2D5] bg-[#FBF7F2] p-space-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+            <div className="relative rounded-[16px] border border-[#E7DDD2] bg-white">
               <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-text-muted" />
               <Input
                 id="app-home-search"
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
                 onKeyDown={(event) => event.key === "Enter" && handleSearch()}
-                placeholder="Nome, servico, categoria ou endereco..."
-                className="h-14 rounded-[18px] border-0 bg-transparent pl-12 pr-4 text-text-base shadow-none focus-visible:ring-0"
+                placeholder="Nome, serviço, categoria ou endereço..."
+                className="h-13 rounded-[16px] border-0 bg-transparent pl-12 pr-4 text-text-base shadow-none focus-visible:ring-0"
               />
             </div>
             <Button
               onClick={handleSearch}
-              className="h-14 w-full rounded-[18px] border-none text-text-sm font-bold text-white shadow-[0_12px_25px_rgba(184,106,26,0.30)]"
+              className="h-13 w-full rounded-[16px] border-none text-text-sm font-bold text-white shadow-[0_12px_25px_rgba(184,106,26,0.30)]"
               style={{ backgroundColor: "#B86A1A" }}
             >
               Buscar
             </Button>
           </div>
+
+          <div className="my-space-5 h-px bg-gradient-to-r from-transparent via-[rgba(184,106,26,0.22)] to-transparent shadow-[0_0_14px_rgba(184,106,26,0.12)]" />
+
+          <div className="flex items-center gap-space-2 text-text-lg font-bold text-text-primary">
+            <LibraryBig className="h-5 w-5 text-[#B86A1A]" />
+            <span>Navegar por categorias</span>
+          </div>
+          <Button
+            asChild
+            className="mt-space-4 h-13 w-full rounded-[16px] border-none text-text-base font-bold text-white shadow-[0_12px_25px_rgba(184,106,26,0.30)]"
+            style={{ backgroundColor: "#B86A1A" }}
+          >
+            <Link to="/app/lista" className="flex items-center justify-center gap-space-2">
+              <span>Ver Categorias</span>
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+          </Button>
         </Card>
       </section>
 
-      <section id="categorias" className="container mx-auto px-space-4 pt-space-6">
-        <div className="mb-space-4 flex items-center justify-between gap-space-3">
-          <div className="flex items-center gap-space-2 text-text-xl font-bold text-text-primary">
-            <LibraryBig className="h-5 w-5 text-[#B86A1A]" />
-            <span>Navegar por Categorias</span>
-          </div>
-          <Link to="/app/lista" className="text-text-sm font-bold uppercase tracking-wide text-[#B86A1A]">
-            Ver categorias
-          </Link>
-        </div>
+      <SectionDivider />
 
+      <section id="categorias" className="container mx-auto px-space-4 pt-space-6">
         {loading ? (
           <div className="grid grid-cols-2 gap-space-4">
             {Array.from({ length: 4 }).map((_, index) => (
-              <div key={index} className="h-40 animate-pulse rounded-[22px] bg-white shadow-sm" />
+              <div key={index} className="h-28 animate-pulse rounded-[22px] bg-white shadow-sm" />
             ))}
           </div>
         ) : (
@@ -244,19 +262,20 @@ export function AppHome() {
                 <Link
                   key={category.id}
                   to={`/app/lista?category=${category.id}`}
-                  className="rounded-[22px] border border-[#EFE4D6] bg-white p-space-4 text-center shadow-[0_12px_28px_rgba(15,23,42,0.06)] transition-transform hover:-translate-y-0.5"
+                  className="rounded-[22px] border border-[#EFE4D6] bg-white px-space-3 py-space-4 text-center shadow-[0_12px_28px_rgba(15,23,42,0.06)] transition-transform hover:-translate-y-0.5"
                 >
-                  <div className={`mx-auto flex h-14 w-14 items-center justify-center rounded-[18px] ${presentation.iconBackgroundClassName} ${presentation.accentClassName}`}>
-                    <Icon className="h-7 w-7" />
+                  <div className={`mx-auto flex h-12 w-12 items-center justify-center rounded-[16px] ${presentation.iconBackgroundClassName} ${presentation.accentClassName}`}>
+                    <Icon className="h-6 w-6" />
                   </div>
-                  <div className="mt-space-4 text-text-lg font-bold text-text-primary">{category.name}</div>
-                  <div className="mt-space-2 text-text-sm leading-relaxed text-text-secondary">{presentation.description}</div>
+                  <div className="mt-space-3 text-[0.95rem] font-bold leading-tight text-text-primary">{category.name}</div>
                 </Link>
               );
             })}
           </div>
         )}
       </section>
+
+      <SectionDivider />
 
       <section className="container mx-auto px-space-4 pt-space-8">
         <div className="mb-space-4 flex items-center justify-between gap-space-3">
@@ -272,22 +291,22 @@ export function AppHome() {
         {loading ? (
           <div className="flex gap-space-4 overflow-x-auto pb-space-2">
             {Array.from({ length: 3 }).map((_, index) => (
-              <div key={index} className="h-[230px] w-[220px] shrink-0 animate-pulse rounded-[22px] bg-white" />
+              <div key={index} className="h-[218px] w-[176px] shrink-0 animate-pulse rounded-[22px] bg-white" />
             ))}
           </div>
         ) : topBusinesses.length ? (
           <div className="flex gap-space-4 overflow-x-auto pb-space-2">
             {topBusinesses.map((business) => {
               const reviewCount = typeof business.review_count === "number" ? business.review_count : 0;
-              const reviewsLabel = reviewCount === 1 ? "avaliacao" : "avaliacoes";
+              const reviewsLabel = reviewCount === 1 ? "avaliação" : "avaliações";
 
               return (
                 <Link
                   key={business.id}
                   to={`/app/business/${business.id}`}
-                  className="w-[220px] shrink-0 overflow-hidden rounded-[22px] border border-[#EFE4D6] bg-white shadow-[0_14px_30px_rgba(15,23,42,0.08)] transition-transform hover:-translate-y-0.5"
+                  className="w-[176px] shrink-0 overflow-hidden rounded-[22px] border border-[#EFE4D6] bg-white shadow-[0_14px_30px_rgba(15,23,42,0.08)] transition-transform hover:-translate-y-0.5"
                 >
-                  <div className="h-[126px] bg-surface-subtle">
+                  <div className="h-[106px] bg-surface-subtle">
                     <img
                       src={business.image_url || business.logo_url || "https://placehold.co/320x220/e2e8f0/94a3b8?text=Tem+Aki"}
                       alt={business.name}
@@ -296,18 +315,18 @@ export function AppHome() {
                       decoding="async"
                     />
                   </div>
-                  <div className="space-y-space-2 p-space-4">
-                    <div className="line-clamp-1 text-text-base font-bold text-text-primary">{business.name}</div>
-                    <div className="text-text-sm text-text-secondary">{business.category?.name || "Categoria"}</div>
+                  <div className="space-y-space-2 p-space-3">
+                    <div className="line-clamp-2 text-[0.95rem] font-bold leading-tight text-text-primary">{business.name}</div>
+                    <div className="line-clamp-1 text-[0.82rem] text-text-secondary">{business.category?.name || "Categoria"}</div>
                     <div className="flex items-center gap-1 text-[#F2B233]">
                       {Array.from({ length: 5 }).map((_, starIndex) => (
                         <Star key={starIndex} className={`h-4 w-4 ${starIndex < Math.round(business.rating || 0) ? "fill-current" : ""}`} />
                       ))}
                     </div>
-                    <div className="text-text-sm text-text-secondary">
+                    <div className="text-[0.82rem] text-text-secondary">
                       ★★★★★ {typeof business.rating === "number" ? business.rating.toFixed(1).replace(".", ",") : "0,0"} ({reviewCount} {reviewsLabel})
                     </div>
-                    <div className="inline-flex items-center gap-space-1 text-text-sm font-semibold text-[#B86A1A]">
+                    <div className="inline-flex items-center gap-space-1 text-[0.82rem] font-semibold text-[#B86A1A]">
                       Ver detalhes
                       <ChevronRight className="h-4 w-4" />
                     </div>

@@ -179,7 +179,7 @@ function UserAppLayout() {
       </main>
 
       {!hideBottomNav && (
-        <nav className="fixed inset-x-0 bottom-0 z-[55] border-t border-[#EADCCB] bg-white/98 shadow-[0_-10px_30px_rgba(15,23,42,0.08)] backdrop-blur">
+        <nav className="fixed inset-x-0 bottom-0 z-[55] border-t border-[#EADCCB] bg-white shadow-[0_-10px_30px_rgba(15,23,42,0.08)]">
           <div className="container mx-auto grid h-[78px] grid-cols-5 px-space-2">
             {bottomNavLinks.map((item) => {
               const Icon = item.icon;
