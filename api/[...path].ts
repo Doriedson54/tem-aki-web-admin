@@ -152,7 +152,16 @@ type GeocodePreparedInput = {
 };
 
 type GeocodeStrategy = {
-  key: 'address_full' | 'name_neighborhood_city_state' | 'name_city_state' | 'name_neighborhood' | 'clean_address' | 'approx_street' | 'approx_neighborhood_center';
+  key:
+    | 'address_full'
+    | 'name_neighborhood_city_state'
+    | 'name_city_state'
+    | 'name_neighborhood'
+    | 'clean_address'
+    | 'street_lookup'
+    | 'reused_street'
+    | 'reused_zip'
+    | 'approx_neighborhood_center';
   label: string;
   buildQuery: (input: GeocodePreparedInput) => string;
 };
@@ -178,7 +187,12 @@ type GeocodeCandidate = {
   searched_address: string;
   distance_to_nova_terra_km: number | null;
   location_type: 'Exata' | 'Aproximada';
-  source: 'Nominatim' | 'Rua' | 'Centro do bairro';
+  source: 'Nominatim' | 'Rua' | 'CEP' | 'Centro do bairro';
+  coordinate_origin: string;
+  resolved_street: string | null;
+  resolved_zip_code: string | null;
+  resolved_neighborhood: string | null;
+  resolved_city: string | null;
 };
 
 type GeocodeAttemptResult = {
@@ -188,6 +202,48 @@ type GeocodeAttemptResult = {
   strategy_key?: GeocodeStrategy['key'];
   strategy_label?: string;
   candidate: GeocodeCandidate | null;
+};
+
+type GeocodeStreetMemoryEntry = {
+  key: string;
+  street_name: string;
+  neighborhood: string;
+  city: string;
+  lat: number;
+  lng: number;
+  score: number;
+  display_name: string;
+};
+
+type GeocodeZipMemoryEntry = {
+  key: string;
+  zip_code: string;
+  neighborhood: string;
+  city: string;
+  lat: number;
+  lng: number;
+  score: number;
+  display_name: string;
+};
+
+type SerializedGeocodeProcessingState = {
+  streets: GeocodeStreetMemoryEntry[];
+  zips: GeocodeZipMemoryEntry[];
+};
+
+type GeocodeProcessingContext = {
+  streets: Map<string, GeocodeStreetMemoryEntry>;
+  zips: Map<string, GeocodeZipMemoryEntry>;
+};
+
+type GeocodeBatchStats = {
+  successful: number;
+  direct_found: number;
+  recovered_by_street_lookup: number;
+  recovered_by_street_reuse: number;
+  recovered_by_zip: number;
+  recovered_by_neighborhood_center: number;
+  recovered_by_fallback: number;
 };
 
 function prepareGeocodeInput(input: Record<string, unknown>): GeocodePreparedInput {
@@ -244,10 +300,137 @@ function extractStreetReference(input: GeocodePreparedInput) {
     .replace(/[,.-]+$/, '');
 }
 
+function normalizeZipCode(value: unknown) {
+  const digits = String(value || '').replace(/\D+/g, '');
+  return digits.length >= 8 ? digits.slice(0, 8) : digits;
+}
+
+function mapStrategyToCoordinateOrigin(strategyKey?: GeocodeStrategy['key']) {
+  switch (strategyKey) {
+    case 'address_full':
+    case 'clean_address':
+      return 'Endereço completo';
+    case 'name_neighborhood_city_state':
+    case 'name_city_state':
+    case 'name_neighborhood':
+      return 'Nome + Bairro';
+    case 'street_lookup':
+      return 'Rua localizada';
+    case 'reused_street':
+      return 'Rua reutilizada';
+    case 'reused_zip':
+      return 'CEP reutilizado';
+    case 'approx_neighborhood_center':
+      return 'Centro do bairro';
+    default:
+      return 'Coordenada sugerida';
+  }
+}
+
+function createEmptyGeocodeBatchStats(): GeocodeBatchStats {
+  return {
+    successful: 0,
+    direct_found: 0,
+    recovered_by_street_lookup: 0,
+    recovered_by_street_reuse: 0,
+    recovered_by_zip: 0,
+    recovered_by_neighborhood_center: 0,
+    recovered_by_fallback: 0,
+  };
+}
+
+function createEmptyGeocodeProcessingContext(): GeocodeProcessingContext {
+  return {
+    streets: new Map<string, GeocodeStreetMemoryEntry>(),
+    zips: new Map<string, GeocodeZipMemoryEntry>(),
+  };
+}
+
+function buildStreetCacheKey(street: unknown, neighborhood: unknown, city: unknown) {
+  const normalizedStreet = normalizeTextForMatch(street);
+  const normalizedNeighborhood = normalizeTextForMatch(neighborhood || TARGET_NEIGHBORHOOD);
+  const normalizedCity = normalizeTextForMatch(city || TARGET_CITY);
+  if (!normalizedStreet) return '';
+  return `${normalizedStreet}|${normalizedNeighborhood}|${normalizedCity}`;
+}
+
+function buildZipCacheKey(zipCode: unknown, neighborhood: unknown, city: unknown) {
+  const normalizedZip = normalizeZipCode(zipCode);
+  if (!normalizedZip) return '';
+  const normalizedNeighborhood = normalizeTextForMatch(neighborhood || TARGET_NEIGHBORHOOD);
+  const normalizedCity = normalizeTextForMatch(city || TARGET_CITY);
+  return `${normalizedZip}|${normalizedNeighborhood}|${normalizedCity}`;
+}
+
+function restoreGeocodeProcessingContext(input: unknown): GeocodeProcessingContext {
+  const context = createEmptyGeocodeProcessingContext();
+  const payload = input && typeof input === 'object' ? (input as Partial<SerializedGeocodeProcessingState>) : {};
+
+  for (const item of Array.isArray(payload.streets) ? payload.streets : []) {
+    const key = typeof item?.key === 'string' ? item.key : '';
+    const lat = Number(item?.lat);
+    const lng = Number(item?.lng);
+    if (!key || !Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+    context.streets.set(key, {
+      key,
+      street_name: sanitizeText(item.street_name, 120),
+      neighborhood: sanitizeText(item.neighborhood, 120),
+      city: sanitizeText(item.city, 120),
+      lat,
+      lng,
+      score: Number.isFinite(Number(item.score)) ? Number(item.score) : 0,
+      display_name: sanitizeText(item.display_name, 220),
+    });
+  }
+
+  for (const item of Array.isArray(payload.zips) ? payload.zips : []) {
+    const key = typeof item?.key === 'string' ? item.key : '';
+    const lat = Number(item?.lat);
+    const lng = Number(item?.lng);
+    if (!key || !Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+    context.zips.set(key, {
+      key,
+      zip_code: normalizeZipCode(item.zip_code),
+      neighborhood: sanitizeText(item.neighborhood, 120),
+      city: sanitizeText(item.city, 120),
+      lat,
+      lng,
+      score: Number.isFinite(Number(item.score)) ? Number(item.score) : 0,
+      display_name: sanitizeText(item.display_name, 220),
+    });
+  }
+
+  return context;
+}
+
+function serializeGeocodeProcessingContext(context: GeocodeProcessingContext): SerializedGeocodeProcessingState {
+  return {
+    streets: Array.from(context.streets.values()),
+    zips: Array.from(context.zips.values()),
+  };
+}
+
 function geocodeStatusRank(value: 'found' | 'dubious' | 'not_found') {
   if (value === 'found') return 3;
   if (value === 'dubious') return 2;
   return 1;
+}
+
+function getGeocodeResultScore(result: GeocodeAttemptResult | null) {
+  if (!result) return 0;
+  return result.candidate?.confidence_score ?? 0;
+}
+
+function pickBetterGeocodeResult(current: GeocodeAttemptResult | null, next: GeocodeAttemptResult | null) {
+  if (!next) return current;
+  if (!current) return next;
+
+  const currentRank = geocodeStatusRank(current.status === 'invalid' ? 'not_found' : current.status);
+  const nextRank = geocodeStatusRank(next.status === 'invalid' ? 'not_found' : next.status);
+  if (nextRank > currentRank) return next;
+  if (nextRank < currentRank) return current;
+
+  return getGeocodeResultScore(next) > getGeocodeResultScore(current) ? next : current;
 }
 
 function classifyGeocodeCandidate(
@@ -299,6 +482,11 @@ function classifyGeocodeCandidate(
   const hasCity = !normalizedCity || normalizedDisplay.includes(normalizedCity) || addressValues.some((value) => value.includes(normalizedCity));
   const hasState = !normalizedState || normalizedDisplay.includes(normalizedState) || addressValues.some((value) => value.includes(normalizedState));
   const importance = typeof candidate.importance === 'number' ? candidate.importance : Number(candidate.importance) || 0;
+  const resolvedStreet = sanitizeText(address.road || address.pedestrian || address.footway || address.residential, 120) || null;
+  const resolvedZipCode = normalizeZipCode(address.postcode) || null;
+  const resolvedNeighborhood =
+    sanitizeText(address.suburb || address.neighbourhood || address.quarter || address.city_district, 120) || null;
+  const resolvedCity = sanitizeText(address.city || address.town || address.village || address.municipality, 120) || null;
   const normalizedResultNeighborhood = [address.suburb, address.neighbourhood, address.quarter, address.city_district]
     .map((value) => normalizeTextForMatch(value))
     .join(' ');
@@ -346,6 +534,11 @@ function classifyGeocodeCandidate(
     distance_to_nova_terra_km: Number.isFinite(distanceToNovaTerraKm) ? Number(distanceToNovaTerraKm.toFixed(2)) : null,
     location_type: 'Exata',
     source: 'Nominatim',
+    coordinate_origin: mapStrategyToCoordinateOrigin(query.strategyKey),
+    resolved_street: resolvedStreet,
+    resolved_zip_code: resolvedZipCode,
+    resolved_neighborhood: resolvedNeighborhood,
+    resolved_city: resolvedCity,
   };
 }
 
@@ -435,7 +628,7 @@ function buildNeighborhoodCenterFallback(prepared: GeocodePreparedInput): Geocod
       display_name: 'Centro aproximado do bairro Nova Terra, São José de Ribamar - MA',
       returned_name: prepared.businessName || 'Nova Terra',
       importance: 0.2,
-      confidence_score: 0.5,
+      confidence_score: 0.4,
       confidence: 'dubious',
       strategy_key: 'approx_neighborhood_center',
       strategy_label: 'Centro do bairro',
@@ -443,11 +636,179 @@ function buildNeighborhoodCenterFallback(prepared: GeocodePreparedInput): Geocod
       distance_to_nova_terra_km: 0,
       location_type: 'Aproximada',
       source: 'Centro do bairro',
+      coordinate_origin: 'Centro do bairro',
+      resolved_street: null,
+      resolved_zip_code: normalizeZipCode(prepared.zipCode) || null,
+      resolved_neighborhood: prepared.neighborhood || 'Nova Terra',
+      resolved_city: prepared.city || 'São José de Ribamar',
     },
   };
 }
 
-async function geocodeAddressWithNominatim(input: Record<string, unknown>) {
+function rememberSuccessfulGeocodeContext(
+  context: GeocodeProcessingContext | null | undefined,
+  prepared: GeocodePreparedInput,
+  result: GeocodeAttemptResult | null
+) {
+  if (!context || !result?.candidate || result.status !== 'found') return;
+
+  const streetName = result.candidate.resolved_street || extractStreetReference(prepared);
+  const streetKey = buildStreetCacheKey(
+    streetName,
+    result.candidate.resolved_neighborhood || prepared.neighborhood,
+    result.candidate.resolved_city || prepared.city
+  );
+  if (streetName && streetKey) {
+    const nextStreetEntry: GeocodeStreetMemoryEntry = {
+      key: streetKey,
+      street_name: streetName,
+      neighborhood: result.candidate.resolved_neighborhood || prepared.neighborhood,
+      city: result.candidate.resolved_city || prepared.city,
+      lat: result.candidate.lat,
+      lng: result.candidate.lng,
+      score: result.candidate.confidence_score,
+      display_name: result.candidate.display_name,
+    };
+    const currentStreetEntry = context.streets.get(streetKey);
+    if (!currentStreetEntry || nextStreetEntry.score >= currentStreetEntry.score) {
+      context.streets.set(streetKey, nextStreetEntry);
+    }
+  }
+
+  const zipCode = result.candidate.resolved_zip_code || normalizeZipCode(prepared.zipCode);
+  const zipKey = buildZipCacheKey(
+    zipCode,
+    result.candidate.resolved_neighborhood || prepared.neighborhood,
+    result.candidate.resolved_city || prepared.city
+  );
+  if (zipCode && zipKey) {
+    const nextZipEntry: GeocodeZipMemoryEntry = {
+      key: zipKey,
+      zip_code: zipCode,
+      neighborhood: result.candidate.resolved_neighborhood || prepared.neighborhood,
+      city: result.candidate.resolved_city || prepared.city,
+      lat: result.candidate.lat,
+      lng: result.candidate.lng,
+      score: result.candidate.confidence_score,
+      display_name: result.candidate.display_name,
+    };
+    const currentZipEntry = context.zips.get(zipKey);
+    if (!currentZipEntry || nextZipEntry.score >= currentZipEntry.score) {
+      context.zips.set(zipKey, nextZipEntry);
+    }
+  }
+}
+
+function buildStreetReuseFallback(prepared: GeocodePreparedInput, streetReference: string, streetEntry: GeocodeStreetMemoryEntry): GeocodeAttemptResult {
+  const searchedAddress = buildSearchQuery([
+    streetReference,
+    prepared.neighborhood || streetEntry.neighborhood || 'Nova Terra',
+    prepared.city || streetEntry.city || 'São José de Ribamar',
+    prepared.state || 'MA',
+  ]);
+  const distanceToNovaTerraKm = haversineDistanceKm(streetEntry.lat, streetEntry.lng, NOVA_TERRA_CENTER_LAT, NOVA_TERRA_CENTER_LNG);
+
+  return {
+    status: 'dubious',
+    message: 'Coordenada aproximada reutilizada de outro negócio já localizado na mesma rua.',
+    address: searchedAddress,
+    strategy_key: 'reused_street',
+    strategy_label: 'Coordenada reutilizada da rua',
+    candidate: {
+      lat: streetEntry.lat,
+      lng: streetEntry.lng,
+      display_name: streetEntry.display_name || `Rua ${streetEntry.street_name}, ${streetEntry.neighborhood}, ${streetEntry.city}`,
+      returned_name: streetEntry.street_name,
+      importance: 0.15,
+      confidence_score: 0.65,
+      confidence: 'dubious',
+      strategy_key: 'reused_street',
+      strategy_label: 'Coordenada reutilizada da rua',
+      searched_address: searchedAddress,
+      distance_to_nova_terra_km: Number.isFinite(distanceToNovaTerraKm) ? Number(distanceToNovaTerraKm.toFixed(2)) : null,
+      location_type: 'Aproximada',
+      source: 'Rua',
+      coordinate_origin: 'Rua reutilizada',
+      resolved_street: streetEntry.street_name,
+      resolved_zip_code: normalizeZipCode(prepared.zipCode) || null,
+      resolved_neighborhood: prepared.neighborhood || streetEntry.neighborhood,
+      resolved_city: prepared.city || streetEntry.city,
+    },
+  };
+}
+
+function buildZipReuseFallback(prepared: GeocodePreparedInput, zipEntry: GeocodeZipMemoryEntry): GeocodeAttemptResult {
+  const searchedAddress = buildSearchQuery([
+    prepared.address || prepared.cleanedAddress || prepared.businessName || 'Sem endereço detalhado',
+    prepared.neighborhood || zipEntry.neighborhood || 'Nova Terra',
+    prepared.city || zipEntry.city || 'São José de Ribamar',
+    prepared.state || 'MA',
+    zipEntry.zip_code,
+  ]);
+  const distanceToNovaTerraKm = haversineDistanceKm(zipEntry.lat, zipEntry.lng, NOVA_TERRA_CENTER_LAT, NOVA_TERRA_CENTER_LNG);
+
+  return {
+    status: 'dubious',
+    message: 'Coordenada aproximada reutilizada a partir de outro negócio com o mesmo CEP.',
+    address: searchedAddress,
+    strategy_key: 'reused_zip',
+    strategy_label: 'Coordenada reutilizada por CEP',
+    candidate: {
+      lat: zipEntry.lat,
+      lng: zipEntry.lng,
+      display_name: zipEntry.display_name || `CEP ${zipEntry.zip_code}, ${zipEntry.neighborhood}, ${zipEntry.city}`,
+      returned_name: prepared.businessName || zipEntry.zip_code,
+      importance: 0.12,
+      confidence_score: 0.6,
+      confidence: 'dubious',
+      strategy_key: 'reused_zip',
+      strategy_label: 'Coordenada reutilizada por CEP',
+      searched_address: searchedAddress,
+      distance_to_nova_terra_km: Number.isFinite(distanceToNovaTerraKm) ? Number(distanceToNovaTerraKm.toFixed(2)) : null,
+      location_type: 'Aproximada',
+      source: 'CEP',
+      coordinate_origin: 'CEP reutilizado',
+      resolved_street: extractStreetReference(prepared) || null,
+      resolved_zip_code: zipEntry.zip_code,
+      resolved_neighborhood: prepared.neighborhood || zipEntry.neighborhood,
+      resolved_city: prepared.city || zipEntry.city,
+    },
+  };
+}
+
+function updateGeocodeBatchStats(stats: GeocodeBatchStats, result: GeocodeAttemptResult) {
+  if (result.status !== 'found' && result.status !== 'dubious') return;
+
+  const strategyKey = result.candidate?.strategy_key ?? result.strategy_key;
+  stats.successful += 1;
+
+  if (result.status === 'found') {
+    stats.direct_found += 1;
+    return;
+  }
+
+  if (strategyKey === 'street_lookup') {
+    stats.recovered_by_street_lookup += 1;
+    stats.recovered_by_fallback += 1;
+    return;
+  }
+  if (strategyKey === 'reused_street') {
+    stats.recovered_by_street_reuse += 1;
+    stats.recovered_by_fallback += 1;
+    return;
+  }
+  if (strategyKey === 'reused_zip') {
+    stats.recovered_by_zip += 1;
+    stats.recovered_by_fallback += 1;
+    return;
+  }
+  if (strategyKey === 'approx_neighborhood_center') {
+    stats.recovered_by_neighborhood_center += 1;
+    stats.recovered_by_fallback += 1;
+  }
+}
+
+async function geocodeAddressWithNominatim(input: Record<string, unknown>, context?: GeocodeProcessingContext | null) {
   const prepared = prepareGeocodeInput(input);
   const strategies = buildGeocodeStrategies();
   const executedSearchTerms = new Set<string>();
@@ -474,19 +835,10 @@ async function geocodeAddressWithNominatim(input: Record<string, unknown>) {
       useAddress: strategy.key === 'address_full' || strategy.key === 'clean_address',
     });
 
-    if (!bestResult) {
-      bestResult = result;
-    } else {
-      const currentRank = geocodeStatusRank(result.status === 'invalid' ? 'not_found' : result.status);
-      const bestRank = geocodeStatusRank(bestResult.status === 'invalid' ? 'not_found' : bestResult.status);
-      const currentScore = result.candidate?.confidence_score ?? 0;
-      const bestScore = bestResult.candidate?.confidence_score ?? 0;
-      if (currentRank > bestRank || (currentRank === bestRank && currentScore > bestScore)) {
-        bestResult = result;
-      }
-    }
+    bestResult = pickBetterGeocodeResult(bestResult, result);
 
     if (result.status === 'found') {
+      rememberSuccessfulGeocodeContext(context, prepared, result);
       return result;
     }
   }
@@ -499,36 +851,52 @@ async function geocodeAddressWithNominatim(input: Record<string, unknown>) {
 
     const approxStreetResult = await searchGeocodeStrategy({
       ...prepared,
-      strategyKey: 'approx_street',
-      strategyLabel: 'Rua dentro de Nova Terra',
+      strategyKey: 'street_lookup',
+      strategyLabel: 'Rua localizada',
       searchTerm: buildSearchQuery([streetReference, prepared.neighborhood || 'Nova Terra', prepared.city || 'São José de Ribamar', prepared.state || 'MA']),
       useBusinessName: false,
       useAddress: true,
     });
 
     if (approxStreetResult.candidate) {
-      const forcedScore = Math.max(approxStreetResult.candidate.confidence_score, 0.5);
-      return {
+      const forcedScore = Math.min(Math.max(approxStreetResult.candidate.confidence_score, 0.7), 0.85);
+      bestResult = pickBetterGeocodeResult(bestResult, {
         ...approxStreetResult,
         status: 'dubious',
-        message: 'Localização aproximada usando o centro estimado da rua no bairro.',
+        message: 'Localização aproximada a partir da rua localizada dentro de Nova Terra.',
         candidate: {
           ...approxStreetResult.candidate,
           confidence: 'dubious',
           confidence_score: forcedScore,
-          strategy_key: 'approx_street',
-          strategy_label: 'Rua dentro de Nova Terra',
+          strategy_key: 'street_lookup',
+          strategy_label: 'Rua localizada',
           searched_address: approxStreetResult.address,
           location_type: 'Aproximada',
           source: 'Rua',
+          coordinate_origin: 'Rua localizada',
         },
-      };
+      });
+    }
+  }
+
+  if (context && streetReference) {
+    const streetCacheKey = buildStreetCacheKey(streetReference, prepared.neighborhood, prepared.city);
+    const streetEntry = streetCacheKey ? context.streets.get(streetCacheKey) || null : null;
+    if (streetEntry) {
+      bestResult = pickBetterGeocodeResult(bestResult, buildStreetReuseFallback(prepared, streetReference, streetEntry));
+    }
+  }
+
+  if (context) {
+    const zipCacheKey = buildZipCacheKey(prepared.zipCode, prepared.neighborhood, prepared.city);
+    const zipEntry = zipCacheKey ? context.zips.get(zipCacheKey) || null : null;
+    if (zipEntry) {
+      bestResult = pickBetterGeocodeResult(bestResult, buildZipReuseFallback(prepared, zipEntry));
     }
   }
 
   if (bestResult && bestResult.candidate) {
-    if (bestResult.status === 'dubious') return bestResult;
-    return buildNeighborhoodCenterFallback(prepared);
+    return bestResult;
   }
 
   if (prepared.businessName || prepared.address || prepared.cleanedAddress || prepared.neighborhood || prepared.city || prepared.state) {
@@ -1302,6 +1670,7 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
 
         const body = await readJson(req);
         const mode = body?.mode === 'apply' ? 'apply' : 'dry-run';
+        const processingContext = restoreGeocodeProcessingContext(body?.processing_state);
         const limitRaw = typeof body?.limit === 'number' ? body.limit : typeof body?.limit === 'string' ? Number.parseInt(body.limit, 10) : GEOCODE_BATCH_DEFAULT_LIMIT;
         const safeLimit =
           Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, GEOCODE_BATCH_MAX_LIMIT) : GEOCODE_BATCH_DEFAULT_LIMIT;
@@ -1328,6 +1697,8 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
           not_found: [] as Array<Record<string, unknown>>,
           dubious: [] as Array<Record<string, unknown>>,
           updated: [] as Array<Record<string, unknown>>,
+          stats: createEmptyGeocodeBatchStats(),
+          processing_state: serializeGeocodeProcessingContext(processingContext),
           nextOffset: null as number | null,
           hasMore: false,
         };
@@ -1338,7 +1709,8 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
           if (hasCoords) continue;
 
           processed += 1;
-          const result = await geocodeAddressWithNominatim(business);
+          const result = await geocodeAddressWithNominatim(business, processingContext);
+          updateGeocodeBatchStats(report.stats, result);
           const baseEntry = {
             id: business.id,
             name: business.name,
@@ -1354,6 +1726,7 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
             confidence_score: result.candidate?.confidence_score ?? null,
             location_type: result.candidate?.location_type ?? null,
             source: result.candidate?.source ?? null,
+            coordinate_origin: result.candidate?.coordinate_origin ?? mapStrategyToCoordinateOrigin(result.strategy_key),
             distance_to_nova_terra_km: result.candidate?.distance_to_nova_terra_km ?? null,
             message: result.message,
           };
@@ -1390,6 +1763,7 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
         const nextOffset = safeOffset + Math.max(advanceBy, 0);
         report.processed = processed;
         report.totalRemaining = Math.max(totalCandidates - (safeOffset + processed), 0);
+        report.processing_state = serializeGeocodeProcessingContext(processingContext);
         report.nextOffset = report.totalRemaining > 0 ? nextOffset : null;
         report.hasMore = report.totalRemaining > 0;
 

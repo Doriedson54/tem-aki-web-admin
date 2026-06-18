@@ -24,9 +24,47 @@ type GeocodeBatchEntry = {
     confidence?: "found" | "dubious" | "not_found" | null;
     confidence_score?: number | null;
     location_type?: "Exata" | "Aproximada" | null;
-    source?: "Nominatim" | "Rua" | "Centro do bairro" | null;
+    source?: "Nominatim" | "Rua" | "CEP" | "Centro do bairro" | null;
+    coordinate_origin?: string | null;
     distance_to_nova_terra_km?: number | null;
     message?: string | null;
+};
+
+type GeocodeBatchStats = {
+    successful: number;
+    direct_found: number;
+    recovered_by_street_lookup: number;
+    recovered_by_street_reuse: number;
+    recovered_by_zip: number;
+    recovered_by_neighborhood_center: number;
+    recovered_by_fallback: number;
+};
+
+type GeocodeMemoryStreetEntry = {
+    key: string;
+    street_name: string;
+    neighborhood: string;
+    city: string;
+    lat: number;
+    lng: number;
+    score: number;
+    display_name: string;
+};
+
+type GeocodeMemoryZipEntry = {
+    key: string;
+    zip_code: string;
+    neighborhood: string;
+    city: string;
+    lat: number;
+    lng: number;
+    score: number;
+    display_name: string;
+};
+
+type GeocodeProcessingState = {
+    streets: GeocodeMemoryStreetEntry[];
+    zips: GeocodeMemoryZipEntry[];
 };
 
 type GeocodeBatchReport = {
@@ -37,6 +75,7 @@ type GeocodeBatchReport = {
     not_found: GeocodeBatchEntry[];
     dubious: GeocodeBatchEntry[];
     updated: Array<{ id: string; name: string; latitude: number; longitude: number }>;
+    stats: GeocodeBatchStats;
 };
 
 type GeocodeBatchResponse = {
@@ -47,6 +86,8 @@ type GeocodeBatchResponse = {
     not_found: GeocodeBatchEntry[];
     dubious: GeocodeBatchEntry[];
     updated: Array<{ id: string; name: string; latitude: number; longitude: number }>;
+    stats: GeocodeBatchStats;
+    processing_state?: GeocodeProcessingState;
     nextOffset: number | null;
     hasMore: boolean;
 };
@@ -58,6 +99,19 @@ type GeocodeProgressState = {
 };
 
 const GEOCODE_BATCH_SIZE = 3;
+const EMPTY_GEOCODE_STATS: GeocodeBatchStats = {
+    successful: 0,
+    direct_found: 0,
+    recovered_by_street_lookup: 0,
+    recovered_by_street_reuse: 0,
+    recovered_by_zip: 0,
+    recovered_by_neighborhood_center: 0,
+    recovered_by_fallback: 0,
+};
+const EMPTY_GEOCODE_PROCESSING_STATE: GeocodeProcessingState = {
+    streets: [],
+    zips: [],
+};
 
 function mergeUniqueById<T extends { id: string }>(current: T[], next: T[]) {
     const map = new Map<string, T>();
@@ -97,6 +151,19 @@ function formatDistanceFromNovaTerra(distanceKm?: number | null) {
     return `${distanceKm.toFixed(2).replace(".", ",")} km`;
 }
 
+function mergeGeocodeStats(current: GeocodeBatchStats, next?: GeocodeBatchStats | null): GeocodeBatchStats {
+    if (!next) return current;
+    return {
+        successful: current.successful + (next.successful || 0),
+        direct_found: current.direct_found + (next.direct_found || 0),
+        recovered_by_street_lookup: current.recovered_by_street_lookup + (next.recovered_by_street_lookup || 0),
+        recovered_by_street_reuse: current.recovered_by_street_reuse + (next.recovered_by_street_reuse || 0),
+        recovered_by_zip: current.recovered_by_zip + (next.recovered_by_zip || 0),
+        recovered_by_neighborhood_center: current.recovered_by_neighborhood_center + (next.recovered_by_neighborhood_center || 0),
+        recovered_by_fallback: current.recovered_by_fallback + (next.recovered_by_fallback || 0),
+    };
+}
+
 export function BusinessList() {
     const [loading, setLoading] = useState(true);
     const [items, setItems] = useState<Business[]>([]);
@@ -114,6 +181,22 @@ export function BusinessList() {
         return (successful / geocodeReport.processed) * 100;
     }, [geocodeReport]);
     const approvedDubiousIds = useMemo(() => new Set(approvedDubiousItems.map((item) => item.id)), [approvedDubiousItems]);
+    const geocodeStreetRecoveryCount = useMemo(
+        () => (geocodeReport?.stats.recovered_by_street_lookup || 0) + (geocodeReport?.stats.recovered_by_street_reuse || 0),
+        [geocodeReport]
+    );
+    const geocodeDirectSuccessRate = useMemo(() => {
+        if (!geocodeReport?.processed) return 0;
+        return ((geocodeReport.stats.direct_found || 0) / geocodeReport.processed) * 100;
+    }, [geocodeReport]);
+    const geocodeStreetRecoveryRate = useMemo(() => {
+        if (!geocodeReport?.processed) return 0;
+        return (geocodeStreetRecoveryCount / geocodeReport.processed) * 100;
+    }, [geocodeReport, geocodeStreetRecoveryCount]);
+    const geocodeZipRecoveryRate = useMemo(() => {
+        if (!geocodeReport?.processed) return 0;
+        return ((geocodeReport.stats.recovered_by_zip || 0) / geocodeReport.processed) * 100;
+    }, [geocodeReport]);
 
     const filtered = useMemo(() => {
         const q = query.trim().toLowerCase();
@@ -158,11 +241,13 @@ export function BusinessList() {
             not_found: [],
             dubious: [],
             updated: [],
+            stats: { ...EMPTY_GEOCODE_STATS },
         };
         setGeocodeReport(aggregate);
 
         let offset = 0;
         let completed = false;
+        let processingState: GeocodeProcessingState = { ...EMPTY_GEOCODE_PROCESSING_STATE, streets: [], zips: [] };
 
         try {
             while (true) {
@@ -175,6 +260,7 @@ export function BusinessList() {
                     mode,
                     limit: GEOCODE_BATCH_SIZE,
                     offset,
+                    processing_state: processingState,
                 });
 
                 if (!resp.data.success || !resp.data.data) {
@@ -183,6 +269,7 @@ export function BusinessList() {
                 }
 
                 const batch = resp.data.data;
+                processingState = batch.processing_state || processingState;
                 const total = aggregate.processed + batch.processed + batch.totalRemaining;
 
                 aggregate = {
@@ -193,6 +280,7 @@ export function BusinessList() {
                     dubious: mergeUniqueById(aggregate.dubious, batch.dubious),
                     not_found: mergeUniqueById(aggregate.not_found, batch.not_found),
                     updated: mergeUniqueById(aggregate.updated, batch.updated),
+                    stats: mergeGeocodeStats(aggregate.stats, batch.stats),
                 };
 
                 setGeocodeReport(aggregate);
@@ -316,7 +404,7 @@ export function BusinessList() {
                             </>
                         )}
                         {item.message && <div className="mt-space-2 text-text-xs text-text-secondary">{item.message}</div>}
-                        <div className="mt-space-2 grid gap-space-2 text-text-xs text-text-secondary md:grid-cols-3">
+                        <div className="mt-space-2 grid gap-space-2 text-text-xs text-text-secondary md:grid-cols-4">
                             <div>
                                 <div className="font-semibold uppercase tracking-wide text-text-muted">Tipo</div>
                                 <div>{item.location_type || "-"}</div>
@@ -324,6 +412,10 @@ export function BusinessList() {
                             <div>
                                 <div className="font-semibold uppercase tracking-wide text-text-muted">Fonte</div>
                                 <div>{item.source || "-"}</div>
+                            </div>
+                            <div>
+                                <div className="font-semibold uppercase tracking-wide text-text-muted">Origem</div>
+                                <div>{item.coordinate_origin || item.strategy_label || "-"}</div>
                             </div>
                             <div>
                                 <div className="font-semibold uppercase tracking-wide text-text-muted">Distância Nova Terra</div>
@@ -416,7 +508,7 @@ export function BusinessList() {
 
                 {geocodeReport && (
                     <div className="mt-space-5 space-y-space-5">
-                        <div className="grid grid-cols-2 gap-space-3 md:grid-cols-6">
+                        <div className="grid grid-cols-2 gap-space-3 md:grid-cols-4 xl:grid-cols-8">
                             <div className="rounded-radius-lg border border-border-subtle bg-surface-subtle p-space-3">
                                 <div className="text-text-xs text-text-muted font-semibold uppercase tracking-wide">Modo</div>
                                 <div className="mt-space-1 text-text-base font-bold text-text-primary">{geocodeReport.mode}</div>
@@ -442,10 +534,34 @@ export function BusinessList() {
                                 <div className="mt-space-1 text-text-base font-bold text-status-error">{geocodeReport.not_found.length}</div>
                             </div>
                             <div className="rounded-radius-lg border border-border-subtle bg-surface-subtle p-space-3">
-                                <div className="text-text-xs text-text-muted font-semibold uppercase tracking-wide">Sucesso</div>
+                                <div className="text-text-xs text-text-muted font-semibold uppercase tracking-wide">Sucesso real</div>
                                 <div className="mt-space-1 text-text-base font-bold text-action-primary">
                                     {geocodeSuccessRate.toFixed(1).replace(".", ",")}%
                                 </div>
+                            </div>
+                            <div className="rounded-radius-lg border border-border-subtle bg-surface-subtle p-space-3">
+                                <div className="text-text-xs text-text-muted font-semibold uppercase tracking-wide">Sucesso direto</div>
+                                <div className="mt-space-1 text-text-base font-bold text-status-success">
+                                    {geocodeDirectSuccessRate.toFixed(1).replace(".", ",")}%
+                                </div>
+                            </div>
+                            <div className="rounded-radius-lg border border-border-subtle bg-surface-subtle p-space-3">
+                                <div className="text-text-xs text-text-muted font-semibold uppercase tracking-wide">Recuperados rua</div>
+                                <div className="mt-space-1 text-text-base font-bold text-status-warning">{geocodeStreetRecoveryCount}</div>
+                                <div className="mt-space-1 text-text-xs text-text-secondary">
+                                    {geocodeStreetRecoveryRate.toFixed(1).replace(".", ",")}%
+                                </div>
+                            </div>
+                            <div className="rounded-radius-lg border border-border-subtle bg-surface-subtle p-space-3">
+                                <div className="text-text-xs text-text-muted font-semibold uppercase tracking-wide">Recuperados CEP</div>
+                                <div className="mt-space-1 text-text-base font-bold text-status-warning">{geocodeReport.stats.recovered_by_zip}</div>
+                                <div className="mt-space-1 text-text-xs text-text-secondary">
+                                    {geocodeZipRecoveryRate.toFixed(1).replace(".", ",")}%
+                                </div>
+                            </div>
+                            <div className="rounded-radius-lg border border-border-subtle bg-surface-subtle p-space-3">
+                                <div className="text-text-xs text-text-muted font-semibold uppercase tracking-wide">Recuperados fallback</div>
+                                <div className="mt-space-1 text-text-base font-bold text-status-warning">{geocodeReport.stats.recovered_by_fallback}</div>
                             </div>
                         </div>
 
@@ -593,10 +709,18 @@ export function BusinessList() {
                                             <div className="mt-space-1">{selectedGeocodeItem.source || "-"}</div>
                                         </div>
                                         <div>
+                                            <div className="text-text-xs font-semibold uppercase tracking-wide text-text-muted">Origem</div>
+                                            <div className="mt-space-1">{selectedGeocodeItem.coordinate_origin || selectedGeocodeItem.strategy_label || "-"}</div>
+                                        </div>
+                                        <div>
                                             <div className="text-text-xs font-semibold uppercase tracking-wide text-text-muted">Distância Nova Terra</div>
                                             <div className="mt-space-1">{formatDistanceFromNovaTerra(selectedGeocodeItem.distance_to_nova_terra_km)}</div>
                                         </div>
                                     </div>
+                                </div>
+                                <div className="rounded-radius-lg border border-border-subtle bg-surface-subtle p-space-3">
+                                    <div className="text-text-xs font-semibold uppercase tracking-wide text-text-muted">Estratégia utilizada</div>
+                                    <div className="mt-space-1 text-text-sm text-text-secondary">{selectedGeocodeItem.strategy_label || "-"}</div>
                                 </div>
                                 {selectedGeocodeItem.message && (
                                     <div className="rounded-radius-lg border border-status-warning/20 bg-status-warning/10 p-space-3 text-text-sm text-text-secondary">
