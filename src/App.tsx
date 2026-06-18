@@ -137,11 +137,15 @@ function UserAppLayout() {
     }
   };
 
-  const primaryLinks = [
+  const menuLinks = [
     { label: "Início", to: "/app", icon: HomeIcon },
     { label: "Categorias", to: "/app#categorias", icon: Grid2x2 },
     { label: "Favoritos", to: "/app/lista?favorites=1", icon: Heart },
     { label: "Mapa", to: "/app/mapa", icon: MapPinned },
+    { label: "Sobre o Aplicativo", to: "/about", icon: Info },
+    { label: "Política de Privacidade", to: "/politica-de-privacidade", icon: Info },
+    { label: "Termos de Uso", to: "/terms-of-use", icon: Info },
+    { label: "Contato do Desenvolvedor", to: "/developer-contacts", icon: Info },
   ];
 
   return (
@@ -193,7 +197,7 @@ function UserAppLayout() {
             </div>
 
             <nav className="mt-space-6 space-y-space-2">
-              {primaryLinks.map((item) => {
+              {menuLinks.map((item) => {
                 const Icon = item.icon;
                 return (
                   <Link
@@ -207,22 +211,6 @@ function UserAppLayout() {
                 );
               })}
             </nav>
-
-            <div className="mt-space-6 border-t border-border-subtle pt-space-6">
-              <div className="mb-space-3 text-text-sm font-bold uppercase tracking-wide text-action-primary">Informações Gerais</div>
-              <div className="space-y-space-2">
-                {appMeta.infoLinks.map((item) => (
-                  <Link
-                    key={item.to}
-                    to={item.to}
-                    className="flex items-center gap-space-3 rounded-radius-xl px-space-3 py-space-3 text-text-sm font-medium text-text-primary hover:bg-surface-subtle"
-                  >
-                    <Info className="h-4 w-4 text-text-muted" />
-                    <span>{item.label}</span>
-                  </Link>
-                ))}
-              </div>
-            </div>
 
             <div className="mt-space-6 border-t border-border-subtle pt-space-6">
               <div className="mb-space-3 text-text-sm font-bold uppercase tracking-wide text-action-primary">Contatos do Desenvolvedor</div>

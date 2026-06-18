@@ -1,23 +1,39 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ChevronRight, Search, Sparkles, Star } from "lucide-react";
+import {
+  ArrowRight,
+  BriefcaseBusiness,
+  Building2,
+  Compass,
+  ChevronRight,
+  GraduationCap,
+  Grid2x2,
+  Landmark,
+  MapPin,
+  MessageSquareText,
+  Search,
+  Star,
+  Store,
+  Wrench,
+} from "lucide-react";
 import api from "../services/api";
 import type { ApiResponse, Business, Category, Subcategory } from "../types";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { Input } from "../components/ui/Input";
 import heroBg from "../assets/hero-bg.jpg";
-import logo from "../assets/logo-transparent.png";
+import { appMeta } from "../config/appMeta";
 
-const categoryColorClasses = [
-  "from-action-primary/15 to-action-primary/5",
-  "from-status-success/15 to-status-success/5",
-  "from-status-warning/15 to-status-warning/5",
-  "from-action-strong/15 to-action-strong/5",
-  "from-indigo-500/15 to-indigo-500/5",
-];
+type PublicStatsPayload = {
+  totals: {
+    businesses: number;
+    categories: number;
+    subcategories: number;
+    approved_reviews: number;
+  };
+};
 
-const allowedCategoryNames = [
+const FEATURED_CATEGORY_ORDER = [
   "Comércio",
   "Serviços",
   "Escolar",
@@ -26,14 +42,79 @@ const allowedCategoryNames = [
   "Instituições Religiosas",
 ];
 
+const POPULAR_SUBCATEGORY_NAMES = [
+  "Farmácia",
+  "Mercado",
+  "Lanchonete",
+  "Barbearia",
+  "Oficina",
+  "Igreja",
+  "Escola",
+  "Material de Construção",
+];
+
+function normalizeText(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+function getCategoryPresentation(category: Category, subcategoryCount: number) {
+  const normalizedName = normalizeText(category.name);
+
+  if (normalizedName.includes("comerc")) {
+    return {
+      icon: Store,
+      description: subcategoryCount > 0 ? `${subcategoryCount} subcategorias reais para compras locais.` : "Lojas, mercados e vendas do bairro.",
+      iconClassName: "text-[#B86A1A]",
+      backgroundClassName: "from-[#FFF4E7] to-[#FFF9F3]",
+    };
+  }
+
+  if (normalizedName.includes("serv")) {
+    return {
+      icon: Wrench,
+      description: subcategoryCount > 0 ? `${subcategoryCount} subcategorias com atendimentos e serviços.` : "Reparos, manutenção e atendimento local.",
+      iconClassName: "text-sky-600",
+      backgroundClassName: "from-sky-50 to-white",
+    };
+  }
+
+  if (normalizedName.includes("escolar") || normalizedName.includes("educ")) {
+    return {
+      icon: GraduationCap,
+      description: subcategoryCount > 0 ? `${subcategoryCount} frentes ligadas à educação e apoio escolar.` : "Educação e apoio escolar do Nova Terra.",
+      iconClassName: "text-violet-600",
+      backgroundClassName: "from-violet-50 to-white",
+    };
+  }
+
+  if (normalizedName.includes("institu")) {
+    return {
+      icon: Landmark,
+      description: subcategoryCount > 0 ? `${subcategoryCount} subcategorias com instituições e serviços essenciais.` : "Instituições e pontos importantes da comunidade.",
+      iconClassName: "text-emerald-600",
+      backgroundClassName: "from-emerald-50 to-white",
+    };
+  }
+
+  return {
+    icon: BriefcaseBusiness,
+    description: subcategoryCount > 0 ? `${subcategoryCount} subcategorias disponíveis no catálogo.` : "Dados reais carregados do sistema.",
+    iconClassName: "text-text-primary",
+    backgroundClassName: "from-surface-subtle to-white",
+  };
+}
+
 export function AppHome() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [allSubcategories, setAllSubcategories] = useState<Subcategory[]>([]);
   const [topBusinesses, setTopBusinesses] = useState<Business[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
-  const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
-  const [loadingSubcategories, setLoadingSubcategories] = useState(false);
+  const [stats, setStats] = useState<PublicStatsPayload["totals"] | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
@@ -42,27 +123,35 @@ export function AppHome() {
     (async () => {
       setLoading(true);
       try {
-        const [categoriesResponse, businessesResponse] = await Promise.all([
+        const [categoriesResponse, businessesResponse, subcategoriesResponse, statsResponse] = await Promise.all([
           api.get<ApiResponse<Category[]>>("/categories"),
-          api.get<ApiResponse<Business[]>>("/businesses", { params: { limit: 6 } }),
+          api.get<ApiResponse<Business[]>>("/businesses", { params: { limit: 8 } }),
+          api.get<ApiResponse<Subcategory[]>>("/subcategories"),
+          api.get<ApiResponse<PublicStatsPayload>>("/dashboard/public"),
         ]);
 
         const categoriesData = Array.isArray(categoriesResponse.data?.data) ? categoriesResponse.data.data : [];
         const orderedCategories = (() => {
           const byName = new Map(categoriesData.map((category) => [category.name, category]));
-          const preferred = allowedCategoryNames.map((name) => byName.get(name)).filter((item): item is Category => Boolean(item));
-          return preferred.length ? preferred : categoriesData;
+          const preferred = FEATURED_CATEGORY_ORDER.map((name) => byName.get(name)).filter((item): item is Category => Boolean(item));
+          const remaining = categoriesData.filter((category) => !preferred.some((item) => item.id === category.id));
+          return [...preferred, ...remaining];
         })();
         const businessesData = Array.isArray(businessesResponse.data?.data) ? businessesResponse.data.data : [];
+        const subcategoriesData = Array.isArray(subcategoriesResponse.data?.data) ? subcategoriesResponse.data.data : [];
 
         if (!cancelled) {
           setCategories(orderedCategories);
-          setTopBusinesses(businessesData.slice(0, 4));
+          setTopBusinesses(businessesData.slice(0, 6));
+          setAllSubcategories(subcategoriesData);
+          setStats(statsResponse.data?.data?.totals ?? null);
         }
       } catch {
         if (!cancelled) {
           setCategories([]);
+          setAllSubcategories([]);
           setTopBusinesses([]);
+          setStats(null);
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -74,33 +163,7 @@ export function AppHome() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!selectedCategory?.id) {
-      setSubcategories([]);
-      return;
-    }
-
-    let cancelled = false;
-
-    (async () => {
-      setLoadingSubcategories(true);
-      try {
-        const response = await api.get<ApiResponse<Subcategory[]>>(`/subcategories?category=${encodeURIComponent(selectedCategory.id)}`);
-        const items = Array.isArray(response.data?.data) ? response.data.data : [];
-        if (!cancelled) setSubcategories(items);
-      } catch {
-        if (!cancelled) setSubcategories([]);
-      } finally {
-        if (!cancelled) setLoadingSubcategories(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedCategory?.id]);
-
-  const displayedCategories = useMemo(() => categories.slice(0, 5), [categories]);
+  const displayedCategories = useMemo(() => categories.slice(0, 4), [categories]);
 
   const searchExamples = useMemo(() => {
     const values = topBusinesses
@@ -109,8 +172,32 @@ export function AppHome() {
     return Array.from(new Set(values)).slice(0, 3);
   }, [topBusinesses]);
 
-  const searchHelperText = searchExamples.length ? `Ex.: ${searchExamples.join(", ").toLowerCase()}` : "Ex.: farmácia, salão, eletricista";
-  const canShowHighlights = false;
+  const popularSubcategories = useMemo(() => {
+    const normalizedTargets = new Set(POPULAR_SUBCATEGORY_NAMES.map((name) => normalizeText(name)));
+    return allSubcategories.filter((subcategory) => normalizedTargets.has(normalizeText(subcategory.name)));
+  }, [allSubcategories]);
+
+  const subcategoryCountByCategory = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const subcategory of allSubcategories) {
+      const key = subcategory.category_id;
+      counts.set(key, (counts.get(key) || 0) + 1);
+    }
+    return counts;
+  }, [allSubcategories]);
+
+  const searchHelperText =
+    searchExamples.length
+      ? `Ex.: ${searchExamples.join(", ").toLowerCase()}`
+      : "Ex.: farmácia, escola, pedreiro, oficina, salão...";
+  const heroMetrics = useMemo(
+    () => [
+      { label: "Negócios", value: stats?.businesses ?? topBusinesses.length },
+      { label: "Avaliações", value: stats?.approved_reviews ?? 0 },
+      { label: "Categorias", value: stats?.categories ?? categories.length },
+    ],
+    [categories.length, stats, topBusinesses.length]
+  );
 
   const handleSearch = () => {
     const params = new URLSearchParams();
@@ -119,8 +206,8 @@ export function AppHome() {
   };
 
   return (
-    <div className="min-h-screen bg-surface-page pb-24">
-      <section className="relative min-h-[78vh] overflow-hidden">
+    <div className="min-h-screen bg-[#F7F7F5] pb-24">
+      <section className="relative overflow-hidden">
         <div
           className="absolute inset-0"
           style={{
@@ -129,43 +216,69 @@ export function AppHome() {
             backgroundPosition: "center",
           }}
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/75 via-black/65 to-surface-page" />
+        <div className="absolute inset-0 bg-black/50" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(184,106,26,0.22),_transparent_48%)]" />
 
-        <div className="relative container mx-auto flex min-h-[78vh] flex-col justify-end px-space-4 pb-space-8 pt-24">
-          <div className="max-w-xl">
-            <img src={logo} alt="Tem Aki no Bairro" className="mb-space-5 h-20 w-auto max-w-[320px] object-contain" />
-            <div className="mb-space-4 inline-flex items-center rounded-radius-full border border-white/15 bg-white/10 px-space-3 py-2 text-text-xs font-semibold uppercase tracking-widest text-white/85 backdrop-blur">
-              Nova Terra
+        <div className="relative container mx-auto px-space-4 pb-space-12 pt-28">
+          <div className="mx-auto flex min-h-[72vh] max-w-5xl flex-col items-center justify-center text-center">
+            <div className="mb-space-5 inline-flex items-center gap-space-2 rounded-radius-full border border-white/20 bg-white/10 px-space-4 py-space-2 text-text-sm font-semibold text-white backdrop-blur">
+              <MapPin className="h-4 w-4" />
+              <span>Nova Terra</span>
+              <span className="text-white/70">São José de Ribamar - MA</span>
             </div>
-            <h1 className="text-text-4xl font-bold leading-tight text-white md:text-text-5xl">
-              Tudo o que você procura está aqui
+            <h1 className="max-w-4xl text-text-4xl font-bold leading-[1.05] text-white md:text-[3.65rem]">
+              Os negócios do Bairro na sua mão
             </h1>
-            <p className="mt-space-4 max-w-lg text-text-base leading-relaxed text-white/85 md:text-text-lg">
-              Comércios, serviços, profissionais e instituições do Nova Terra em um só lugar.
+            <p className="mt-space-5 max-w-2xl text-text-base leading-relaxed text-white/90 md:text-[1.15rem]">
+              Comércios, serviços, profissionais e instituições do Nova Terra ao seu alcance.
             </p>
+            <div className="mt-space-6 flex flex-wrap items-center justify-center gap-space-3">
+              {heroMetrics.map((metric) => (
+                <div
+                  key={metric.label}
+                  className="rounded-full border border-white/15 bg-white/10 px-space-4 py-space-3 backdrop-blur"
+                >
+                  <div className="text-text-xs font-semibold uppercase tracking-[0.18em] text-white/65">{metric.label}</div>
+                  <div className="mt-space-1 text-text-lg font-bold text-white">{metric.value}</div>
+                </div>
+              ))}
+            </div>
           </div>
 
-          <Card className="mt-space-8 border-white/10 bg-surface-card/95 p-space-5 shadow-card backdrop-blur">
-            <div className="space-y-space-4">
+          <Card className="relative mx-auto -mt-16 max-w-4xl rounded-[30px] border-0 bg-white p-space-5 shadow-[0_28px_80px_rgba(15,23,42,0.16)] md:p-space-6">
+            <div className="mb-space-5 flex items-center gap-space-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-[18px] bg-[#FFF4E7] text-[#B86A1A]">
+                <Compass className="h-5 w-5" />
+              </div>
+              <div className="text-left">
+                <div className="text-text-base font-bold text-text-primary">Busca Principal</div>
+                <div className="text-text-sm text-text-secondary">Encontre rapidamente negócios, serviços e instituições com dados reais.</div>
+              </div>
+            </div>
+            <div className="grid gap-space-4 md:grid-cols-[minmax(0,1fr)_220px] md:items-end">
               <div>
-                <label htmlFor="app-home-search" className="mb-space-2 block text-text-sm font-semibold text-text-primary">
+                <label htmlFor="app-home-search" className="mb-space-3 block text-text-sm font-semibold text-text-primary">
                   O que você procura?
                 </label>
-                <div className="relative">
+                <div className="relative rounded-[22px] border border-border-subtle bg-surface-subtle">
                   <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-text-muted" />
                   <Input
                     id="app-home-search"
                     value={searchTerm}
                     onChange={(event) => setSearchTerm(event.target.value)}
                     onKeyDown={(event) => event.key === "Enter" && handleSearch()}
-                    placeholder="O que você procura?"
-                    className="h-12 rounded-radius-xl border-border-subtle bg-surface-subtle pl-12"
+                    placeholder="Ex.: farmácia, escola, pedreiro, oficina, salão..."
+                    className="h-14 rounded-[22px] border-0 bg-transparent pl-12 pr-4 text-text-base shadow-none focus-visible:ring-0"
                   />
                 </div>
-                <div className="mt-space-2 text-text-xs text-text-muted">{searchHelperText}</div>
+                <div className="mt-space-3 text-text-xs text-text-muted">{searchHelperText}</div>
               </div>
 
-              <Button onClick={handleSearch} className="h-12 w-full rounded-radius-xl text-text-sm font-bold uppercase tracking-wide">
+              <Button
+                onClick={handleSearch}
+                className="h-14 w-full rounded-[22px] text-text-sm font-bold uppercase tracking-[0.18em] text-white shadow-[0_18px_35px_rgba(184,106,26,0.32)]"
+                style={{ backgroundColor: "#B86A1A" }}
+              >
                 Localizar Agora
               </Button>
             </div>
@@ -173,117 +286,92 @@ export function AppHome() {
         </div>
       </section>
 
-      <section id="categorias" className="container mx-auto px-space-4 pt-space-6">
-        <div className="mb-space-4 flex items-center justify-between gap-space-3">
+      <section id="categorias" className="container mx-auto px-space-4 pt-space-10">
+        <div className="mb-space-5 flex items-end justify-between gap-space-3">
           <div>
-            <h2 className="text-text-xl font-bold text-text-primary">Navegar por Categorias</h2>
-            <p className="mt-1 text-text-sm text-text-secondary">Use apenas dados reais do catálogo atual.</p>
+            <div className="text-text-xs font-semibold uppercase tracking-[0.18em] text-[#B86A1A]">Categorias</div>
+            <h2 className="mt-space-2 text-text-2xl font-bold text-text-primary">Explore por tipo de negócio</h2>
+            <p className="mt-space-1 text-text-sm text-text-secondary">Categorias reais do sistema, em destaque para busca rápida.</p>
           </div>
-          <Link to="/app/lista" className="text-text-sm font-semibold text-action-primary">
+          <Link to="/app/lista" className="text-text-sm font-semibold text-[#B86A1A]">
             Ver todas
           </Link>
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-2 gap-space-3 sm:grid-cols-3">
-            {Array.from({ length: 6 }).map((_, index) => (
-              <div key={index} className="h-24 animate-pulse rounded-radius-2xl bg-surface-card" />
+          <div className="grid grid-cols-2 gap-space-4">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div key={index} className="h-40 animate-pulse rounded-[24px] bg-white shadow-sm" />
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-space-3 sm:grid-cols-3">
-            {displayedCategories.map((category, index) => (
-              <Link
-                key={category.id}
-                to={`/app/lista?category=${category.id}`}
-                className={`rounded-radius-2xl border border-border-subtle bg-gradient-to-br p-space-4 text-left shadow-sm transition-transform hover:-translate-y-0.5 ${categoryColorClasses[index % categoryColorClasses.length]}`}
-              >
-                <div className="text-text-2xl">{category.icon || category.name.slice(0, 1)}</div>
-                <div className="mt-space-3 text-text-sm font-semibold text-text-primary">{category.name}</div>
-              </Link>
-            ))}
+          <div className="grid grid-cols-2 gap-space-4">
+            {displayedCategories.map((category) => {
+              const presentation = getCategoryPresentation(category, subcategoryCountByCategory.get(category.id) || 0);
+              const Icon = presentation.icon;
+              const subcategoryCount = subcategoryCountByCategory.get(category.id) || 0;
 
-            <Link
-              to="/app/lista"
-              className="rounded-radius-2xl border border-border-subtle bg-surface-card p-space-4 text-left shadow-sm transition-transform hover:-translate-y-0.5"
-            >
-              <div className="text-text-2xl text-action-primary">+</div>
-              <div className="mt-space-3 flex items-center justify-between gap-space-2 text-text-sm font-semibold text-text-primary">
-                <span>Ver Todas</span>
-                <ChevronRight className="h-4 w-4 text-action-primary" />
-              </div>
-            </Link>
-          </div>
-        )}
-
-        {!loading && categories.length > 0 && (
-          <div className="mt-space-4">
-            <div className="mb-space-2 text-text-sm font-semibold text-text-primary">Explorar subcategorias por categoria</div>
-            <div className="flex gap-space-2 overflow-x-auto pb-1">
-              {categories.map((category) => (
-                <button
+              return (
+                <Link
                   key={category.id}
-                  type="button"
-                  onClick={() => setSelectedCategory(category)}
-                  className={`whitespace-nowrap rounded-radius-full border px-space-4 py-space-2 text-text-sm font-medium transition-colors ${
-                    selectedCategory?.id === category.id
-                      ? "border-action-primary bg-action-primary text-text-on-brand"
-                      : "border-border-subtle bg-surface-card text-text-primary"
-                  }`}
+                  to={`/app/lista?category=${category.id}`}
+                  className={`group rounded-[26px] border border-black/5 bg-gradient-to-br ${presentation.backgroundClassName} p-space-4 shadow-[0_16px_34px_rgba(15,23,42,0.06)] transition-transform hover:-translate-y-0.5`}
                 >
-                  {category.name}
-                </button>
-              ))}
-            </div>
+                  <div className="flex h-full flex-col justify-between">
+                    <div className="flex items-start justify-between gap-space-3">
+                      <div className={`inline-flex h-11 w-11 items-center justify-center rounded-[16px] bg-white/85 shadow-sm ${presentation.iconClassName}`}>
+                        <Icon className="h-5 w-5" />
+                      </div>
+                      <div className="rounded-full bg-white/80 px-space-3 py-space-2 text-[11px] font-semibold uppercase tracking-wide text-text-muted shadow-sm">
+                        {subcategoryCount} itens
+                      </div>
+                    </div>
+                    <div className="mt-space-6">
+                      <div className="text-text-base font-bold text-text-primary">{category.name}</div>
+                      <div className="mt-space-2 text-text-sm leading-relaxed text-text-secondary">{presentation.description}</div>
+                      <div className="mt-space-4 flex items-center gap-space-2 text-text-sm font-semibold text-[#B86A1A]">
+                        Explorar
+                        <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         )}
       </section>
 
-      {selectedCategory && (
-        <section className="container mx-auto px-space-4 pt-space-6">
-          <div className="mb-space-4 flex items-center justify-between gap-space-3">
+      {popularSubcategories.length > 0 && (
+        <section className="container mx-auto px-space-4 pt-space-8">
+          <div className="mb-space-4 flex items-end justify-between gap-space-3">
             <div>
-              <h2 className="text-text-xl font-bold text-text-primary">Subcategorias</h2>
-              <p className="mt-1 text-text-sm text-text-secondary">{selectedCategory.name}</p>
+              <div className="text-text-xs font-semibold uppercase tracking-[0.18em] text-[#B86A1A]">Subcategorias Populares</div>
+              <h2 className="mt-space-2 text-text-2xl font-bold text-text-primary">Atalhos mais procurados</h2>
             </div>
-            <Link to={`/app/lista?category=${selectedCategory.id}`} className="text-text-sm font-semibold text-action-primary">
-              Ver resultados
-            </Link>
           </div>
-
-          {loadingSubcategories ? (
-            <div className="grid grid-cols-2 gap-space-3 sm:grid-cols-3">
-              {Array.from({ length: 6 }).map((_, index) => (
-                <div key={index} className="h-20 animate-pulse rounded-radius-2xl bg-surface-card" />
-              ))}
-            </div>
-          ) : subcategories.length ? (
-            <div className="grid grid-cols-2 gap-space-3 sm:grid-cols-3">
-              {subcategories.map((subcategory) => (
-                <Link
-                  key={subcategory.id}
-                  to={`/app/lista?category=${selectedCategory.id}&subcategory=${subcategory.id}`}
-                  className="rounded-radius-2xl border border-border-subtle bg-surface-card p-space-4 shadow-sm transition-transform hover:-translate-y-0.5"
-                >
-                  <div className="text-text-sm font-semibold text-text-primary">{subcategory.name}</div>
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <Card className="border-border-subtle">
-              <div className="text-text-sm text-text-secondary">Nenhuma subcategoria cadastrada para esta categoria.</div>
-            </Card>
-          )}
+          <div className="flex gap-space-3 overflow-x-auto pb-space-2">
+            {popularSubcategories.map((subcategory) => (
+              <Link
+                key={subcategory.id}
+                to={`/app/lista?subcategory=${subcategory.id}`}
+                className="whitespace-nowrap rounded-full border border-[#E9D3BA] bg-[#FFF6ED] px-space-4 py-space-3 text-text-sm font-semibold text-[#8E5316] shadow-sm transition-colors hover:bg-[#FDEDDC]"
+              >
+                {subcategory.name}
+              </Link>
+            ))}
+          </div>
         </section>
       )}
 
       <section className="container mx-auto px-space-4 pt-space-8">
-        <div className="mb-space-4 flex items-center justify-between gap-space-3">
+        <div className="mb-space-5 flex items-end justify-between gap-space-3">
           <div>
-            <h2 className="text-text-xl font-bold text-text-primary">Mais Bem Avaliados</h2>
-            <p className="mt-1 text-text-sm text-text-secondary">Ordenação real da API com média, quantidade e score ponderado.</p>
+            <div className="text-text-xs font-semibold uppercase tracking-[0.18em] text-[#B86A1A]">Mais Bem Avaliados</div>
+            <h2 className="mt-space-2 text-text-2xl font-bold text-text-primary">Destaques com base nas avaliações</h2>
+            <p className="mt-space-1 text-text-sm text-text-secondary">Lista real ordenada pelo backend com nota média e quantidade de avaliações.</p>
           </div>
-          <Link to="/app/lista" className="text-text-sm font-semibold text-action-primary">
+          <Link to="/app/lista" className="text-text-sm font-semibold text-[#B86A1A]">
             Ver todos
           </Link>
         </div>
@@ -291,33 +379,36 @@ export function AppHome() {
         {loading ? (
           <div className="space-y-space-3">
             {Array.from({ length: 3 }).map((_, index) => (
-              <div key={index} className="h-24 animate-pulse rounded-radius-2xl bg-surface-card" />
+              <div key={index} className="h-32 animate-pulse rounded-[24px] bg-white" />
             ))}
           </div>
         ) : topBusinesses.length ? (
-          <div className="space-y-space-3">
-            {topBusinesses.map((business, index) => {
+          <div className="grid gap-space-4 md:grid-cols-2">
+            {topBusinesses.map((business) => {
               const reviewCount = typeof business.review_count === "number" ? business.review_count : 0;
               const reviewsLabel = reviewCount === 1 ? "avaliação" : "avaliações";
               return (
                 <Link
                   key={business.id}
                   to={`/app/business/${business.id}`}
-                  className="flex items-center gap-space-4 rounded-radius-2xl border border-border-subtle bg-surface-card p-space-3 shadow-sm transition-transform hover:-translate-y-0.5"
+                  className="group overflow-hidden rounded-[26px] border border-black/5 bg-white shadow-[0_18px_34px_rgba(15,23,42,0.06)] transition-transform hover:-translate-y-0.5"
                 >
-                  <div className="w-20 shrink-0 overflow-hidden rounded-radius-xl bg-surface-subtle">
+                  <div className="relative h-40 bg-surface-subtle">
                     <img
                       src={business.image_url || business.logo_url || "https://placehold.co/160x160/e2e8f0/94a3b8?text=Tem+Aki"}
                       alt={business.name}
-                      className="h-20 w-20 object-cover"
+                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
                       loading="lazy"
                       decoding="async"
                     />
+                    <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/50 to-transparent" />
+                    <div className="absolute left-space-4 top-space-4 rounded-full bg-white/90 px-space-3 py-space-2 text-[11px] font-semibold uppercase tracking-wide text-[#B86A1A]">
+                      {business.category?.name || "Catálogo local"}
+                    </div>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-text-xs font-semibold text-text-muted">{index + 1}. Mais bem avaliado</div>
-                    <div className="mt-1 line-clamp-1 text-text-base font-bold text-text-primary">{business.name}</div>
-                    <div className="mt-1 flex items-center gap-space-1 text-status-warning">
+                  <div className="p-space-4">
+                    <div className="line-clamp-1 text-text-lg font-bold text-text-primary">{business.name}</div>
+                    <div className="mt-space-2 flex items-center gap-space-1 text-status-warning">
                       {Array.from({ length: 5 }).map((_, starIndex) => (
                         <Star
                           key={starIndex}
@@ -325,40 +416,116 @@ export function AppHome() {
                         />
                       ))}
                     </div>
-                    <div className="mt-1 text-text-sm text-text-secondary">
-                      ★ {typeof business.rating === "number" ? business.rating.toFixed(1).replace(".", ",") : "0,0"}
-                      {reviewCount > 0 ? ` (${reviewCount} ${reviewsLabel})` : ""}
+                    <div className="mt-space-2 text-text-sm text-text-secondary">
+                      ★★★★★ {typeof business.rating === "number" ? business.rating.toFixed(1).replace(".", ",") : "0,0"}
+                      {reviewCount > 0 ? ` (${reviewCount} ${reviewsLabel})` : " (sem avaliações aprovadas)"}
+                    </div>
+                    <div className="mt-space-4 inline-flex items-center gap-space-2 text-text-sm font-semibold text-[#B86A1A]">
+                      Ver detalhes
+                      <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                     </div>
                   </div>
-                  <ChevronRight className="h-5 w-5 shrink-0 text-action-primary" />
                 </Link>
               );
             })}
           </div>
         ) : (
-          <Card className="border-border-subtle">
+          <Card className="border-border-subtle rounded-[24px] bg-white">
             <div className="text-text-sm text-text-secondary">Ainda não há negócios avaliados o suficiente para exibir aqui.</div>
           </Card>
         )}
       </section>
 
-      {canShowHighlights && (
-        <section className="container mx-auto px-space-4 pt-space-8">
-          <div className="rounded-radius-2xl border border-dashed border-border-default bg-surface-card p-space-5">
-            <div className="flex items-start gap-space-3">
-              <div className="rounded-radius-full bg-action-primary/10 p-space-2 text-action-primary">
-                <Sparkles className="h-5 w-5" />
+      <section className="container mx-auto px-space-4 pt-space-8">
+        <div className="mb-space-5 flex items-end justify-between gap-space-3">
+          <div>
+            <div className="text-text-xs font-semibold uppercase tracking-[0.18em] text-[#B86A1A]">Estatísticas</div>
+            <h2 className="mt-space-2 text-text-2xl font-bold text-text-primary">O bairro em números</h2>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-space-4">
+          <Card className="rounded-[24px] border-0 bg-gradient-to-br from-white to-[#FFF8F1] p-space-4 shadow-[0_16px_32px_rgba(15,23,42,0.06)]">
+            <div className="flex items-center gap-space-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-[16px] bg-[#FFF4E7] text-[#B86A1A]">
+                <Building2 className="h-5 w-5" />
               </div>
               <div>
-                <h2 className="text-text-lg font-bold text-text-primary">Destaques</h2>
-                <p className="mt-1 text-text-sm text-text-secondary">
-                  Esta área fica preparada para futuros destaques reais quando houver estrutura própria no sistema.
-                </p>
+                <div className="text-text-xs font-semibold uppercase tracking-wide text-text-muted">Negócios cadastrados</div>
+                <div className="mt-space-1 text-text-2xl font-bold text-text-primary">{stats?.businesses ?? 0}</div>
+                <div className="mt-space-1 text-[11px] text-text-muted">Base pública real do Nova Terra</div>
               </div>
             </div>
+          </Card>
+          <Card className="rounded-[24px] border-0 bg-gradient-to-br from-white to-amber-50 p-space-4 shadow-[0_16px_32px_rgba(15,23,42,0.06)]">
+            <div className="flex items-center gap-space-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-[16px] bg-amber-50 text-amber-600">
+                <MessageSquareText className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="text-text-xs font-semibold uppercase tracking-wide text-text-muted">Avaliações aprovadas</div>
+                <div className="mt-space-1 text-text-2xl font-bold text-text-primary">{stats?.approved_reviews ?? 0}</div>
+                <div className="mt-space-1 text-[11px] text-text-muted">Somente reviews já aprovadas</div>
+              </div>
+            </div>
+          </Card>
+          <Card className="rounded-[24px] border-0 bg-gradient-to-br from-white to-sky-50 p-space-4 shadow-[0_16px_32px_rgba(15,23,42,0.06)]">
+            <div className="flex items-center gap-space-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-[16px] bg-sky-50 text-sky-600">
+                <Grid2x2 className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="text-text-xs font-semibold uppercase tracking-wide text-text-muted">Categorias</div>
+                <div className="mt-space-1 text-text-2xl font-bold text-text-primary">{stats?.categories ?? categories.length}</div>
+                <div className="mt-space-1 text-[11px] text-text-muted">Organização principal do catálogo</div>
+              </div>
+            </div>
+          </Card>
+          <Card className="rounded-[24px] border-0 bg-gradient-to-br from-white to-emerald-50 p-space-4 shadow-[0_16px_32px_rgba(15,23,42,0.06)]">
+            <div className="flex items-center gap-space-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-[16px] bg-emerald-50 text-emerald-600">
+                <BriefcaseBusiness className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="text-text-xs font-semibold uppercase tracking-wide text-text-muted">Subcategorias</div>
+                <div className="mt-space-1 text-text-2xl font-bold text-text-primary">{stats?.subcategories ?? allSubcategories.length}</div>
+                <div className="mt-space-1 text-[11px] text-text-muted">Níveis reais de especialização</div>
+              </div>
+            </div>
+          </Card>
+        </div>
+      </section>
+
+      <section className="container mx-auto px-space-4 pt-space-8">
+        <div className="overflow-hidden rounded-[32px] bg-[#1D1D1B] px-space-6 py-space-8 text-white shadow-[0_24px_60px_rgba(15,23,42,0.18)]">
+          <div className="grid gap-space-6 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+            <div className="max-w-2xl">
+              <div className="text-text-xs font-semibold uppercase tracking-[0.18em] text-[#E6B37F]">Exclusivo para o bairro Nova Terra</div>
+              <h2 className="mt-space-3 text-text-2xl font-bold">Tudo pensado para a rotina local</h2>
+              <p className="mt-space-3 text-text-sm leading-relaxed text-white/75">
+                Use a busca, explore categorias reais do catálogo e encontre serviços, comércios e instituições do Nova Terra com visual mais limpo, rápido e direto.
+              </p>
+            </div>
+            <div className="rounded-[24px] bg-white/5 px-space-4 py-space-4 backdrop-blur">
+              <div className="text-text-xs font-semibold uppercase tracking-[0.18em] text-white/55">Acesso rápido</div>
+              <div className="mt-space-2 text-text-lg font-bold text-white">Busca, mapa e avaliações em um só lugar</div>
+            </div>
           </div>
-        </section>
-      )}
+          <div className="mt-space-6 flex flex-wrap gap-space-3 text-text-sm">
+            <Link to="/politica-de-privacidade" className="inline-flex items-center gap-space-2 rounded-full bg-white/10 px-space-4 py-space-3 text-white/85">
+              Política de Privacidade <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link to="/terms-of-use" className="inline-flex items-center gap-space-2 rounded-full bg-white/10 px-space-4 py-space-3 text-white/85">
+              Termos de Uso <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link to="/about" className="inline-flex items-center gap-space-2 rounded-full bg-white/10 px-space-4 py-space-3 text-white/85">
+              Sobre <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+          <div className="mt-space-5 text-text-xs text-white/55">
+            {appMeta.name} • Nova Terra, São José de Ribamar - MA
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
