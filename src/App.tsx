@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { BrowserRouter as Router, Routes, Route, useLocation, Outlet, Link } from "react-router-dom";
-import { Grid2x2, Heart, Home as HomeIcon, Info, MapPinned, Menu, Share2, X } from "lucide-react";
+import { Grid2x2, Heart, Home as HomeIcon, Info, MapPinned, Menu, Share2, UserRound, X } from "lucide-react";
 import { MainLayout } from "./layouts/MainLayout";
 import { Home } from "./pages/Home";
 import { Directory } from "./pages/Directory";
@@ -114,6 +114,7 @@ function DeveloperContactsPage() {
 function UserAppLayout() {
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const hideBottomNav = location.pathname.startsWith("/app/business/");
 
   useEffect(() => {
     setMenuOpen(false);
@@ -148,9 +149,17 @@ function UserAppLayout() {
     { label: "Contato do Desenvolvedor", to: "/developer-contacts", icon: Info },
   ];
 
+  const bottomNavLinks = [
+    { label: "Início", to: "/app", icon: HomeIcon, isActive: location.pathname === "/app" },
+    { label: "Categorias", to: "/app#categorias", icon: Grid2x2, isActive: location.pathname === "/app" && location.hash === "#categorias" },
+    { label: "Favoritos", to: "/app/lista?favorites=1", icon: Heart, isActive: location.pathname === "/app/lista" && location.search.includes("favorites=1") },
+    { label: "Mapa", to: "/app/mapa", icon: MapPinned, isActive: location.pathname === "/app/mapa" },
+    { label: "Perfil", to: "/profile", icon: UserRound, isActive: location.pathname === "/profile" },
+  ];
+
   return (
     <div className="min-h-[100dvh] bg-surface-page">
-      <header className="fixed inset-x-0 top-0 z-[60] border-b border-border-default bg-surface-card/95 shadow-sm backdrop-blur">
+      <header className="fixed inset-x-0 top-0 z-[60] border-b border-border-default bg-white shadow-sm">
         <div className="container mx-auto flex h-16 items-center justify-between px-space-4">
           <Link to="/app" className="flex min-w-0 items-center gap-space-3">
             <img src={logo} alt="Tem Aki no Bairro" className="h-10 w-auto max-w-[180px] object-contain" />
@@ -165,9 +174,36 @@ function UserAppLayout() {
           </button>
         </div>
       </header>
-      <main className="pt-16">
+      <main className={`pt-16 ${hideBottomNav ? "" : "pb-24"}`}>
         <Outlet />
       </main>
+
+      {!hideBottomNav && (
+        <nav className="fixed inset-x-0 bottom-0 z-[55] border-t border-[#EADCCB] bg-white/98 shadow-[0_-10px_30px_rgba(15,23,42,0.08)] backdrop-blur">
+          <div className="container mx-auto grid h-[78px] grid-cols-5 px-space-2">
+            {bottomNavLinks.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.label}
+                  to={item.to}
+                  className="flex flex-col items-center justify-center gap-1 text-center"
+                >
+                  <span
+                    className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors ${item.isActive ? "bg-[#FFF1E2] text-[#B86A1A]" : "text-text-muted"
+                      }`}
+                  >
+                    <Icon className="h-5 w-5" />
+                  </span>
+                  <span className={`text-[11px] font-semibold ${item.isActive ? "text-[#B86A1A]" : "text-text-muted"}`}>
+                    {item.label}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
+      )}
 
       {menuOpen && (
         <div className="fixed inset-0 z-[70]">
