@@ -23,12 +23,25 @@ type GeocodeBatchEntry = {
     returned_name?: string | null;
     confidence?: "found" | "dubious" | "not_found" | null;
     confidence_score?: number | null;
+    confidence_level?: "high" | "medium" | "low" | null;
     location_type?: "Exata" | "Aproximada" | null;
     source?: "Nominatim" | "Rua" | "CEP" | "Centro do bairro" | null;
     coordinate_origin?: string | null;
     distance_to_nova_terra_km?: number | null;
     message?: string | null;
 };
+
+type GeocodeConfidenceLevel = "high" | "medium" | "low";
+type GeocodeApplySelection = "high_only" | "high_medium" | "all";
+type GeocodeQuickFilter =
+    | "all"
+    | "high"
+    | "medium"
+    | "low"
+    | "real_found"
+    | "street_reuse"
+    | "zip_reuse"
+    | "center";
 
 type GeocodeBatchStats = {
     successful: number;
@@ -69,6 +82,7 @@ type GeocodeProcessingState = {
 
 type GeocodeBatchReport = {
     mode: "dry-run" | "apply";
+    apply_selection?: GeocodeApplySelection;
     processed: number;
     total: number | null;
     found: GeocodeBatchEntry[];
@@ -80,6 +94,7 @@ type GeocodeBatchReport = {
 
 type GeocodeBatchResponse = {
     mode: "dry-run" | "apply";
+    apply_selection?: GeocodeApplySelection;
     processed: number;
     totalRemaining: number;
     found: GeocodeBatchEntry[];
@@ -112,6 +127,16 @@ const EMPTY_GEOCODE_PROCESSING_STATE: GeocodeProcessingState = {
     streets: [],
     zips: [],
 };
+const GEOCODE_FILTER_OPTIONS: Array<{ key: GeocodeQuickFilter; label: string }> = [
+    { key: "all", label: "Todos" },
+    { key: "high", label: "Alta confiança" },
+    { key: "medium", label: "Média confiança" },
+    { key: "low", label: "Baixa confiança" },
+    { key: "real_found", label: "Encontrados reais" },
+    { key: "street_reuse", label: "Rua reutilizada" },
+    { key: "zip_reuse", label: "CEP reutilizado" },
+    { key: "center", label: "Centro do bairro" },
+];
 
 function mergeUniqueById<T extends { id: string }>(current: T[], next: T[]) {
     const map = new Map<string, T>();
@@ -126,8 +151,8 @@ function formatGeocodeError(error: unknown) {
             typeof error.response?.data?.message === "string"
                 ? error.response.data.message
                 : typeof error.message === "string"
-                  ? error.message
-                  : "Falha ao atualizar coordenadas.";
+                    ? error.message
+                    : "Falha ao atualizar coordenadas.";
 
         let message = status ? `Erro HTTP ${status}: ${apiMessage}` : apiMessage;
         if (status === 504) {
@@ -164,6 +189,66 @@ function mergeGeocodeStats(current: GeocodeBatchStats, next?: GeocodeBatchStats 
     };
 }
 
+function getGeocodeConfidenceLevel(item: GeocodeBatchEntry): GeocodeConfidenceLevel | null {
+    if (item.confidence_level === "high" || item.confidence_level === "medium" || item.confidence_level === "low") {
+        return item.confidence_level;
+    }
+    if (typeof item.confidence_score !== "number" || !Number.isFinite(item.confidence_score)) return null;
+    if (item.confidence_score >= 0.9) return "high";
+    if (item.confidence_score >= 0.5) return "medium";
+    return "low";
+}
+
+function getConfidenceLabel(level: GeocodeConfidenceLevel | null) {
+    if (level === "high") return "Alta confiança";
+    if (level === "medium") return "Confiança média";
+    if (level === "low") return "Baixa confiança";
+    return "Sem classificação";
+}
+
+function getConfidenceClasses(level: GeocodeConfidenceLevel | null) {
+    if (level === "high") {
+        return {
+            card: "rounded-radius-lg border border-status-success/30 bg-status-success/10 p-space-3 text-text-sm",
+            badge: "inline-flex rounded-radius-full bg-status-success/10 px-space-3 py-space-1 text-text-xs font-semibold text-status-success",
+        };
+    }
+    if (level === "medium") {
+        return {
+            card: "rounded-radius-lg border border-status-warning/30 bg-status-warning/10 p-space-3 text-text-sm",
+            badge: "inline-flex rounded-radius-full bg-status-warning/10 px-space-3 py-space-1 text-text-xs font-semibold text-status-warning",
+        };
+    }
+    return {
+        card: "rounded-radius-lg border border-status-error/25 bg-status-error/10 p-space-3 text-text-sm",
+        badge: "inline-flex rounded-radius-full bg-status-error/10 px-space-3 py-space-1 text-text-xs font-semibold text-status-error",
+    };
+}
+
+function matchesGeocodeFilter(item: GeocodeBatchEntry, filter: GeocodeQuickFilter) {
+    if (filter === "all") return true;
+
+    const level = getGeocodeConfidenceLevel(item);
+    if (filter === "high") return level === "high";
+    if (filter === "medium") return level === "medium";
+    if (filter === "low") return level === "low";
+    if (filter === "real_found") return item.confidence === "found";
+    if (filter === "street_reuse") return item.strategy_key === "reused_street";
+    if (filter === "zip_reuse") return item.strategy_key === "reused_zip";
+    if (filter === "center") return item.strategy_key === "approx_neighborhood_center";
+    return true;
+}
+
+function formatPercentage(value: number) {
+    return `${value.toFixed(1).replace(".", ",")}%`;
+}
+
+function getApplySelectionLabel(selection: GeocodeApplySelection) {
+    if (selection === "all") return "Aplicar todas as coordenadas";
+    if (selection === "high_medium") return "Aplicar alta + média confiança";
+    return "Aplicar apenas coordenadas de alta confiança";
+}
+
 export function BusinessList() {
     const [loading, setLoading] = useState(true);
     const [items, setItems] = useState<Business[]>([]);
@@ -174,13 +259,53 @@ export function BusinessList() {
     const [geocodeProgress, setGeocodeProgress] = useState<GeocodeProgressState | null>(null);
     const [selectedGeocodeItem, setSelectedGeocodeItem] = useState<GeocodeBatchEntry | null>(null);
     const [approvedDubiousItems, setApprovedDubiousItems] = useState<GeocodeBatchEntry[]>([]);
+    const [geocodeFilter, setGeocodeFilter] = useState<GeocodeQuickFilter>("all");
+    const [showApplyModal, setShowApplyModal] = useState(false);
+    const [pendingApplySelection, setPendingApplySelection] = useState<GeocodeApplySelection>("high_only");
     const cancelGeocodeRef = useRef(false);
-    const geocodeSuccessRate = useMemo(() => {
-        if (!geocodeReport?.processed) return 0;
-        const successful = geocodeReport.found.length + geocodeReport.dubious.length;
-        return (successful / geocodeReport.processed) * 100;
-    }, [geocodeReport]);
     const approvedDubiousIds = useMemo(() => new Set(approvedDubiousItems.map((item) => item.id)), [approvedDubiousItems]);
+    const geocodeEntries = useMemo(
+        () => (geocodeReport ? [...geocodeReport.found, ...geocodeReport.dubious, ...geocodeReport.not_found] : []),
+        [geocodeReport]
+    );
+    const geocodedEntries = useMemo(
+        () =>
+            geocodeEntries.filter(
+                (item) => typeof item.latitude === "number" && Number.isFinite(item.latitude) && typeof item.longitude === "number" && Number.isFinite(item.longitude)
+            ),
+        [geocodeEntries]
+    );
+    const highConfidenceEntries = useMemo(() => geocodedEntries.filter((item) => getGeocodeConfidenceLevel(item) === "high"), [geocodedEntries]);
+    const mediumConfidenceEntries = useMemo(() => geocodedEntries.filter((item) => getGeocodeConfidenceLevel(item) === "medium"), [geocodedEntries]);
+    const lowConfidenceEntries = useMemo(() => geocodedEntries.filter((item) => getGeocodeConfidenceLevel(item) === "low"), [geocodedEntries]);
+    const realFoundEntries = useMemo(() => geocodedEntries.filter((item) => item.confidence === "found"), [geocodedEntries]);
+    const filteredGeocodeEntries = useMemo(
+        () => geocodeEntries.filter((item) => matchesGeocodeFilter(item, geocodeFilter)),
+        [geocodeEntries, geocodeFilter]
+    );
+    const filteredHighConfidenceEntries = useMemo(
+        () => filteredGeocodeEntries.filter((item) => getGeocodeConfidenceLevel(item) === "high"),
+        [filteredGeocodeEntries]
+    );
+    const filteredMediumConfidenceEntries = useMemo(
+        () => filteredGeocodeEntries.filter((item) => getGeocodeConfidenceLevel(item) === "medium"),
+        [filteredGeocodeEntries]
+    );
+    const filteredLowConfidenceEntries = useMemo(
+        () => filteredGeocodeEntries.filter((item) => getGeocodeConfidenceLevel(item) === "low"),
+        [filteredGeocodeEntries]
+    );
+    const filteredNotFoundEntries = useMemo(
+        () =>
+            filteredGeocodeEntries
+                .filter((item) => !(typeof item.latitude === "number" && typeof item.longitude === "number"))
+                .filter((item) => item.confidence !== "found" && item.confidence !== "dubious"),
+        [filteredGeocodeEntries]
+    );
+    const geocodeCoverageRate = useMemo(() => {
+        if (!geocodeReport?.processed) return 0;
+        return (geocodedEntries.length / geocodeReport.processed) * 100;
+    }, [geocodeReport, geocodedEntries]);
     const geocodeStreetRecoveryCount = useMemo(
         () => (geocodeReport?.stats.recovered_by_street_lookup || 0) + (geocodeReport?.stats.recovered_by_street_reuse || 0),
         [geocodeReport]
@@ -197,6 +322,14 @@ export function BusinessList() {
         if (!geocodeReport?.processed) return 0;
         return ((geocodeReport.stats.recovered_by_zip || 0) / geocodeReport.processed) * 100;
     }, [geocodeReport]);
+    const applyEligibleCounts = useMemo(
+        () => ({
+            high_only: highConfidenceEntries.length,
+            high_medium: highConfidenceEntries.length + mediumConfidenceEntries.length,
+            all: geocodedEntries.length,
+        }),
+        [geocodedEntries, highConfidenceEntries, mediumConfidenceEntries]
+    );
 
     const filtered = useMemo(() => {
         const q = query.trim().toLowerCase();
@@ -221,12 +354,7 @@ export function BusinessList() {
         }
     };
 
-    const runGeocodeBatch = async (mode: "dry-run" | "apply") => {
-        if (mode === "apply") {
-            const ok = window.confirm("Aplicar coordenadas encontradas aos negócios sem latitude/longitude?");
-            if (!ok) return;
-        }
-
+    const runGeocodeBatch = async (mode: "dry-run" | "apply", applySelection: GeocodeApplySelection = "high_only") => {
         cancelGeocodeRef.current = false;
         setGeocodeRunning(true);
         setError("");
@@ -235,6 +363,7 @@ export function BusinessList() {
 
         let aggregate: GeocodeBatchReport = {
             mode,
+            apply_selection: applySelection,
             processed: 0,
             total: null,
             found: [],
@@ -258,6 +387,7 @@ export function BusinessList() {
 
                 const resp = await api.post<ApiResponse<GeocodeBatchResponse>>("/businesses/geocode/batch", {
                     mode,
+                    apply_selection: applySelection,
                     limit: GEOCODE_BATCH_SIZE,
                     offset,
                     processing_state: processingState,
@@ -274,6 +404,7 @@ export function BusinessList() {
 
                 aggregate = {
                     mode,
+                    apply_selection: batch.apply_selection || applySelection,
                     processed: aggregate.processed + batch.processed,
                     total,
                     found: mergeUniqueById(aggregate.found, batch.found),
@@ -310,6 +441,20 @@ export function BusinessList() {
                 return current;
             });
         }
+    };
+
+    const requestApplyGeocode = () => {
+        if (!geocodeReport) {
+            setError("Execute a simulação primeiro para validar cobertura, precisão e confiança antes de aplicar.");
+            return;
+        }
+        setPendingApplySelection("high_only");
+        setShowApplyModal(true);
+    };
+
+    const confirmApplyGeocode = async () => {
+        setShowApplyModal(false);
+        await runGeocodeBatch("apply", pendingApplySelection);
     };
 
     const approveDubiousCoordinate = (item: GeocodeBatchEntry) => {
@@ -361,20 +506,23 @@ export function BusinessList() {
 
         return [selectedGeocodeItem.latitude, selectedGeocodeItem.longitude];
     }, [selectedGeocodeItem]);
+    const selectedGeocodeConfidenceLevel = useMemo(
+        () => (selectedGeocodeItem ? getGeocodeConfidenceLevel(selectedGeocodeItem) : null),
+        [selectedGeocodeItem]
+    );
 
-    const renderGeocodeEntry = (item: GeocodeBatchEntry, tone: "neutral" | "warning" | "error") => {
-        const containerClass =
-            tone === "warning"
-                ? "rounded-radius-lg border border-status-warning/30 bg-status-warning/10 p-space-3 text-text-sm"
-                : tone === "error"
-                  ? "rounded-radius-lg border border-status-error/20 bg-status-error/10 p-space-3 text-text-sm"
-                  : "rounded-radius-lg border border-border-subtle bg-surface-card p-space-3 text-text-sm";
+    const renderGeocodeEntry = (item: GeocodeBatchEntry) => {
+        const confidenceLevel = getGeocodeConfidenceLevel(item);
+        const confidenceClasses = getConfidenceClasses(confidenceLevel);
 
         return (
-            <div key={item.id} className={containerClass}>
+            <div key={item.id} className={confidenceClasses.card}>
                 <div className="flex flex-col gap-space-3 md:flex-row md:items-start md:justify-between">
                     <div className="min-w-0 flex-1">
-                        <div className="font-semibold text-text-primary">{item.name}</div>
+                        <div className="flex flex-wrap items-center gap-space-2">
+                            <div className="font-semibold text-text-primary">{item.name}</div>
+                            <span className={confidenceClasses.badge}>{getConfidenceLabel(confidenceLevel)}</span>
+                        </div>
                         <div className="mt-space-1 text-text-xs font-semibold uppercase tracking-wide text-text-muted">Endereço pesquisado</div>
                         <div className="text-text-secondary">{item.searched_address || item.address}</div>
                         {item.strategy_label && (
@@ -404,7 +552,11 @@ export function BusinessList() {
                             </>
                         )}
                         {item.message && <div className="mt-space-2 text-text-xs text-text-secondary">{item.message}</div>}
-                        <div className="mt-space-2 grid gap-space-2 text-text-xs text-text-secondary md:grid-cols-4">
+                        <div className="mt-space-2 grid gap-space-2 text-text-xs text-text-secondary md:grid-cols-5">
+                            <div>
+                                <div className="font-semibold uppercase tracking-wide text-text-muted">Nível</div>
+                                <div>{getConfidenceLabel(confidenceLevel)}</div>
+                            </div>
                             <div>
                                 <div className="font-semibold uppercase tracking-wide text-text-muted">Tipo</div>
                                 <div>{item.location_type || "-"}</div>
@@ -483,7 +635,7 @@ export function BusinessList() {
                         <Button type="button" variant="secondary" onClick={() => runGeocodeBatch("dry-run")} disabled={geocodeRunning}>
                             {geocodeRunning ? "Processando..." : "Simular geocodificação"}
                         </Button>
-                        <Button type="button" onClick={() => runGeocodeBatch("apply")} disabled={geocodeRunning}>
+                        <Button type="button" onClick={requestApplyGeocode} disabled={geocodeRunning}>
                             Aplicar coordenadas
                         </Button>
                         {geocodeRunning && (
@@ -508,7 +660,7 @@ export function BusinessList() {
 
                 {geocodeReport && (
                     <div className="mt-space-5 space-y-space-5">
-                        <div className="grid grid-cols-2 gap-space-3 md:grid-cols-4 xl:grid-cols-8">
+                        <div className="grid grid-cols-2 gap-space-3 md:grid-cols-4 xl:grid-cols-6">
                             <div className="rounded-radius-lg border border-border-subtle bg-surface-subtle p-space-3">
                                 <div className="text-text-xs text-text-muted font-semibold uppercase tracking-wide">Modo</div>
                                 <div className="mt-space-1 text-text-base font-bold text-text-primary">{geocodeReport.mode}</div>
@@ -522,46 +674,78 @@ export function BusinessList() {
                                 <div className="mt-space-1 text-text-base font-bold text-text-primary">{geocodeReport.total ?? geocodeReport.processed}</div>
                             </div>
                             <div className="rounded-radius-lg border border-border-subtle bg-surface-subtle p-space-3">
-                                <div className="text-text-xs text-text-muted font-semibold uppercase tracking-wide">Encontrados</div>
-                                <div className="mt-space-1 text-text-base font-bold text-status-success">{geocodeReport.found.length}</div>
+                                <div className="text-text-xs text-text-muted font-semibold uppercase tracking-wide">Cobertura</div>
+                                <div className="mt-space-1 text-text-base font-bold text-action-primary">{formatPercentage(geocodeCoverageRate)}</div>
                             </div>
                             <div className="rounded-radius-lg border border-border-subtle bg-surface-subtle p-space-3">
-                                <div className="text-text-xs text-text-muted font-semibold uppercase tracking-wide">Duvidosos</div>
-                                <div className="mt-space-1 text-text-base font-bold text-status-warning">{geocodeReport.dubious.length}</div>
+                                <div className="text-text-xs text-text-muted font-semibold uppercase tracking-wide">Precisão Alta</div>
+                                <div className="mt-space-1 text-text-base font-bold text-status-success">{highConfidenceEntries.length}</div>
                             </div>
                             <div className="rounded-radius-lg border border-border-subtle bg-surface-subtle p-space-3">
-                                <div className="text-text-xs text-text-muted font-semibold uppercase tracking-wide">Não encontrados</div>
-                                <div className="mt-space-1 text-text-base font-bold text-status-error">{geocodeReport.not_found.length}</div>
+                                <div className="text-text-xs text-text-muted font-semibold uppercase tracking-wide">Precisão Média</div>
+                                <div className="mt-space-1 text-text-base font-bold text-status-warning">{mediumConfidenceEntries.length}</div>
                             </div>
                             <div className="rounded-radius-lg border border-border-subtle bg-surface-subtle p-space-3">
-                                <div className="text-text-xs text-text-muted font-semibold uppercase tracking-wide">Sucesso real</div>
-                                <div className="mt-space-1 text-text-base font-bold text-action-primary">
-                                    {geocodeSuccessRate.toFixed(1).replace(".", ",")}%
-                                </div>
+                                <div className="text-text-xs text-text-muted font-semibold uppercase tracking-wide">Precisão Baixa</div>
+                                <div className="mt-space-1 text-text-base font-bold text-status-error">{lowConfidenceEntries.length}</div>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-space-3 md:grid-cols-4 xl:grid-cols-6">
+                            <div className="rounded-radius-lg border border-border-subtle bg-surface-subtle p-space-3">
+                                <div className="text-text-xs text-text-muted font-semibold uppercase tracking-wide">Encontrados reais</div>
+                                <div className="mt-space-1 text-text-base font-bold text-status-success">{realFoundEntries.length}</div>
                             </div>
                             <div className="rounded-radius-lg border border-border-subtle bg-surface-subtle p-space-3">
                                 <div className="text-text-xs text-text-muted font-semibold uppercase tracking-wide">Sucesso direto</div>
                                 <div className="mt-space-1 text-text-base font-bold text-status-success">
-                                    {geocodeDirectSuccessRate.toFixed(1).replace(".", ",")}%
+                                    {formatPercentage(geocodeDirectSuccessRate)}
                                 </div>
                             </div>
                             <div className="rounded-radius-lg border border-border-subtle bg-surface-subtle p-space-3">
                                 <div className="text-text-xs text-text-muted font-semibold uppercase tracking-wide">Recuperados rua</div>
                                 <div className="mt-space-1 text-text-base font-bold text-status-warning">{geocodeStreetRecoveryCount}</div>
                                 <div className="mt-space-1 text-text-xs text-text-secondary">
-                                    {geocodeStreetRecoveryRate.toFixed(1).replace(".", ",")}%
+                                    {formatPercentage(geocodeStreetRecoveryRate)}
                                 </div>
                             </div>
                             <div className="rounded-radius-lg border border-border-subtle bg-surface-subtle p-space-3">
                                 <div className="text-text-xs text-text-muted font-semibold uppercase tracking-wide">Recuperados CEP</div>
                                 <div className="mt-space-1 text-text-base font-bold text-status-warning">{geocodeReport.stats.recovered_by_zip}</div>
                                 <div className="mt-space-1 text-text-xs text-text-secondary">
-                                    {geocodeZipRecoveryRate.toFixed(1).replace(".", ",")}%
+                                    {formatPercentage(geocodeZipRecoveryRate)}
                                 </div>
                             </div>
                             <div className="rounded-radius-lg border border-border-subtle bg-surface-subtle p-space-3">
-                                <div className="text-text-xs text-text-muted font-semibold uppercase tracking-wide">Recuperados fallback</div>
-                                <div className="mt-space-1 text-text-base font-bold text-status-warning">{geocodeReport.stats.recovered_by_fallback}</div>
+                                <div className="text-text-xs text-text-muted font-semibold uppercase tracking-wide">Centro do bairro</div>
+                                <div className="mt-space-1 text-text-base font-bold text-status-error">{geocodeReport.stats.recovered_by_neighborhood_center}</div>
+                            </div>
+                            <div className="rounded-radius-lg border border-border-subtle bg-surface-subtle p-space-3">
+                                <div className="text-text-xs text-text-muted font-semibold uppercase tracking-wide">Não encontrados</div>
+                                <div className="mt-space-1 text-text-base font-bold text-status-error">{geocodeReport.not_found.length}</div>
+                            </div>
+                        </div>
+
+                        <div className="rounded-radius-lg border border-border-subtle bg-surface-subtle p-space-3">
+                            <div className="text-text-sm font-semibold text-text-primary">Filtros rápidos do relatório</div>
+                            <div className="mt-space-3 flex flex-wrap gap-space-2">
+                                {GEOCODE_FILTER_OPTIONS.map((option) => {
+                                    const active = geocodeFilter === option.key;
+                                    return (
+                                        <button
+                                            key={option.key}
+                                            type="button"
+                                            onClick={() => setGeocodeFilter(option.key)}
+                                            className={
+                                                active
+                                                    ? "rounded-radius-full border border-action-primary bg-action-primary/10 px-space-3 py-space-2 text-text-xs font-semibold text-action-primary"
+                                                    : "rounded-radius-full border border-border-default bg-surface-card px-space-3 py-space-2 text-text-xs font-semibold text-text-secondary hover:text-text-primary"
+                                            }
+                                        >
+                                            {option.label}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
 
@@ -588,40 +772,128 @@ export function BusinessList() {
                                     Itens aprovados para aplicação manual posterior, sem gravação automática no banco.
                                 </div>
                                 <div className="mt-space-2 space-y-space-2">
-                                    {approvedDubiousItems.map((item) => renderGeocodeEntry(item, "warning"))}
+                                    {approvedDubiousItems.map((item) => renderGeocodeEntry(item))}
                                 </div>
                             </div>
                         )}
 
-                        {geocodeReport.found.length > 0 && (
+                        {filteredHighConfidenceEntries.length > 0 && (
                             <div>
-                                <div className="text-text-sm font-semibold text-text-primary">Encontrados com boa confiança</div>
+                                <div className="text-text-sm font-semibold text-status-success">Alta confiança</div>
                                 <div className="mt-space-2 space-y-space-2">
-                                    {geocodeReport.found.slice(0, 10).map((item) => renderGeocodeEntry(item, "neutral"))}
+                                    {filteredHighConfidenceEntries.map((item) => renderGeocodeEntry(item))}
                                 </div>
                             </div>
                         )}
 
-                        {geocodeReport.dubious.length > 0 && (
+                        {filteredMediumConfidenceEntries.length > 0 && (
                             <div>
-                                <div className="text-text-sm font-semibold text-text-primary">Resultados duvidosos</div>
+                                <div className="text-text-sm font-semibold text-status-warning">Confiança média</div>
                                 <div className="mt-space-2 space-y-space-2">
-                                    {geocodeReport.dubious.slice(0, 10).map((item) => renderGeocodeEntry(item, "warning"))}
+                                    {filteredMediumConfidenceEntries.map((item) => renderGeocodeEntry(item))}
                                 </div>
                             </div>
                         )}
 
-                        {geocodeReport.not_found.length > 0 && (
+                        {filteredLowConfidenceEntries.length > 0 && (
                             <div>
-                                <div className="text-text-sm font-semibold text-text-primary">Não encontrados</div>
+                                <div className="text-text-sm font-semibold text-status-error">Baixa confiança</div>
                                 <div className="mt-space-2 space-y-space-2">
-                                    {geocodeReport.not_found.slice(0, 10).map((item) => renderGeocodeEntry(item, "error"))}
+                                    {filteredLowConfidenceEntries.map((item) => renderGeocodeEntry(item))}
+                                </div>
+                            </div>
+                        )}
+
+                        {filteredNotFoundEntries.length > 0 && (
+                            <div>
+                                <div className="text-text-sm font-semibold text-status-error">Não encontrados</div>
+                                <div className="mt-space-2 space-y-space-2">
+                                    {filteredNotFoundEntries.map((item) => renderGeocodeEntry(item))}
                                 </div>
                             </div>
                         )}
                     </div>
                 )}
             </Card>
+
+            {showApplyModal && geocodeReport && (
+                <div
+                    className="fixed inset-0 z-[75] flex items-center justify-center bg-black/70 p-space-4"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Confirmar aplicação das coordenadas"
+                    onClick={() => setShowApplyModal(false)}
+                >
+                    <div
+                        className="w-full max-w-2xl rounded-radius-xl bg-surface-card p-space-5 shadow-2xl"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <div className="flex items-start justify-between gap-space-3">
+                            <div>
+                                <div className="text-text-lg font-bold text-text-primary">Confirmar aplicação das coordenadas</div>
+                                <div className="mt-space-1 text-text-sm text-text-secondary">
+                                    Escolha o nível máximo de risco aceitável. Coordenadas existentes não serão sobrescritas.
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                className="inline-flex h-10 w-10 items-center justify-center rounded-radius-md border border-border-default bg-surface-subtle text-text-secondary transition-colors hover:text-text-primary"
+                                onClick={() => setShowApplyModal(false)}
+                                aria-label="Fechar confirmação"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+
+                        <div className="mt-space-4 space-y-space-3">
+                            {(["high_only", "high_medium", "all"] as GeocodeApplySelection[]).map((selection) => (
+                                <label
+                                    key={selection}
+                                    className="flex cursor-pointer items-start gap-space-3 rounded-radius-lg border border-border-subtle bg-surface-subtle p-space-3"
+                                >
+                                    <input
+                                        type="radio"
+                                        name="geocode-apply-selection"
+                                        className="mt-1"
+                                        checked={pendingApplySelection === selection}
+                                        onChange={() => setPendingApplySelection(selection)}
+                                    />
+                                    <div className="min-w-0 flex-1">
+                                        <div className="font-semibold text-text-primary">{getApplySelectionLabel(selection)}</div>
+                                        <div className="mt-space-1 text-text-sm text-text-secondary">
+                                            Quantidade estimada: {applyEligibleCounts[selection]}
+                                        </div>
+                                    </div>
+                                </label>
+                            ))}
+                        </div>
+
+                        <div className="mt-space-4 grid grid-cols-1 gap-space-3 sm:grid-cols-3">
+                            <div className="rounded-radius-lg border border-status-success/20 bg-status-success/10 p-space-3">
+                                <div className="text-text-xs font-semibold uppercase tracking-wide text-status-success">Alta confiança</div>
+                                <div className="mt-space-1 text-text-lg font-bold text-status-success">{applyEligibleCounts.high_only}</div>
+                            </div>
+                            <div className="rounded-radius-lg border border-status-warning/20 bg-status-warning/10 p-space-3">
+                                <div className="text-text-xs font-semibold uppercase tracking-wide text-status-warning">Alta + Média</div>
+                                <div className="mt-space-1 text-text-lg font-bold text-status-warning">{applyEligibleCounts.high_medium}</div>
+                            </div>
+                            <div className="rounded-radius-lg border border-status-error/20 bg-status-error/10 p-space-3">
+                                <div className="text-text-xs font-semibold uppercase tracking-wide text-status-error">Todas</div>
+                                <div className="mt-space-1 text-text-lg font-bold text-status-error">{applyEligibleCounts.all}</div>
+                            </div>
+                        </div>
+
+                        <div className="mt-space-5 flex flex-wrap justify-end gap-space-3">
+                            <Button type="button" variant="secondary" onClick={() => setShowApplyModal(false)}>
+                                Cancelar
+                            </Button>
+                            <Button type="button" onClick={confirmApplyGeocode} disabled={geocodeRunning || applyEligibleCounts[pendingApplySelection] === 0}>
+                                Confirmar aplicação
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {selectedGeocodeItem && selectedGeocodePosition && (
                 <div
@@ -640,6 +912,11 @@ export function BusinessList() {
                                 <div className="text-text-lg font-bold text-text-primary">{selectedGeocodeItem.name}</div>
                                 <div className="mt-space-1 text-text-sm text-text-secondary">
                                     {selectedGeocodeItem.location_type || "Localização"} via {selectedGeocodeItem.source || "fonte não informada"}
+                                </div>
+                                <div className="mt-space-2">
+                                    <span className={getConfidenceClasses(selectedGeocodeConfidenceLevel).badge}>
+                                        {getConfidenceLabel(selectedGeocodeConfidenceLevel)}
+                                    </span>
                                 </div>
                             </div>
                             <button
@@ -687,6 +964,10 @@ export function BusinessList() {
                                     </div>
                                 </div>
                                 <div className="rounded-radius-lg border border-border-subtle bg-surface-subtle p-space-3">
+                                    <div className="text-text-xs font-semibold uppercase tracking-wide text-text-muted">Nível de confiança</div>
+                                    <div className="mt-space-1 text-text-sm text-text-primary">{getConfidenceLabel(selectedGeocodeConfidenceLevel)}</div>
+                                </div>
+                                <div className="rounded-radius-lg border border-border-subtle bg-surface-subtle p-space-3">
                                     <div className="text-text-xs font-semibold uppercase tracking-wide text-text-muted">Endereço pesquisado</div>
                                     <div className="mt-space-1 text-text-sm text-text-secondary">
                                         {selectedGeocodeItem.searched_address || selectedGeocodeItem.address || "-"}
@@ -711,6 +992,10 @@ export function BusinessList() {
                                         <div>
                                             <div className="text-text-xs font-semibold uppercase tracking-wide text-text-muted">Origem</div>
                                             <div className="mt-space-1">{selectedGeocodeItem.coordinate_origin || selectedGeocodeItem.strategy_label || "-"}</div>
+                                        </div>
+                                        <div>
+                                            <div className="text-text-xs font-semibold uppercase tracking-wide text-text-muted">Confiança</div>
+                                            <div className="mt-space-1">{typeof selectedGeocodeItem.confidence_score === "number" ? selectedGeocodeItem.confidence_score.toFixed(2) : "-"}</div>
                                         </div>
                                         <div>
                                             <div className="text-text-xs font-semibold uppercase tracking-wide text-text-muted">Distância Nova Terra</div>

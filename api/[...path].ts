@@ -141,6 +141,18 @@ function clamp01(value: number) {
   return value;
 }
 
+function getGeocodeConfidenceLevel(score: number): GeocodeConfidenceLevel {
+  if (score >= 0.9) return 'high';
+  if (score >= 0.5) return 'medium';
+  return 'low';
+}
+
+function normalizeGeocodeApplySelection(value: unknown): GeocodeApplySelection {
+  if (value === 'all') return 'all';
+  if (value === 'high_medium') return 'high_medium';
+  return 'high_only';
+}
+
 type GeocodePreparedInput = {
   businessName: string;
   address: string;
@@ -151,17 +163,20 @@ type GeocodePreparedInput = {
   zipCode: string;
 };
 
+type GeocodeConfidenceLevel = 'high' | 'medium' | 'low';
+type GeocodeApplySelection = 'high_only' | 'high_medium' | 'all';
+
 type GeocodeStrategy = {
   key:
-    | 'address_full'
-    | 'name_neighborhood_city_state'
-    | 'name_city_state'
-    | 'name_neighborhood'
-    | 'clean_address'
-    | 'street_lookup'
-    | 'reused_street'
-    | 'reused_zip'
-    | 'approx_neighborhood_center';
+  | 'address_full'
+  | 'name_neighborhood_city_state'
+  | 'name_city_state'
+  | 'name_neighborhood'
+  | 'clean_address'
+  | 'street_lookup'
+  | 'reused_street'
+  | 'reused_zip'
+  | 'approx_neighborhood_center';
   label: string;
   buildQuery: (input: GeocodePreparedInput) => string;
 };
@@ -193,6 +208,7 @@ type GeocodeCandidate = {
   resolved_zip_code: string | null;
   resolved_neighborhood: string | null;
   resolved_city: string | null;
+  confidence_level: GeocodeConfidenceLevel;
 };
 
 type GeocodeAttemptResult = {
@@ -519,6 +535,7 @@ function classifyGeocodeCandidate(
   const finalScore = clamp01(confidenceScore);
   const confidence: 'found' | 'dubious' | 'not_found' =
     finalScore >= 0.9 ? 'found' : finalScore >= 0.5 ? 'dubious' : 'not_found';
+  const confidenceLevel = getGeocodeConfidenceLevel(finalScore);
 
   return {
     lat,
@@ -539,6 +556,7 @@ function classifyGeocodeCandidate(
     resolved_zip_code: resolvedZipCode,
     resolved_neighborhood: resolvedNeighborhood,
     resolved_city: resolvedCity,
+    confidence_level: confidenceLevel,
   };
 }
 
@@ -641,6 +659,7 @@ function buildNeighborhoodCenterFallback(prepared: GeocodePreparedInput): Geocod
       resolved_zip_code: normalizeZipCode(prepared.zipCode) || null,
       resolved_neighborhood: prepared.neighborhood || 'Nova Terra',
       resolved_city: prepared.city || 'São José de Ribamar',
+      confidence_level: 'low',
     },
   };
 }
@@ -733,6 +752,7 @@ function buildStreetReuseFallback(prepared: GeocodePreparedInput, streetReferenc
       resolved_zip_code: normalizeZipCode(prepared.zipCode) || null,
       resolved_neighborhood: prepared.neighborhood || streetEntry.neighborhood,
       resolved_city: prepared.city || streetEntry.city,
+      confidence_level: 'medium',
     },
   };
 }
@@ -772,6 +792,7 @@ function buildZipReuseFallback(prepared: GeocodePreparedInput, zipEntry: Geocode
       resolved_zip_code: zipEntry.zip_code,
       resolved_neighborhood: prepared.neighborhood || zipEntry.neighborhood,
       resolved_city: prepared.city || zipEntry.city,
+      confidence_level: 'medium',
     },
   };
 }
@@ -806,6 +827,14 @@ function updateGeocodeBatchStats(stats: GeocodeBatchStats, result: GeocodeAttemp
     stats.recovered_by_neighborhood_center += 1;
     stats.recovered_by_fallback += 1;
   }
+}
+
+function canApplyGeocodeResult(result: GeocodeAttemptResult, selection: GeocodeApplySelection) {
+  if (!result.candidate) return false;
+  const level = result.candidate.confidence_level;
+  if (selection === 'all') return true;
+  if (selection === 'high_medium') return level === 'high' || level === 'medium';
+  return level === 'high';
 }
 
 async function geocodeAddressWithNominatim(input: Record<string, unknown>, context?: GeocodeProcessingContext | null) {
@@ -874,6 +903,7 @@ async function geocodeAddressWithNominatim(input: Record<string, unknown>, conte
           location_type: 'Aproximada',
           source: 'Rua',
           coordinate_origin: 'Rua localizada',
+          confidence_level: 'medium',
         },
       });
     }
@@ -1656,6 +1686,7 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
             strategy_key: result.candidate?.strategy_key ?? result.strategy_key ?? null,
             strategy_label: result.candidate?.strategy_label ?? result.strategy_label ?? null,
             confidence_score: result.candidate?.confidence_score ?? null,
+            confidence_level: result.candidate?.confidence_level ?? null,
             returned_name: result.candidate?.returned_name ?? null,
             location_type: result.candidate?.location_type ?? null,
             source: result.candidate?.source ?? null,
@@ -1670,6 +1701,7 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
 
         const body = await readJson(req);
         const mode = body?.mode === 'apply' ? 'apply' : 'dry-run';
+        const applySelection = normalizeGeocodeApplySelection(body?.apply_selection);
         const processingContext = restoreGeocodeProcessingContext(body?.processing_state);
         const limitRaw = typeof body?.limit === 'number' ? body.limit : typeof body?.limit === 'string' ? Number.parseInt(body.limit, 10) : GEOCODE_BATCH_DEFAULT_LIMIT;
         const safeLimit =
@@ -1699,6 +1731,7 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
           updated: [] as Array<Record<string, unknown>>,
           stats: createEmptyGeocodeBatchStats(),
           processing_state: serializeGeocodeProcessingContext(processingContext),
+          apply_selection: applySelection,
           nextOffset: null as number | null,
           hasMore: false,
         };
@@ -1724,6 +1757,7 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
             returned_name: result.candidate?.returned_name ?? null,
             confidence: result.candidate?.confidence ?? null,
             confidence_score: result.candidate?.confidence_score ?? null,
+            confidence_level: result.candidate?.confidence_level ?? null,
             location_type: result.candidate?.location_type ?? null,
             source: result.candidate?.source ?? null,
             coordinate_origin: result.candidate?.coordinate_origin ?? mapStrategyToCoordinateOrigin(result.strategy_key),
@@ -1733,7 +1767,7 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
 
           if (result.status === 'found') {
             report.found.push(baseEntry);
-            if (mode === 'apply' && typeof business.id === 'string' && result.candidate) {
+            if (mode === 'apply' && typeof business.id === 'string' && result.candidate && canApplyGeocodeResult(result, applySelection)) {
               const updateRes = await supabase
                 .from('businesses')
                 .update({ latitude: result.candidate.lat, longitude: result.candidate.lng })
@@ -1749,6 +1783,20 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
             }
           } else if (result.status === 'dubious') {
             report.dubious.push(baseEntry);
+            if (mode === 'apply' && typeof business.id === 'string' && result.candidate && canApplyGeocodeResult(result, applySelection)) {
+              const updateRes = await supabase
+                .from('businesses')
+                .update({ latitude: result.candidate.lat, longitude: result.candidate.lng })
+                .eq('id', business.id)
+                .is('latitude', null)
+                .is('longitude', null)
+                .select('id, name, latitude, longitude')
+                .single();
+
+              if (!updateRes.error && updateRes.data) {
+                report.updated.push(updateRes.data as Record<string, unknown>);
+              }
+            }
           } else {
             report.not_found.push(baseEntry);
           }
