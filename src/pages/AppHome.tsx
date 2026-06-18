@@ -7,6 +7,7 @@ import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { Input } from "../components/ui/Input";
 import heroBg from "../assets/hero-bg.jpg";
+import logo from "../assets/logo-transparent.png";
 
 const categoryColorClasses = [
   "from-action-primary/15 to-action-primary/5",
@@ -132,6 +133,7 @@ export function AppHome() {
 
         <div className="relative container mx-auto flex min-h-[78vh] flex-col justify-end px-space-4 pb-space-8 pt-24">
           <div className="max-w-xl">
+            <img src={logo} alt="Tem Aki no Bairro" className="mb-space-5 h-20 w-auto max-w-[320px] object-contain" />
             <div className="mb-space-4 inline-flex items-center rounded-radius-full border border-white/15 bg-white/10 px-space-3 py-2 text-text-xs font-semibold uppercase tracking-widest text-white/85 backdrop-blur">
               Nova Terra
             </div>

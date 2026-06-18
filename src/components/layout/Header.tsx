@@ -3,7 +3,7 @@ import { Menu, X, User as UserIcon, LogOut, Heart, LayoutDashboard } from "lucid
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
-import logo from "../../assets/logo.jpg";
+import logo from "../../assets/logo-transparent.png";
 
 type NavigatorStandalone = Navigator & { standalone?: boolean };
 
@@ -60,10 +60,7 @@ export function Header() {
         <header className="fixed top-0 left-0 w-full z-50 bg-surface-section border-b border-border-default shadow-sm text-sm">
             <div className="container mx-auto px-4 h-16 flex items-center justify-between">
                 <Link to="/" className="flex items-center gap-3 h-full text-action-primary hover:opacity-90 transition-opacity">
-                    <img src={logo} alt="Tem Aki no Bairro" className="h-full w-auto object-contain" />
-                    <span className="text-text-xl font-bold text-text-primary">
-                        Tem Aki <span className="text-action-primary">no Bairro</span>
-                    </span>
+                    <img src={logo} alt="Tem Aki no Bairro" className="h-10 md:h-11 w-auto max-w-[210px] object-contain" />
                 </Link>
 
                 <nav className="hidden md:flex items-center gap-space-6">

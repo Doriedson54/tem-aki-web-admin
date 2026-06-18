@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
-import logo from "../assets/logo.jpg";
+import logo from "../assets/logo-transparent.png";
 import heroBg from "../assets/hero-bg.jpg";
 
 type BeforeInstallPromptEvent = Event & {
@@ -152,8 +152,7 @@ export function Download() {
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-space-8 items-center">
                         <div className="space-y-space-6">
                             <div className="flex items-center gap-space-3">
-                                <img src={logo} alt="Tem Aki no Bairro" className="h-12 w-12 rounded-radius-lg border border-border-subtle object-cover bg-surface-card" />
-                                <div className="text-text-sm font-semibold text-text-secondary">Tem Aki no Bairro</div>
+                                <img src={logo} alt="Tem Aki no Bairro" className="h-14 w-auto max-w-[220px] object-contain" />
                             </div>
                             <div>
                                 <h1 className="text-text-4xl md:text-text-5xl font-bold text-text-primary leading-tight">
@@ -409,4 +408,3 @@ export function Download() {
         </div>
     );
 }
-

@@ -16,6 +16,8 @@ export default defineConfig({
         'android-chrome-512x512.png',
         'android-chrome-192x192-maskable.png',
         'android-chrome-512x512-maskable.png',
+        'logo-transparent.png',
+        'og-image.png',
       ],
       manifest: {
         id: '/',

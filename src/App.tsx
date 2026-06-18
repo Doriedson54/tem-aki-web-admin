@@ -26,7 +26,7 @@ import { OwnerDashboard } from "./pages/OwnerDashboard";
 import { AuthProvider } from "./contexts/AuthContext";
 import { PrivateRoute } from "./components/PrivateRoute";
 import { Card } from "./components/ui/Card";
-import logo from "./assets/logo.jpg";
+import logo from "./assets/logo-transparent.png";
 import { appMeta } from "./config/appMeta";
 
 function ScrollToTop() {
@@ -149,11 +149,7 @@ function UserAppLayout() {
       <header className="fixed inset-x-0 top-0 z-[60] border-b border-border-default bg-surface-card/95 shadow-sm backdrop-blur">
         <div className="container mx-auto flex h-16 items-center justify-between px-space-4">
           <Link to="/app" className="flex min-w-0 items-center gap-space-3">
-            <img src={logo} alt="Tem Aki no Bairro" className="h-10 w-10 rounded-radius-lg border border-border-subtle object-cover bg-surface-card" />
-            <div className="leading-tight">
-              <div className="text-text-base font-bold text-text-primary">{appMeta.name}</div>
-              <div className="text-text-xs text-text-muted">Busca local no Nova Terra</div>
-            </div>
+            <img src={logo} alt="Tem Aki no Bairro" className="h-10 w-auto max-w-[180px] object-contain" />
           </Link>
           <button
             type="button"
@@ -180,10 +176,10 @@ function UserAppLayout() {
           <aside className="absolute right-0 top-0 h-full w-[88%] max-w-sm overflow-y-auto border-l border-border-subtle bg-surface-card p-space-5 shadow-2xl">
             <div className="flex items-center justify-between gap-space-3">
               <div className="flex items-center gap-space-3">
-                <img src={logo} alt="Tem Aki no Bairro" className="h-11 w-11 rounded-radius-lg border border-border-subtle object-cover bg-surface-card" />
+                <img src={logo} alt="Tem Aki no Bairro" className="h-11 w-auto max-w-[170px] object-contain" />
                 <div>
-                  <div className="text-text-lg font-bold text-text-primary">{appMeta.name}</div>
-                  <div className="text-text-xs text-text-muted">Menu</div>
+                  <div className="text-text-sm font-bold text-text-primary">Menu do aplicativo</div>
+                  <div className="text-text-xs text-text-muted">Nova Terra</div>
                 </div>
               </div>
               <button

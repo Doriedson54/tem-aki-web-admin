@@ -5,6 +5,7 @@ import { Input } from "../components/ui/Input";
 import { Card } from "../components/ui/Card";
 import api from "../services/api";
 import { useAuth } from "../contexts/AuthContext";
+import logo from "../assets/logo-transparent.png";
 
 export function Login() {
     const navigate = useNavigate();
@@ -57,7 +58,10 @@ export function Login() {
     return (
         <div className="container mx-auto px-space-4 py-space-12">
             <div className="max-w-md mx-auto">
-                <h1 className="text-text-3xl font-bold text-text-primary mb-space-6 text-center">Área Restrita</h1>
+                <div className="mb-space-6 flex flex-col items-center gap-space-3 text-center">
+                    <img src={logo} alt="Tem Aki no Bairro" className="h-20 w-auto max-w-[280px] object-contain" />
+                    <h1 className="text-text-3xl font-bold text-text-primary">Área Restrita</h1>
+                </div>
                 <Card className="border-border-subtle">
                     <form onSubmit={handleSubmit} className="space-y-space-4">
                         {error && (

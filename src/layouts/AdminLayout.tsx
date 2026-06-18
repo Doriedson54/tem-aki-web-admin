@@ -3,6 +3,7 @@ import { LayoutDashboard, Store, Grid, MessageSquare, LogOut, Menu, X, ListTree 
 import { useState } from "react";
 import { Button } from "../components/ui/Button";
 import { useAuth } from "../contexts/AuthContext";
+import logo from "../assets/logo-transparent.png";
 
 export function AdminLayout() {
     const { pathname } = useLocation();
@@ -28,8 +29,11 @@ export function AdminLayout() {
 
             <aside className={`fixed md:static inset-y-0 left-0 z-50 w-64 bg-surface-card border-r border-border-subtle shadow-card transform ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0 transition-transform duration-300 ease-in-out`}>
                 <div className="h-full flex flex-col">
-                    <div className="p-space-6 border-b border-border-subtle flex justify-between items-center">
-                        <Link to="/" className="text-text-lg font-bold text-action-primary">Tem Aki Admin</Link>
+                    <div className="p-space-6 border-b border-border-subtle flex justify-between items-center gap-space-3">
+                        <Link to="/" className="min-w-0">
+                            <img src={logo} alt="Tem Aki no Bairro" className="h-10 w-auto max-w-[170px] object-contain" />
+                            <div className="mt-space-2 text-text-xs font-semibold uppercase tracking-wide text-action-primary">Painel Admin</div>
+                        </Link>
                         <button onClick={toggleMenu} className="md:hidden text-text-muted">
                             <X className="h-6 w-6" />
                         </button>
@@ -80,7 +84,7 @@ export function AdminLayout() {
                     <button onClick={toggleMenu} className="text-text-muted">
                         <Menu className="h-6 w-6" />
                     </button>
-                    <span className="font-semibold text-text-primary">Painel Administrativo</span>
+                    <img src={logo} alt="Tem Aki no Bairro" className="h-8 w-auto max-w-[140px] object-contain" />
                 </header>
 
                 <div className="flex-1 overflow-auto p-4 md:p-8">
