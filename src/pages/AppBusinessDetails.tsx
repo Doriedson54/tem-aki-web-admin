@@ -42,6 +42,43 @@ function safeDateLabel(value: unknown): string | null {
   return d.toLocaleDateString("pt-BR");
 }
 
+function BusinessDetailsSkeleton() {
+  return (
+    <div className="min-h-screen bg-[#F7F7F5] pb-28 md:pb-space-16">
+      <section className="container mx-auto px-space-4 py-space-4">
+        <div className="flex items-center justify-between gap-space-3">
+          <div className="h-10 w-28 animate-pulse rounded-full bg-slate-200" />
+          <div className="flex gap-space-2">
+            <div className="h-10 w-10 animate-pulse rounded-full bg-slate-200" />
+            <div className="h-10 w-10 animate-pulse rounded-full bg-slate-200" />
+          </div>
+        </div>
+      </section>
+      <section className="container mx-auto px-space-4">
+        <div className="overflow-hidden rounded-[28px] border border-black/5 bg-white shadow-[0_24px_50px_rgba(15,23,42,0.08)]">
+          <div className="h-64 animate-pulse bg-slate-200 md:h-80" />
+          <div className="grid gap-space-6 p-space-6 lg:grid-cols-3">
+            <div className="space-y-space-5 lg:col-span-2">
+              <div className="space-y-space-3">
+                <div className="h-3 w-40 animate-pulse rounded-full bg-slate-200" />
+                <div className="h-8 w-3/4 animate-pulse rounded-full bg-slate-200" />
+                <div className="h-5 w-1/2 animate-pulse rounded-full bg-slate-200" />
+              </div>
+              <div className="h-48 animate-pulse rounded-[24px] bg-slate-100" />
+              <div className="h-64 animate-pulse rounded-[24px] bg-slate-100" />
+            </div>
+            <div className="space-y-space-4">
+              <div className="h-44 animate-pulse rounded-[24px] bg-slate-100" />
+              <div className="h-36 animate-pulse rounded-[24px] bg-slate-100" />
+              <div className="h-32 animate-pulse rounded-[24px] bg-slate-100" />
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export function AppBusinessDetails() {
   const { id } = useParams<{ id: string }>();
   const [business, setBusiness] = useState<Business | null>(null);
@@ -194,7 +231,7 @@ export function AppBusinessDetails() {
   const handleToggleFavorite = useCallback(() => {
     if (!id || typeof window === "undefined") return;
     try {
-      const raw = localStorage.getItem(APP_FAVORITES_STORAGE_KEY);
+      const raw = localStorage.getItem(appMeta.favoritesStorageKey);
       const favoriteIds = raw ? (JSON.parse(raw) as string[]) : [];
       const nextIds = Array.isArray(favoriteIds)
         ? favoriteIds.includes(id)
@@ -322,11 +359,7 @@ export function AppBusinessDetails() {
   }, [business?.rating, reviews]);
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center text-action-primary">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-action-primary"></div>
-      </div>
-    );
+    return <BusinessDetailsSkeleton />;
   }
 
   if (!business) {
@@ -344,10 +377,10 @@ export function AppBusinessDetails() {
   }
 
   return (
-    <div className="min-h-screen bg-surface-page pb-28 md:pb-space-16">
+    <div className="min-h-screen bg-[#F7F7F5] pb-28 md:pb-space-16">
       <section className="container mx-auto px-space-4 py-space-4">
         <div className="flex items-center justify-between gap-space-3">
-          <Link to="/app/lista" className="inline-flex items-center gap-space-2 text-text-secondary hover:text-action-primary font-medium">
+          <Link to="/app/lista" className="inline-flex items-center gap-space-2 rounded-full bg-white px-space-4 py-space-3 text-text-secondary shadow-sm transition-colors hover:text-action-primary font-medium">
             <ArrowLeft className="h-5 w-5" />
             <span className="text-text-sm">Voltar</span>
           </Link>
@@ -355,7 +388,7 @@ export function AppBusinessDetails() {
             <button
               type="button"
               onClick={handleToggleFavorite}
-              className={`h-10 w-10 rounded-full border inline-flex items-center justify-center transition-colors ${isFavorite ? "border-status-error bg-status-error/10 text-status-error" : "border-border-subtle bg-surface-card text-text-secondary"
+              className={`h-10 w-10 rounded-full border inline-flex items-center justify-center transition-colors ${isFavorite ? "border-status-error bg-status-error/10 text-status-error" : "border-border-subtle bg-white text-text-secondary shadow-sm"
                 }`}
               aria-label={isFavorite ? "Desfavoritar" : "Favoritar"}
             >
@@ -364,7 +397,7 @@ export function AppBusinessDetails() {
             <button
               type="button"
               onClick={handleShare}
-              className="h-10 w-10 rounded-full border border-border-subtle bg-surface-card text-text-secondary inline-flex items-center justify-center"
+              className="h-10 w-10 rounded-full border border-border-subtle bg-white text-text-secondary inline-flex items-center justify-center shadow-sm"
               aria-label="Compartilhar"
             >
               <Share2 className="h-5 w-5" />
@@ -374,32 +407,35 @@ export function AppBusinessDetails() {
       </section>
 
       <section className="container mx-auto px-space-4">
-        <div className="rounded-radius-2xl overflow-hidden border border-border-subtle bg-surface-card shadow-card">
-          <div className="aspect-[16/8] bg-surface-subtle">
+        <div className="overflow-hidden rounded-[30px] border border-black/5 bg-white shadow-[0_24px_50px_rgba(15,23,42,0.08)]">
+          <div className="relative aspect-[16/8] bg-surface-subtle">
             <img
               src={business.image_url || business.logo_url || "https://placehold.co/1200x700/e2e8f0/94a3b8?text=Tem+Aki"}
               alt={business.name}
               className="h-full w-full object-cover"
             />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/15 to-transparent" />
+            <div className="absolute left-space-5 top-space-5 rounded-full bg-white/92 px-space-4 py-space-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#B86A1A] shadow-sm">
+              {business.category?.name || "Geral"}
+            </div>
           </div>
 
           <div className="p-space-6 md:p-space-8">
             <div className="flex flex-col gap-space-5 md:flex-row md:items-start md:justify-between">
               <div className="min-w-0">
-                <div className="text-text-xs font-bold uppercase tracking-wider text-text-muted">
-                  {business.category?.name || "Geral"}
-                  {business.subcategory?.name ? ` • ${business.subcategory.name}` : ""}
+                <div className="inline-flex items-center rounded-full bg-[#FFF4E7] px-space-3 py-space-2 text-text-xs font-bold uppercase tracking-wider text-[#B86A1A]">
+                  {(business.subcategory?.name ? `${business.category?.name || "Geral"} • ${business.subcategory.name}` : business.category?.name || "Geral")}
                 </div>
                 <h1 className="mt-space-2 text-text-3xl md:text-text-4xl font-bold text-text-primary">{business.name}</h1>
                 {business.main_product && (
                   <p className="mt-space-2 text-text-lg text-text-secondary">{business.main_product}</p>
                 )}
-                <div className="mt-space-3 flex items-center gap-space-2 text-text-sm text-text-secondary">
-                  <div className="flex items-center gap-1">
+                <div className="mt-space-4 flex flex-wrap items-center gap-space-3 text-text-sm text-text-secondary">
+                  <div className="flex items-center gap-1 rounded-full bg-[#FFF6ED] px-space-3 py-space-2">
                     <Star className="h-4 w-4 fill-status-warning text-status-warning" />
                     <span className="font-semibold text-text-primary">{typeof avgRating === "number" ? avgRating.toFixed(1) : "Novo"}</span>
                   </div>
-                  <span>({reviews.length} avaliações)</span>
+                  <span className="rounded-full bg-slate-100 px-space-3 py-space-2">({reviews.length} avaliações)</span>
                 </div>
               </div>
 
@@ -409,7 +445,7 @@ export function AppBusinessDetails() {
                     href={normalizeInstagramUrl(business.instagram) || undefined}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex h-10 items-center justify-center rounded-full border border-border-subtle bg-surface-card px-space-4 text-text-sm font-medium text-text-secondary"
+                    className="inline-flex h-10 items-center justify-center rounded-full border border-border-subtle bg-white px-space-4 text-text-sm font-medium text-text-secondary shadow-sm"
                   >
                     <Instagram className="h-4 w-4 mr-2" />
                     Instagram
@@ -420,7 +456,7 @@ export function AppBusinessDetails() {
                     href={business.website}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex h-10 items-center justify-center rounded-full border border-border-subtle bg-surface-card px-space-4 text-text-sm font-medium text-text-secondary"
+                    className="inline-flex h-10 items-center justify-center rounded-full border border-border-subtle bg-white px-space-4 text-text-sm font-medium text-text-secondary shadow-sm"
                   >
                     <Globe className="h-4 w-4 mr-2" />
                     Site
@@ -430,7 +466,7 @@ export function AppBusinessDetails() {
                   href={mapLink}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex h-10 items-center justify-center rounded-full border border-border-subtle bg-surface-card px-space-4 text-text-sm font-medium text-text-secondary"
+                  className="inline-flex h-10 items-center justify-center rounded-full border border-border-subtle bg-white px-space-4 text-text-sm font-medium text-text-secondary shadow-sm"
                   onClick={() => registerEvent("map_click", { location: "top_actions" })}
                 >
                   <MapPin className="h-4 w-4 mr-2" />
@@ -441,7 +477,7 @@ export function AppBusinessDetails() {
                     href={whatsappLink}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex h-10 items-center justify-center rounded-full border border-border-subtle bg-surface-card px-space-4 text-text-sm font-medium text-text-secondary"
+                    className="inline-flex h-10 items-center justify-center rounded-full border border-border-subtle bg-white px-space-4 text-text-sm font-medium text-text-secondary shadow-sm"
                     onClick={() => registerEvent("whatsapp_click", { location: "top_actions" })}
                   >
                     <MessageCircle className="h-4 w-4 mr-2" />
@@ -453,7 +489,7 @@ export function AppBusinessDetails() {
 
             <div className="mt-space-8 grid grid-cols-1 lg:grid-cols-3 gap-space-6">
               <div className="lg:col-span-2 space-y-space-6">
-                <section className="rounded-radius-2xl border border-border-subtle bg-surface-subtle/30 p-space-6">
+                <section className="rounded-[26px] border border-black/5 bg-gradient-to-br from-white to-[#FFF8F1] p-space-6 shadow-[0_16px_32px_rgba(15,23,42,0.05)]">
                   <h2 className="text-text-xl font-bold text-text-primary">Sobre</h2>
                   <p className="mt-space-3 text-text-secondary whitespace-pre-line leading-7">
                     {business.description || "Nenhuma descrição disponível."}
@@ -461,7 +497,7 @@ export function AppBusinessDetails() {
                 </section>
 
                 {imageUrls.length > 0 && (
-                  <section className="rounded-radius-2xl border border-border-subtle bg-surface-card p-space-6">
+                  <section className="rounded-[26px] border border-black/5 bg-white p-space-6 shadow-[0_16px_32px_rgba(15,23,42,0.05)]">
                     <div className="flex items-end justify-between gap-space-4">
                       <div>
                         <h2 className="text-text-xl font-bold text-text-primary">Galeria de Fotos</h2>
@@ -487,7 +523,7 @@ export function AppBusinessDetails() {
                             className="relative shrink-0 w-full snap-start"
                             onClick={() => openViewerAt(index)}
                           >
-                            <div className="overflow-hidden rounded-radius-2xl bg-surface-subtle shadow-card">
+                            <div className="overflow-hidden rounded-[24px] bg-surface-subtle shadow-[0_14px_28px_rgba(15,23,42,0.08)]">
                               <div className="aspect-[4/3] md:aspect-[16/10]">
                                 <img src={url} alt={`${business.name} ${index + 1}`} className="h-full w-full object-cover" loading="lazy" decoding="async" />
                               </div>
@@ -517,7 +553,7 @@ export function AppBusinessDetails() {
                   </section>
                 )}
 
-                <section className="rounded-radius-2xl border border-border-subtle bg-surface-card p-space-6">
+                <section className="rounded-[26px] border border-black/5 bg-white p-space-6 shadow-[0_16px_32px_rgba(15,23,42,0.05)]">
                   <h2 className="text-text-xl font-bold text-text-primary">Avaliações</h2>
                   <p className="mt-space-2 text-text-sm text-text-secondary">
                     Envie sua opinião. Ela fica pendente até a análise do administrador.
@@ -592,7 +628,7 @@ export function AppBusinessDetails() {
                   <div className="mt-space-6 space-y-space-4">
                     {reviews.length ? (
                       reviews.map((review) => (
-                        <div key={review.id} className="rounded-radius-2xl border border-border-subtle bg-surface-subtle/40 p-space-4">
+                        <div key={review.id} className="rounded-[22px] border border-black/5 bg-[#FAFAF8] p-space-4">
                           <div className="flex items-start justify-between gap-space-3">
                             <div>
                               <div className="font-semibold text-text-primary">
@@ -618,7 +654,7 @@ export function AppBusinessDetails() {
                         </div>
                       ))
                     ) : (
-                      <div className="rounded-radius-2xl border border-border-subtle bg-surface-subtle/40 p-space-4 text-text-secondary">
+                      <div className="rounded-[22px] border border-black/5 bg-[#FAFAF8] p-space-4 text-text-secondary">
                         Nenhuma avaliação aprovada ainda.
                       </div>
                     )}
@@ -627,7 +663,7 @@ export function AppBusinessDetails() {
               </div>
 
               <div className="space-y-space-4">
-                <section className="rounded-radius-2xl border border-border-subtle bg-surface-card p-space-6">
+                <section className="rounded-[26px] border border-black/5 bg-white p-space-6 shadow-[0_16px_32px_rgba(15,23,42,0.05)]">
                   <h2 className="text-text-xl font-bold text-text-primary">Contato</h2>
                   <div className="mt-space-4 space-y-space-4 text-text-secondary">
                     <div>
@@ -675,7 +711,7 @@ export function AppBusinessDetails() {
                   </div>
                 </section>
 
-                <section className="rounded-radius-2xl border border-border-subtle bg-surface-card p-space-6">
+                <section className="rounded-[26px] border border-black/5 bg-white p-space-6 shadow-[0_16px_32px_rgba(15,23,42,0.05)]">
                   <h2 className="text-text-xl font-bold text-text-primary">Endereço</h2>
                   <div className="mt-space-4 text-text-secondary space-y-space-4">
                     <div>
@@ -695,7 +731,7 @@ export function AppBusinessDetails() {
                 </section>
 
                 {openingHoursText && (
-                  <section className="rounded-radius-2xl border border-border-subtle bg-surface-card p-space-6">
+                  <section className="rounded-[26px] border border-black/5 bg-white p-space-6 shadow-[0_16px_32px_rgba(15,23,42,0.05)]">
                     <h2 className="text-text-xl font-bold text-text-primary inline-flex items-center gap-2">
                       <Clock className="h-5 w-5 text-action-primary" />
                       Horário

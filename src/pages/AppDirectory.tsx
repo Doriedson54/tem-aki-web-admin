@@ -7,6 +7,28 @@ import { Input } from "../components/ui/Input";
 import { Button } from "../components/ui/Button";
 import { appMeta } from "../config/appMeta";
 
+function DirectorySkeletonCard() {
+  return (
+    <div className="overflow-hidden rounded-[26px] border border-black/5 bg-white shadow-[0_18px_34px_rgba(15,23,42,0.06)]">
+      <div className="h-44 animate-pulse bg-slate-200" />
+      <div className="space-y-space-3 p-space-4 md:p-space-5">
+        <div className="flex items-center justify-between gap-space-3">
+          <div className="h-3 w-20 animate-pulse rounded-full bg-slate-200" />
+          <div className="h-3 w-24 animate-pulse rounded-full bg-slate-200" />
+        </div>
+        <div className="space-y-space-2">
+          <div className="h-5 w-3/4 animate-pulse rounded-full bg-slate-200" />
+          <div className="h-4 w-1/2 animate-pulse rounded-full bg-slate-200" />
+        </div>
+        <div className="space-y-space-2">
+          <div className="h-4 w-full animate-pulse rounded-full bg-slate-200" />
+          <div className="h-4 w-2/3 animate-pulse rounded-full bg-slate-200" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const BusinessListItem = memo(function BusinessListItem({ business }: { business: Business }) {
   const reviewCount = typeof business.review_count === "number" ? business.review_count : 0;
   const reviewsLabel = reviewCount === 1 ? "avaliação" : "avaliações";
@@ -15,9 +37,9 @@ const BusinessListItem = memo(function BusinessListItem({ business }: { business
   return (
     <Link
       to={`/app/business/${business.id}`}
-      className="group rounded-radius-2xl border border-border-subtle bg-surface-card shadow-card overflow-hidden hover:-translate-y-1 hover:shadow-card-hover transition-all"
+      className="group overflow-hidden rounded-[26px] border border-black/5 bg-white shadow-[0_18px_34px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_22px_40px_rgba(15,23,42,0.10)]"
     >
-      <div className="aspect-[16/10] bg-surface-subtle overflow-hidden">
+      <div className="relative aspect-[16/10] overflow-hidden bg-surface-subtle">
         <img
           src={business.image_url || business.logo_url || "https://placehold.co/640x480/e2e8f0/94a3b8?text=Tem+Aki"}
           alt={business.name}
@@ -25,13 +47,17 @@ const BusinessListItem = memo(function BusinessListItem({ business }: { business
           loading="lazy"
           decoding="async"
         />
+        <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/45 to-transparent" />
+        <div className="absolute left-space-4 top-space-4 rounded-full bg-white/90 px-space-3 py-space-2 text-[11px] font-semibold uppercase tracking-wide text-[#B86A1A] shadow-sm">
+          {business.category?.name || "Geral"}
+        </div>
       </div>
       <div className="p-space-4 md:p-space-5 space-y-space-3">
         <div className="flex items-center justify-between gap-space-3">
           <span className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
-            {business.category?.name || "Geral"}
+            {business.subcategory?.name || "Catálogo local"}
           </span>
-          <span className="text-text-xs text-text-muted">
+          <span className="rounded-full bg-[#FFF6ED] px-space-3 py-1 text-text-xs font-semibold text-[#8E5316]">
             {ratingText ? `★ ${ratingText}${reviewCount > 0 ? ` (${reviewCount} ${reviewsLabel})` : ""}` : "Sem avaliação"}
           </span>
         </div>
@@ -66,9 +92,9 @@ const BusinessListItem = memo(function BusinessListItem({ business }: { business
           </div>
         </div>
 
-        <div className="pt-space-3 border-t border-border-default text-action-primary text-text-sm font-semibold inline-flex items-center gap-1">
+        <div className="pt-space-3 border-t border-border-default text-[#B86A1A] text-text-sm font-semibold inline-flex items-center gap-1">
           Ver detalhes
-          <ChevronRight className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
         </div>
       </div>
     </Link>
@@ -272,15 +298,28 @@ export function AppDirectory() {
     setSearchParams({});
   };
 
+  const activeFilterCount = [name.trim(), selectedCategory, selectedSubcategory].filter(Boolean).length;
+
   return (
     <div
-      className="min-h-screen bg-surface-page pb-space-12"
+      className="min-h-screen bg-[#F7F7F5] pb-space-12"
       style={{ paddingBottom: keyboardInset > 0 ? `${keyboardInset + 20}px` : undefined }}
     >
       <section className="container mx-auto px-space-4 pt-space-4 pb-space-5 md:py-space-10">
-        <div ref={filterCardRef} className="rounded-radius-2xl border border-border-subtle bg-surface-card p-space-4 md:p-space-8 shadow-card">
+        <div
+          ref={filterCardRef}
+          className="overflow-hidden rounded-[30px] border border-black/5 bg-white p-space-4 shadow-[0_24px_50px_rgba(15,23,42,0.08)] md:p-space-8"
+        >
+          <div className="mb-space-6 flex flex-wrap items-center gap-space-3">
+            <div className="rounded-full bg-[#FFF4E7] px-space-4 py-space-2 text-text-xs font-semibold uppercase tracking-[0.18em] text-[#B86A1A]">
+              {favoritesOnly ? "Favoritos" : "Busca Inteligente"}
+            </div>
+            <div className="rounded-full bg-slate-100 px-space-4 py-space-2 text-text-xs font-semibold uppercase tracking-[0.18em] text-text-muted">
+              {activeFilterCount > 0 ? `${activeFilterCount} filtro(s)` : "Sem filtros"}
+            </div>
+          </div>
           <div className="max-w-2xl">
-            <h1 className="text-text-2xl md:text-text-4xl font-bold text-text-primary">
+            <h1 className="text-text-2xl md:text-[3rem] font-bold text-text-primary leading-tight">
               {favoritesOnly ? "Seus Favoritos" : "Encontre no Tem Aki"}
             </h1>
             <p className="mt-1 md:mt-space-2 text-text-secondary text-text-sm md:text-text-lg">
@@ -296,7 +335,7 @@ export function AppDirectory() {
               <div className="relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted h-5 w-5" />
                 <Input
-                  className="pl-12 h-12 md:h-14 bg-surface-subtle border-border-subtle rounded-radius-xl"
+                  className="pl-12 h-12 md:h-14 bg-surface-subtle border-border-subtle rounded-[18px]"
                   placeholder="Ex: farmácia, oficina, escola"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -312,7 +351,7 @@ export function AppDirectory() {
               <div className="relative">
                 <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted h-5 w-5 pointer-events-none" />
                 <select
-                  className="w-full h-12 md:h-14 pl-12 pr-space-10 bg-surface-subtle border border-border-subtle rounded-radius-xl focus:outline-none focus:border-action-primary appearance-none text-text-primary"
+                  className="w-full h-12 md:h-14 pl-12 pr-space-10 bg-surface-subtle border border-border-subtle rounded-[18px] focus:outline-none focus:border-action-primary appearance-none text-text-primary"
                   value={selectedCategory}
                   onChange={(e) => {
                     setSelectedCategory(e.target.value);
@@ -339,7 +378,7 @@ export function AppDirectory() {
               <div className="relative">
                 <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted h-5 w-5 pointer-events-none" />
                 <select
-                  className="w-full h-12 md:h-14 pl-12 pr-space-10 bg-surface-subtle border border-border-subtle rounded-radius-xl focus:outline-none focus:border-action-primary appearance-none text-text-primary disabled:opacity-60"
+                  className="w-full h-12 md:h-14 pl-12 pr-space-10 bg-surface-subtle border border-border-subtle rounded-[18px] focus:outline-none focus:border-action-primary appearance-none text-text-primary disabled:opacity-60"
                   value={selectedSubcategory}
                   onChange={(e) => setSelectedSubcategory(e.target.value)}
                   disabled={!selectedCategory || subcategories.length === 0}
@@ -362,10 +401,10 @@ export function AppDirectory() {
 
           <div className="mt-space-4 md:mt-space-6 flex flex-col sm:flex-row gap-space-3 sm:items-center sm:justify-between">
             <div className="flex gap-space-3">
-              <Button onClick={handleSearch} size="sm" className="h-10 px-6">Buscar</Button>
-              <Button variant="secondary" onClick={clearFilters} size="sm" className="h-10 px-5">Limpar</Button>
+              <Button onClick={handleSearch} size="sm" className="h-11 rounded-[16px] px-6">Buscar</Button>
+              <Button variant="secondary" onClick={clearFilters} size="sm" className="h-11 rounded-[16px] px-5">Limpar</Button>
             </div>
-            <div className="text-text-sm text-text-muted">
+            <div className="rounded-full bg-slate-100 px-space-4 py-space-2 text-text-sm font-medium text-text-muted">
               {loading ? "Carregando..." : favoritesOnly ? `${businesses.length} favorito(s)` : `${businesses.length} resultado(s)`}
             </div>
           </div>
@@ -374,8 +413,10 @@ export function AppDirectory() {
 
       <section className="container mx-auto px-space-4">
         {loading ? (
-          <div className="flex justify-center items-center py-space-12 text-action-primary">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-action-primary"></div>
+          <div className="grid grid-cols-1 gap-space-4 sm:grid-cols-2 lg:grid-cols-3 md:gap-space-5">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <DirectorySkeletonCard key={index} />
+            ))}
           </div>
         ) : businesses.length ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-space-4 md:gap-space-5">
@@ -384,8 +425,12 @@ export function AppDirectory() {
             ))}
           </div>
         ) : (
-          <div className="rounded-radius-2xl border border-border-subtle bg-surface-card p-space-8 text-text-secondary">
-            Nenhum negócio encontrado.
+          <div className="rounded-[26px] border border-black/5 bg-white p-space-8 text-center shadow-[0_18px_34px_rgba(15,23,42,0.06)]">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-[18px] bg-[#FFF4E7] text-[#B86A1A]">
+              <Search className="h-5 w-5" />
+            </div>
+            <div className="mt-space-4 text-text-lg font-bold text-text-primary">Nenhum negócio encontrado</div>
+            <div className="mt-space-2 text-text-secondary">Tente ajustar os filtros ou buscar por outro termo.</div>
           </div>
         )}
       </section>
