@@ -83,6 +83,14 @@ function SectionDivider() {
   );
 }
 
+function Divider3D() {
+  return (
+    <div className="container mx-auto px-space-4">
+      <div className="my-space-4 h-[2px] rounded-full bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.45),rgba(184,106,26,0.28),rgba(255,255,255,0.45),transparent)] shadow-[0_1px_0_rgba(0,0,0,0.12),0_-1px_0_rgba(255,255,255,0.40)]" />
+    </div>
+  );
+}
+
 export function AppHome() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -168,13 +176,13 @@ export function AppHome() {
         <div className="relative container mx-auto px-space-4 pb-9 pt-7">
           <div className="grid min-h-[320px] grid-cols-[minmax(0,1fr)_168px] items-center gap-1">
             <div className="text-white">
-              <div className="mb-space-4 inline-flex min-w-[208px] items-center gap-space-2 rounded-[18px] bg-white/92 px-space-4 py-space-3 text-left shadow-[0_14px_30px_rgba(15,23,42,0.18)] ring-1 ring-white/55">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#FFF1E2] text-[#B86A1A]">
+              <div className="mb-space-4 inline-flex min-w-[238px] items-center gap-space-3 rounded-[18px] border border-white/35 bg-white/12 px-space-4 py-space-3 text-left shadow-[0_16px_34px_rgba(0,0,0,0.22)] backdrop-blur-md">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full border border-white/30 bg-white/18 text-[#FFD6AB] shadow-[0_10px_22px_rgba(0,0,0,0.18)]">
                   <MapPin className="h-4 w-4" />
                 </div>
                 <div>
-                  <div className="text-text-sm font-bold text-text-primary">Nova Terra</div>
-                  <div className="text-[13px] text-text-secondary">São José de Ribamar - MA</div>
+                  <div className="text-text-sm font-bold text-white">Nova Terra</div>
+                  <div className="text-[13px] text-white/80 whitespace-nowrap">São José de Ribamar - MA</div>
                 </div>
               </div>
               <h1 className="max-w-[224px] text-[1.82rem] font-bold leading-[0.98] text-white [text-shadow:0_6px_24px_rgba(0,0,0,0.30)]">
@@ -244,7 +252,7 @@ export function AppHome() {
 
       <SectionDivider />
 
-      <section id="categorias" className="container mx-auto px-space-4 pt-space-5">
+      <section id="categorias" className="container mx-auto px-space-4 pt-space-8">
         {loading ? (
           <div className="grid grid-cols-4 gap-space-3">
             {Array.from({ length: 4 }).map((_, index) => (
@@ -273,6 +281,8 @@ export function AppHome() {
           </div>
         )}
       </section>
+
+      <Divider3D />
 
       <SectionDivider />
 
@@ -340,6 +350,8 @@ export function AppHome() {
           </Card>
         )}
       </section>
+
+      <Divider3D />
     </div>
   );
 }
