@@ -253,6 +253,15 @@ export function AppHome() {
       <SectionDivider />
 
       <section id="categorias" className="container mx-auto px-space-4 pt-space-8">
+        <div className="mb-space-3 flex items-center justify-between gap-space-3">
+          <div className="flex items-center gap-space-2 text-text-xl font-bold text-text-primary">
+            <LibraryBig className="h-5 w-5 text-[#B86A1A]" />
+            <span>Categorias</span>
+          </div>
+          <Link to="/app/lista" className="text-text-sm font-bold text-[#B86A1A]">
+            Ver todas
+          </Link>
+        </div>
         {loading ? (
           <div className="grid grid-cols-4 gap-space-3">
             {Array.from({ length: 4 }).map((_, index) => (
@@ -283,8 +292,6 @@ export function AppHome() {
       </section>
 
       <Divider3D />
-
-      <SectionDivider />
 
       <section className="container mx-auto px-space-4 pt-space-8">
         <div className="mb-space-4 flex items-center justify-between gap-space-3">
