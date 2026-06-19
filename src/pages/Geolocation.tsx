@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { MapPin, MessageCircle, Navigation, Star } from "lucide-react";
 import { MapComponent, type MapMarker, type MapViewportBounds } from "../components/MapComponent";
+import { GoogleMapComponent } from "../components/GoogleMapComponent";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import api from "../services/api";
@@ -69,6 +70,8 @@ export function Geolocation() {
     const isAppFlow = location.pathname.startsWith("/app");
     const detailsPrefix = isAppFlow ? "/app" : "";
     const eventSource = isAppFlow ? "app_map" : "site_map";
+    const googleMapsApiKey = String(import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "").trim();
+    const canUseGoogleMaps = Boolean(googleMapsApiKey);
 
     useEffect(() => {
         let cancelled = false;
@@ -291,14 +294,35 @@ export function Geolocation() {
                 </div>
             ) : (
                 <div className="space-y-space-5">
-                    <MapComponent
-                        center={center}
-                        zoom={zoom}
-                        userLocation={userLocation}
-                        markers={markers}
-                        onBoundsChange={setVisibleBounds}
-                        className="h-[52dvh] min-h-[360px] w-full"
-                    />
+                    {!canUseGoogleMaps && (
+                        <Card className="border-border-subtle">
+                            <div className="text-text-sm text-text-secondary">
+                                Google Maps não está configurado. Defina a variável <span className="font-bold">VITE_GOOGLE_MAPS_API_KEY</span> para habilitar o mapa.
+                                Enquanto isso, o sistema usa um mapa alternativo.
+                            </div>
+                        </Card>
+                    )}
+
+                    {canUseGoogleMaps ? (
+                        <GoogleMapComponent
+                            apiKey={googleMapsApiKey}
+                            center={center}
+                            zoom={zoom}
+                            userLocation={userLocation}
+                            markers={markers}
+                            onBoundsChange={setVisibleBounds}
+                            className="h-[52dvh] min-h-[360px] w-full"
+                        />
+                    ) : (
+                        <MapComponent
+                            center={center}
+                            zoom={zoom}
+                            userLocation={userLocation}
+                            markers={markers}
+                            onBoundsChange={setVisibleBounds}
+                            className="h-[52dvh] min-h-[360px] w-full"
+                        />
+                    )}
 
                     <Card className="border-border-subtle">
                         <div className="flex items-center justify-between gap-space-4">
