@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { BrowserRouter as Router, Routes, Route, useLocation, Outlet, Link, Navigate } from "react-router-dom";
-import { ChevronDown, Grid2x2, Heart, Home as HomeIcon, LocateFixed, MapPinned, Menu, Shield, X } from "lucide-react";
+import { BrowserRouter as Router, Routes, Route, useLocation, Outlet, Link, Navigate, useNavigate } from "react-router-dom";
+import { ArrowLeft, ChevronDown, Grid2x2, Heart, Home as HomeIcon, LocateFixed, MapPinned, Menu, X } from "lucide-react";
 import { MainLayout } from "./layouts/MainLayout";
 import { Home } from "./pages/Home";
 import { Directory } from "./pages/Directory";
@@ -112,6 +112,95 @@ function DeveloperContactsPage() {
   );
 }
 
+function AppBackButton() {
+  const navigate = useNavigate();
+
+  const handleBack = () => {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+
+    navigate("/app");
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleBack}
+      className="inline-flex items-center gap-space-2 rounded-radius-xl border border-border-subtle bg-white px-space-3 py-space-2 text-text-sm font-semibold text-text-primary shadow-sm"
+    >
+      <ArrowLeft className="h-4 w-4 text-action-primary" />
+      Voltar
+    </button>
+  );
+}
+
+function AppInstitutionalShell({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="container mx-auto px-space-4 py-space-5 md:py-space-8">
+      <div className="mx-auto max-w-3xl space-y-space-4">
+        <AppBackButton />
+        <div className="space-y-space-1">
+          <h1 className="text-text-2xl font-bold text-text-primary">{title}</h1>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function AppStaticTextPage({ title, content }: { title: string; content: string }) {
+  return (
+    <AppInstitutionalShell title={title}>
+      <Card className="border-border-subtle bg-white">
+        <div className="whitespace-pre-wrap text-text-sm leading-relaxed text-text-secondary md:text-text-base">{content}</div>
+      </Card>
+    </AppInstitutionalShell>
+  );
+}
+
+function AppDeveloperContactsPage() {
+  return (
+    <AppInstitutionalShell title="Contatos do Desenvolvedor">
+      <Card className="border-border-subtle bg-white">
+        <div className="space-y-space-4">
+          <div className="text-text-lg font-bold text-text-primary">{appMeta.developer.name}</div>
+          <div className="space-y-space-2">
+            <div className="text-text-sm font-semibold text-text-muted">E-mail</div>
+            <a className="text-text-sm font-semibold text-action-primary hover:underline" href={`mailto:${appMeta.developer.email}`}>
+              {appMeta.developer.email}
+            </a>
+          </div>
+          <div className="space-y-space-2">
+            <div className="text-text-sm font-semibold text-text-muted">Telefone</div>
+            <a className="text-text-sm font-semibold text-action-primary hover:underline" href={`tel:${appMeta.developer.phoneHref}`}>
+              {appMeta.developer.phoneLabel}
+            </a>
+          </div>
+        </div>
+      </Card>
+    </AppInstitutionalShell>
+  );
+}
+
+function AppAboutPage() {
+  return (
+    <div className="container mx-auto px-space-4 py-space-5 md:py-space-8">
+      <div className="mx-auto max-w-4xl space-y-space-4">
+        <AppBackButton />
+      </div>
+      <About />
+    </div>
+  );
+}
+
 function UserAppLayout() {
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -131,10 +220,10 @@ function UserAppLayout() {
   ];
 
   const institutionalLinks = [
-    { label: "Sobre o Aplicativo", to: "/about" },
-    { label: "Política de Privacidade", to: "/politica-de-privacidade" },
-    { label: "Termos de Uso", to: "/terms-of-use" },
-    { label: "Contatos do Desenvolvedor", to: "/developer-contacts" },
+    { label: "Sobre o Aplicativo", to: "/app/sobre" },
+    { label: "Política de Privacidade", to: "/app/politica-de-privacidade" },
+    { label: "Termos de Uso", to: "/app/termos-de-uso" },
+    { label: "Contatos do Desenvolvedor", to: "/app/contato-desenvolvedor" },
   ];
 
   const isInstitutionalActive = institutionalLinks.some((item) => item.to === location.pathname);
@@ -296,15 +385,6 @@ function UserAppLayout() {
               )}
             </div>
 
-            <div className="mt-space-6 border-t border-border-subtle pt-space-5">
-              <Link
-                to="/admin"
-                className="inline-flex items-center gap-space-2 rounded-radius-lg px-space-2 py-space-2 text-text-sm font-medium text-text-muted hover:text-action-primary"
-              >
-                <Shield className="h-4 w-4" />
-                Área Restrita
-              </Link>
-            </div>
           </aside>
         </div>
       )}
@@ -424,6 +504,10 @@ Ao utilizar o sistema, você concorda em fornecer dados verdadeiros e respeitar 
         <Route path="lista" element={<AppDirectory />} />
         <Route path="mapa" element={<Geolocation />} />
         <Route path="proximos" element={<AppNearby />} />
+        <Route path="sobre" element={<AppAboutPage />} />
+        <Route path="politica-de-privacidade" element={<AppStaticTextPage title="Política de Privacidade" content={privacyPolicy} />} />
+        <Route path="termos-de-uso" element={<AppStaticTextPage title="Termos de Uso" content={termsOfUse} />} />
+        <Route path="contato-desenvolvedor" element={<AppDeveloperContactsPage />} />
         <Route path="business/:id" element={<AppBusinessDetails />} />
       </Route>
 
