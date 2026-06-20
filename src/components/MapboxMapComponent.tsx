@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { createRoot, type Root } from "react-dom/client";
+import { createPortal } from "react-dom";
 import mapboxgl from "mapbox-gl";
 import type { MapHighlightPoint, MapMarker, MapViewportBounds } from "./MapComponent";
 import { NOVA_TERRA_CENTER, NOVA_TERRA_DEFAULT_ZOOM } from "../config/geo";
@@ -53,13 +53,6 @@ function createMarkerElement(kind: "business" | "user" | "highlight") {
     return element;
 }
 
-function renderPopupContent(content: ReactNode) {
-    const container = document.createElement("div");
-    const root = createRoot(container);
-    root.render(<>{content}</>);
-    return { container, root };
-}
-
 export function MapboxMapComponent({
     accessToken,
     center = NOVA_TERRA_CENTER,
@@ -77,10 +70,10 @@ export function MapboxMapComponent({
     const userMarkerRef = useRef<mapboxgl.Marker | null>(null);
     const highlightMarkerRef = useRef<mapboxgl.Marker | null>(null);
     const popupRef = useRef<mapboxgl.Popup | null>(null);
-    const popupRootRef = useRef<Root | null>(null);
     const [mapReady, setMapReady] = useState(false);
     const [mapError, setMapError] = useState("");
     const [selectedMarkerId, setSelectedMarkerId] = useState<string | number | "__user__" | "__highlight__" | null>(null);
+    const [popupContainer, setPopupContainer] = useState<HTMLDivElement | null>(null);
 
     const popupTarget = useMemo<PopupTarget | null>(() => {
         if (selectedMarkerId === "__user__" && userLocation) {
@@ -149,8 +142,7 @@ export function MapboxMapComponent({
 
             return () => {
                 window.removeEventListener("resize", handleResize);
-                popupRootRef.current?.unmount();
-                popupRootRef.current = null;
+                setPopupContainer(null);
                 popupRef.current?.remove();
                 popupRef.current = null;
                 highlightMarkerRef.current?.remove();
@@ -254,15 +246,13 @@ export function MapboxMapComponent({
 
     useEffect(() => {
         const map = mapRef.current;
-        popupRootRef.current?.unmount();
-        popupRootRef.current = null;
+        setPopupContainer(null);
         popupRef.current?.remove();
         popupRef.current = null;
 
         if (!map || !mapReady || !popupTarget?.popupContent) return;
 
-        const { container, root } = renderPopupContent(popupTarget.popupContent);
-        popupRootRef.current = root;
+        const nextPopupContainer = document.createElement("div");
         const popup = new mapboxgl.Popup({
             closeButton: true,
             closeOnClick: false,
@@ -270,17 +260,20 @@ export function MapboxMapComponent({
             maxWidth: "320px",
         })
             .setLngLat([popupTarget.position[1], popupTarget.position[0]])
-            .setDOMContent(container)
+            .setDOMContent(nextPopupContainer)
             .addTo(map);
+
+        setPopupContainer(nextPopupContainer);
 
         popup.on("close", () => {
             setSelectedMarkerId((current) => (current === popupTarget.id ? null : current));
+            setPopupContainer((current) => (current === nextPopupContainer ? null : current));
         });
 
         popupRef.current = popup;
 
         return () => {
-            root.unmount();
+            setPopupContainer((current) => (current === nextPopupContainer ? null : current));
             if (popupRef.current === popup) popupRef.current = null;
             popup.remove();
         };
@@ -297,8 +290,13 @@ export function MapboxMapComponent({
     }
 
     return (
-        <div className={`${className} overflow-hidden rounded-radius-2xl border border-border-subtle bg-surface-card`}>
-            <div ref={containerRef} className="h-full w-full touch-auto [touch-action:auto]" />
-        </div>
+        <>
+            <div className={`${className} overflow-hidden rounded-radius-2xl border border-border-subtle bg-surface-card`}>
+                <div ref={containerRef} className="h-full w-full touch-auto [touch-action:auto]" />
+            </div>
+            {popupContainer && popupTarget?.popupContent
+                ? createPortal(<div className="max-w-[280px]">{popupTarget.popupContent}</div>, popupContainer)
+                : null}
+        </>
     );
 }

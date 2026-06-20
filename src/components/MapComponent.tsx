@@ -164,7 +164,13 @@ function LeafletMapComponent({
 }
 
 export function MapComponent(props: MapComponentProps) {
-    const mapboxAccessToken = String(import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || "").trim();
+    const rawMapboxAccessToken = String(import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || "").trim();
+    const mapboxAccessToken =
+        rawMapboxAccessToken &&
+        rawMapboxAccessToken.toLowerCase() !== "undefined" &&
+        rawMapboxAccessToken.toLowerCase() !== "null"
+            ? rawMapboxAccessToken
+            : "";
 
     if (mapboxAccessToken) {
         return <MapboxMapComponent accessToken={mapboxAccessToken} {...props} />;
