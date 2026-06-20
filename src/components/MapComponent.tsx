@@ -1,18 +1,17 @@
-import { MapContainer, TileLayer, Marker, Popup, CircleMarker, useMap, useMapEvents } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
-import { useEffect } from 'react';
-import type { ReactNode } from 'react';
-import { NOVA_TERRA_CENTER, NOVA_TERRA_DEFAULT_ZOOM } from '../config/geo';
-
-import icon from 'leaflet/dist/images/marker-icon.png';
-import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+import { useEffect } from "react";
+import type { ReactNode } from "react";
+import { CircleMarker, MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from "react-leaflet";
+import L from "leaflet";
+import { MapboxMapComponent } from "./MapboxMapComponent";
+import { NOVA_TERRA_CENTER, NOVA_TERRA_DEFAULT_ZOOM } from "../config/geo";
+import icon from "leaflet/dist/images/marker-icon.png";
+import iconShadow from "leaflet/dist/images/marker-shadow.png";
 
 const DefaultIcon = L.icon({
     iconUrl: icon,
     shadowUrl: iconShadow,
     iconSize: [25, 41],
-    iconAnchor: [12, 41]
+    iconAnchor: [12, 41],
 });
 
 L.Marker.prototype.options.icon = DefaultIcon;
@@ -107,7 +106,7 @@ function MapBoundsListener({
     return null;
 }
 
-export function MapComponent({
+function LeafletMapComponent({
     center = NOVA_TERRA_CENTER,
     zoom = NOVA_TERRA_DEFAULT_ZOOM,
     markers = [],
@@ -144,7 +143,7 @@ export function MapComponent({
                 <CircleMarker center={highlightPoint.position} radius={9} pathOptions={{ color: "#ea580c", weight: 2, fillColor: "#fb923c", fillOpacity: 0.4 }}>
                     <Popup>
                         <div className="text-sm">
-                            <h3 className="font-bold">{highlightPoint.label || 'Ponto selecionado'}</h3>
+                            <h3 className="font-bold">{highlightPoint.label || "Ponto selecionado"}</h3>
                             {highlightPoint.popupContent}
                         </div>
                     </Popup>
@@ -154,12 +153,29 @@ export function MapComponent({
                 <Marker key={marker.id} position={marker.position} eventHandlers={marker.onClick ? { click: marker.onClick } : undefined}>
                     <Popup>
                         <div className="min-w-[220px] max-w-[280px] text-sm">
-                            <h3 className="font-bold">{marker.title}</h3>
+                            {!marker.popupContent && <h3 className="font-bold">{marker.title}</h3>}
                             {marker.popupContent}
                         </div>
                     </Popup>
                 </Marker>
             ))}
         </MapContainer>
+    );
+}
+
+export function MapComponent(props: MapComponentProps) {
+    const mapboxAccessToken = String(import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || "").trim();
+
+    if (mapboxAccessToken) {
+        return <MapboxMapComponent accessToken={mapboxAccessToken} {...props} />;
+    }
+
+    return (
+        <div className="space-y-space-3">
+            <div className="rounded-radius-xl border border-border-subtle bg-surface-subtle px-space-4 py-space-3 text-text-sm text-text-secondary">
+                Mapa temporariamente indisponível. Token Mapbox não configurado.
+            </div>
+            <LeafletMapComponent {...props} />
+        </div>
     );
 }

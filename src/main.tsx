@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import './styles/design-tokens.css'
 import 'leaflet/dist/leaflet.css'
+import 'mapbox-gl/dist/mapbox-gl.css'
 import App from './App.tsx'
 
 createRoot(document.getElementById('root')!).render(
