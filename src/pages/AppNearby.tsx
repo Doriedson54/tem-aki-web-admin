@@ -11,27 +11,27 @@ import { buildMapRouteLink, buildWhatsAppLink, calculateDistanceMeters, formatDi
 type NearbyBusiness = Business & { distance_meters: number };
 
 const DISTANCE_FILTERS = [
-    { id: "500m", label: "At\xE9 500 m", maxDistance: 500 },
-    { id: "1km", label: "At\xE9 1 km", maxDistance: 1000 },
+    { id: "500m", label: "Até 500 m", maxDistance: 500 },
+    { id: "1km", label: "Até 1 km", maxDistance: 1000 },
 ] as const;
 
 const CATEGORY_FILTERS = [
-    { id: "comercio", label: "Com\xE9rcio" },
-    { id: "servico", label: "Servi\xE7o" },
+    { id: "comercio", label: "Comércio" },
+    { id: "servico", label: "Serviço" },
     { id: "escolar", label: "Escolar" },
-    { id: "instituicao-publica", label: "Institui\xE7\xE3o P\xFAblica" },
-    { id: "instituicao-comunitaria", label: "Institui\xE7\xE3o Comunit\xE1ria" },
-    { id: "instituicao-religiosa", label: "Institui\xE7\xE3o Religiosa" },
+    { id: "instituicao-publica", label: "Instituição Pública" },
+    { id: "instituicao-comunitaria", label: "Instituição Comunitária" },
+    { id: "instituicao-religiosa", label: "Instituição Religiosa" },
 ] as const;
 
 const RATING_FILTERS = [
     { id: "best-rated", label: "Mais bem avaliados" },
-    { id: "with-reviews", label: "Com avalia\xE7\xF5es" },
-    { id: "without-reviews", label: "Sem avalia\xE7\xF5es" },
+    { id: "with-reviews", label: "Com avaliações" },
+    { id: "without-reviews", label: "Sem avaliações" },
 ] as const;
 
 function getAddressLabel(business: Business) {
-    return [business.address, business.neighborhood, business.city].filter(Boolean).join(", ") || "Endere\xE7o n\xE3o informado";
+    return [business.neighborhood, business.city].filter(Boolean).join(", ") || business.address || "Endereço não informado";
 }
 
 function matchesCategoryFilter(categoryName: string | undefined, filterId: (typeof CATEGORY_FILTERS)[number]["id"]) {
@@ -75,7 +75,7 @@ function NearbyFilterChip({
         <button
             type="button"
             onClick={onClick}
-            className={`rounded-full border px-space-3 py-space-2 text-text-xs font-semibold transition-colors ${
+            className={`rounded-full border px-space-3 py-1.5 text-[11px] font-semibold transition-colors ${
                 selected
                     ? "border-action-primary bg-action-primary text-text-on-brand"
                     : "border-border-default bg-surface-card text-text-secondary hover:border-action-primary hover:text-action-primary"
@@ -125,8 +125,10 @@ export function AppNearby() {
         () =>
             businesses.filter(
                 (business): business is Business & { latitude: number; longitude: number } =>
-                    typeof business.latitude === "number" && Number.isFinite(business.latitude) &&
-                    typeof business.longitude === "number" && Number.isFinite(business.longitude)
+                    typeof business.latitude === "number" &&
+                    Number.isFinite(business.latitude) &&
+                    typeof business.longitude === "number" &&
+                    Number.isFinite(business.longitude)
             ),
         [businesses]
     );
@@ -231,7 +233,7 @@ export function AppNearby() {
         setError("");
 
         if (!navigator.geolocation) {
-            setError("N\xE3o foi poss\xEDvel acessar sua localiza\xE7\xE3o. Ative a permiss\xE3o de localiza\xE7\xE3o no navegador ou no celular.");
+            setError("Não foi possível acessar sua localização. Ative a permissão de localização no navegador ou no celular.");
             return;
         }
 
@@ -249,9 +251,9 @@ export function AppNearby() {
             },
             (geoError) => {
                 if (geoError?.code === 1) {
-                    setError("N\xE3o foi poss\xEDvel acessar sua localiza\xE7\xE3o. Ative a permiss\xE3o de localiza\xE7\xE3o no navegador ou no celular.");
+                    setError("Não foi possível acessar sua localização. Ative a permissão de localização no navegador ou no celular.");
                 } else {
-                    setError("N\xE3o foi poss\xEDvel obter sua localiza\xE7\xE3o agora. Tente novamente.");
+                    setError("Não foi possível obter sua localização agora. Tente novamente.");
                 }
                 setLocating(false);
             },
@@ -261,49 +263,53 @@ export function AppNearby() {
 
     const emptyMessage = useMemo(() => {
         if (loading) return "";
-        if (!businessesWithCoords.length) return "Ainda n\xE3o h\xE1 neg\xF3cios com localiza\xE7\xE3o dispon\xEDvel.";
-        if (!userLocation) return "Toque em \u201CUsar minha localiza\xE7\xE3o\u201D para ver os neg\xF3cios mais pr\xF3ximos de voc\xEA.";
-        if (!filteredBusinesses.length) return "Nenhum neg\xF3cio encontrado com os filtros selecionados.";
+        if (!businessesWithCoords.length) return "Ainda não há negócios com localização disponível.";
+        if (!userLocation) return 'Toque em "Usar minha localização" para ver os negócios mais próximos de você.';
+        if (!filteredBusinesses.length) return "Nenhum negócio encontrado com os filtros selecionados.";
         return "";
     }, [businessesWithCoords.length, filteredBusinesses.length, loading, userLocation]);
 
     return (
         <div className="container mx-auto px-space-4 py-space-5 md:py-space-8">
-            <div className="space-y-space-5">
-                <div className="space-y-space-2">
-                    <h1 className="text-text-2xl font-bold text-text-primary">Neg\xF3cios Pr\xF3ximos</h1>
-                    <p className="text-text-sm text-text-secondary">Encontre os neg\xF3cios mais pr\xF3ximos da sua localiza\xE7\xE3o.</p>
+            <div className="space-y-space-4 pb-space-2">
+                <div className="space-y-space-1">
+                    <h1 className="text-text-2xl font-bold text-text-primary">Negócios Próximos</h1>
+                    <p className="text-text-sm text-text-secondary">Encontre os negócios mais próximos da sua localização.</p>
                     {userLocation && filteredBusinesses.length > 0 && (
-                        <div className="text-text-xs font-semibold uppercase tracking-wide text-action-primary">
-                            {filteredBusinesses.length} neg\xF3cio(s) encontrados
+                        <div className="text-[11px] font-semibold uppercase tracking-wide text-action-primary">
+                            {filteredBusinesses.length} negócio(s) encontrados
                         </div>
                     )}
                 </div>
 
-                <Card className="border-border-subtle p-space-4">
+                <Card className="border-border-subtle p-space-3">
                     <div className="flex flex-wrap items-center gap-space-2">
-                        <Button onClick={handleUseMyLocation} disabled={locating} className="gap-space-2">
+                        <Button onClick={handleUseMyLocation} disabled={locating} className="h-9 gap-space-2 px-space-3 text-text-sm">
                             <LocateFixed className="h-4 w-4" />
-                            {locating ? "Localizando..." : "Usar minha localiza\xE7\xE3o"}
+                            {locating ? "Localizando..." : "Usar minha localização"}
                         </Button>
-                        <Button variant="secondary" onClick={() => setFiltersOpen((prev) => !prev)} className="gap-space-2">
+                        <Button
+                            variant="secondary"
+                            onClick={() => setFiltersOpen((prev) => !prev)}
+                            className="h-9 gap-space-2 px-space-3 text-text-sm"
+                        >
                             <Filter className="h-4 w-4" />
                             Filtros
                         </Button>
                     </div>
 
                     {filtersOpen && (
-                        <div className="mt-space-4 space-y-space-4">
+                        <div className="mt-space-3 space-y-space-3">
                             <div>
-                                <div className="mb-space-2 text-text-xs font-bold uppercase tracking-wide text-text-muted">Todos</div>
-                                <div className="flex flex-wrap gap-space-2">
+                                <div className="mb-space-1 text-[11px] font-bold uppercase tracking-wide text-text-muted">Todos</div>
+                                <div className="flex flex-wrap gap-2">
                                     <NearbyFilterChip label="Todos" selected={allSelected} onClick={handleToggleAll} />
                                 </div>
                             </div>
 
                             <div>
-                                <div className="mb-space-2 text-text-xs font-bold uppercase tracking-wide text-text-muted">Por dist\xE2ncia</div>
-                                <div className="flex flex-wrap gap-space-2">
+                                <div className="mb-space-1 text-[11px] font-bold uppercase tracking-wide text-text-muted">Por distância</div>
+                                <div className="flex flex-wrap gap-2">
                                     {DISTANCE_FILTERS.map((filter) => (
                                         <NearbyFilterChip
                                             key={filter.id}
@@ -316,8 +322,8 @@ export function AppNearby() {
                             </div>
 
                             <div>
-                                <div className="mb-space-2 text-text-xs font-bold uppercase tracking-wide text-text-muted">Por categorias</div>
-                                <div className="flex flex-wrap gap-space-2">
+                                <div className="mb-space-1 text-[11px] font-bold uppercase tracking-wide text-text-muted">Por categorias</div>
+                                <div className="flex flex-wrap gap-2">
                                     {CATEGORY_FILTERS.map((filter) => (
                                         <NearbyFilterChip
                                             key={filter.id}
@@ -330,8 +336,8 @@ export function AppNearby() {
                             </div>
 
                             <div>
-                                <div className="mb-space-2 text-text-xs font-bold uppercase tracking-wide text-text-muted">Por avalia\xE7\xE3o</div>
-                                <div className="flex flex-wrap gap-space-2">
+                                <div className="mb-space-1 text-[11px] font-bold uppercase tracking-wide text-text-muted">Por avaliação</div>
+                                <div className="flex flex-wrap gap-2">
                                     {RATING_FILTERS.map((filter) => (
                                         <NearbyFilterChip
                                             key={filter.id}
@@ -361,25 +367,26 @@ export function AppNearby() {
                         <div className="text-text-sm text-text-secondary">{emptyMessage}</div>
                     </Card>
                 ) : (
-                    <div className="space-y-space-4">
+                    <div className="grid grid-cols-2 gap-3 pb-space-3">
                         {filteredBusinesses.map((business) => {
                             const whatsappLink = buildWhatsAppLink(
                                 business.whatsapp || business.phone,
-                                "Ol\xE1, vi seu neg\xF3cio no Tem Aki no Bairro!"
+                                "Olá, vi seu negócio no Tem Aki no Bairro!"
                             );
                             const routeLink = buildMapRouteLink(business);
                             const reviewCount = typeof business.review_count === "number" ? business.review_count : 0;
-                            const ratingText = typeof business.rating === "number" && business.rating > 0
-                                ? business.rating.toFixed(1).replace(".", ",")
-                                : null;
+                            const ratingText =
+                                typeof business.rating === "number" && business.rating > 0
+                                    ? business.rating.toFixed(1).replace(".", ",")
+                                    : null;
                             const distanceLabel = formatDistance(business.distance_meters);
 
                             return (
                                 <Card key={business.id} className="overflow-hidden border-border-subtle p-0">
-                                    <div className="flex flex-col">
-                                        <div className="aspect-[16/9] bg-surface-subtle">
+                                    <div className="flex h-full flex-col">
+                                        <div className="aspect-[16/10] bg-surface-subtle">
                                             <img
-                                                src={business.image_url || business.logo_url || "https://placehold.co/720x405/e2e8f0/94a3b8?text=Tem+Aki"}
+                                                src={business.image_url || business.logo_url || "https://placehold.co/480x300/e2e8f0/94a3b8?text=Tem+Aki"}
                                                 alt={business.name}
                                                 className="h-full w-full object-cover"
                                                 loading="lazy"
@@ -387,54 +394,45 @@ export function AppNearby() {
                                             />
                                         </div>
 
-                                        <div className="space-y-space-4 p-space-4">
-                                            <div className="flex items-start justify-between gap-space-3">
-                                                <div className="min-w-0">
-                                                    <div className="text-text-xs font-bold uppercase tracking-wide text-action-primary">
-                                                        {business.category?.name || "Categoria n\xE3o informada"}
-                                                    </div>
-                                                    <h2 className="mt-space-1 text-text-lg font-bold text-text-primary">{business.name}</h2>
+                                        <div className="flex h-full flex-col gap-2 p-space-3">
+                                            <div className="min-w-0">
+                                                <div className="truncate text-[10px] font-bold uppercase tracking-wide text-action-primary">
+                                                    {business.category?.name || "Categoria não informada"}
                                                 </div>
-                                                {distanceLabel && (
-                                                    <div className="inline-flex shrink-0 items-center gap-1 rounded-full bg-action-primary/10 px-space-3 py-space-1 text-text-xs font-semibold text-action-primary">
-                                                        <MapPin className="h-3.5 w-3.5" />
-                                                        {distanceLabel}
-                                                    </div>
-                                                )}
+                                                <h2 className="mt-1 line-clamp-2 min-h-[2.5rem] text-sm font-bold leading-5 text-text-primary">
+                                                    {business.name}
+                                                </h2>
                                             </div>
 
-                                            <div className="text-text-sm text-text-secondary">{getAddressLabel(business)}</div>
+                                            <div className="truncate text-[11px] text-text-secondary">{getAddressLabel(business)}</div>
 
-                                            <div className="flex flex-wrap items-center gap-space-3 text-text-sm text-text-secondary">
-                                                {ratingText ? (
-                                                    <div className="inline-flex items-center gap-1">
-                                                        <Star className="h-4 w-4 fill-current text-status-warning" />
-                                                        <span>{ratingText}</span>
-                                                        {reviewCount > 0 && <span>({reviewCount} avalia\xE7\xF5es)</span>}
-                                                    </div>
-                                                ) : (
-                                                    <div className="inline-flex items-center gap-1 text-text-muted">
-                                                        <Star className="h-4 w-4 text-border-default" />
-                                                        <span>{reviewCount > 0 ? `${reviewCount} avalia\xE7\xF5es` : "Sem avalia\xE7\xF5es"}</span>
-                                                    </div>
-                                                )}
+                                            <div className="flex items-center justify-between gap-2">
+                                                <div className="inline-flex min-w-0 items-center gap-1 rounded-full bg-action-primary/10 px-2 py-1 text-[11px] font-semibold text-action-primary">
+                                                    <MapPin className="h-3 w-3 shrink-0" />
+                                                    <span className="truncate">{distanceLabel || "--"}</span>
+                                                </div>
+                                                <div className="inline-flex min-w-0 items-center gap-1 text-[11px] text-text-secondary">
+                                                    <Star className={`h-3.5 w-3.5 ${ratingText ? "fill-current text-status-warning" : "text-border-default"}`} />
+                                                    <span className="truncate">{ratingText ? `${ratingText} (${reviewCount})` : reviewCount > 0 ? `${reviewCount} avaliações` : "Sem avaliações"}</span>
+                                                </div>
                                             </div>
 
-                                            <div className="grid grid-cols-1 gap-space-2 sm:grid-cols-3">
+                                            <div className="mt-auto flex items-center gap-2">
                                                 <Link
                                                     to={`/app/business/${business.id}`}
-                                                    className="inline-flex items-center justify-center rounded-radius-lg bg-action-primary px-space-4 py-space-3 text-text-sm font-semibold text-text-on-brand"
+                                                    className="inline-flex h-8 flex-1 items-center justify-center rounded-radius-md bg-action-primary px-2 text-[11px] font-semibold text-text-on-brand"
                                                     onClick={() => registerNearbyEvent(business.id, "map_click", "nearby_profile_click")}
                                                 >
-                                                    Ver Perfil
+                                                    Perfil
                                                 </Link>
 
-                                                {whatsappLink ? (
+                                                {whatsappLink && (
                                                     <a
                                                         href={whatsappLink}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
-                                                        className="inline-flex items-center justify-center gap-1 rounded-radius-lg border border-border-subtle px-space-4 py-space-3 text-text-sm font-semibold text-status-success"
+                                                        aria-label={`WhatsApp de ${business.name}`}
+                                                        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-radius-md border border-border-subtle text-status-success"
                                                         onClick={() =>
                                                             registerNearbyEvent(business.id, "whatsapp_click", "nearby_whatsapp_click", {
                                                                 has_whatsapp: Boolean(business.whatsapp || business.phone),
@@ -442,20 +440,16 @@ export function AppNearby() {
                                                         }
                                                     >
                                                         <MessageCircle className="h-4 w-4" />
-                                                        WhatsApp
                                                     </a>
-                                                ) : (
-                                                    <div className="inline-flex items-center justify-center rounded-radius-lg border border-border-subtle px-space-4 py-space-3 text-text-sm font-semibold text-text-muted">
-                                                        WhatsApp indispon\xEDvel
-                                                    </div>
                                                 )}
 
-                                                {routeLink ? (
+                                                {routeLink && (
                                                     <a
                                                         href={routeLink}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
-                                                        className="inline-flex items-center justify-center gap-1 rounded-radius-lg border border-border-subtle px-space-4 py-space-3 text-text-sm font-semibold text-action-primary"
+                                                        aria-label={`Como chegar em ${business.name}`}
+                                                        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-radius-md border border-border-subtle text-action-primary"
                                                         onClick={() =>
                                                             registerNearbyEvent(business.id, "map_click", "map_route_request", {
                                                                 route_target: "google_maps",
@@ -463,12 +457,7 @@ export function AppNearby() {
                                                         }
                                                     >
                                                         <Navigation className="h-4 w-4" />
-                                                        Como chegar
                                                     </a>
-                                                ) : (
-                                                    <div className="inline-flex items-center justify-center rounded-radius-lg border border-border-subtle px-space-4 py-space-3 text-text-sm font-semibold text-text-muted">
-                                                        Rota indispon\xEDvel
-                                                    </div>
                                                 )}
                                             </div>
                                         </div>
