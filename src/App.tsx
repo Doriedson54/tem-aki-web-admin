@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { BrowserRouter as Router, Routes, Route, useLocation, Outlet, Link } from "react-router-dom";
-import { Grid2x2, Heart, Home as HomeIcon, Info, MapPinned, Menu, Share2, UserRound, X } from "lucide-react";
+import { Grid2x2, Heart, Home as HomeIcon, Info, LocateFixed, MapPinned, Menu, Share2, X } from "lucide-react";
 import { MainLayout } from "./layouts/MainLayout";
 import { Home } from "./pages/Home";
 import { Directory } from "./pages/Directory";
@@ -23,6 +23,7 @@ import { MyFavorites } from "./pages/MyFavorites";
 import { Profile } from "./pages/Profile";
 import { Geolocation } from "./pages/Geolocation";
 import { OwnerDashboard } from "./pages/OwnerDashboard";
+import { AppNearby } from "./pages/AppNearby";
 import { AuthProvider } from "./contexts/AuthContext";
 import { PrivateRoute } from "./components/PrivateRoute";
 import { Card } from "./components/ui/Card";
@@ -154,7 +155,7 @@ function UserAppLayout() {
     { label: "Categorias", to: "/app#categorias", icon: Grid2x2, isActive: location.pathname === "/app" && location.hash === "#categorias" },
     { label: "Favoritos", to: "/app/lista?favorites=1", icon: Heart, isActive: location.pathname === "/app/lista" && location.search.includes("favorites=1") },
     { label: "Mapa", to: "/app/mapa", icon: MapPinned, isActive: location.pathname === "/app/mapa" },
-    { label: "Perfil", to: "/profile", icon: UserRound, isActive: location.pathname === "/profile" },
+    { label: "Próximos", to: "/app/proximos", icon: LocateFixed, isActive: location.pathname === "/app/proximos" },
   ];
 
   return (
@@ -388,6 +389,7 @@ Ao utilizar o sistema, você concorda em fornecer dados verdadeiros e respeitar 
         <Route index element={<AppHome />} />
         <Route path="lista" element={<AppDirectory />} />
         <Route path="mapa" element={<Geolocation />} />
+        <Route path="proximos" element={<AppNearby />} />
         <Route path="business/:id" element={<AppBusinessDetails />} />
       </Route>
 
