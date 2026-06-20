@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { BrowserRouter as Router, Routes, Route, useLocation, Outlet, Link } from "react-router-dom";
-import { Grid2x2, Heart, Home as HomeIcon, Info, LocateFixed, MapPinned, Menu, Share2, X } from "lucide-react";
+import { BrowserRouter as Router, Routes, Route, useLocation, Outlet, Link, Navigate } from "react-router-dom";
+import { ChevronDown, Grid2x2, Heart, Home as HomeIcon, LocateFixed, MapPinned, Menu, Shield, X } from "lucide-react";
 import { MainLayout } from "./layouts/MainLayout";
 import { Home } from "./pages/Home";
 import { Directory } from "./pages/Directory";
@@ -115,40 +115,35 @@ function DeveloperContactsPage() {
 function UserAppLayout() {
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [institutionalOpen, setInstitutionalOpen] = useState(false);
   const hideBottomNav = location.pathname.startsWith("/app/business/");
 
   useEffect(() => {
     setMenuOpen(false);
   }, [location.pathname, location.search, location.hash]);
 
-  const shareApp = async () => {
-    const url = typeof window !== "undefined" ? `${window.location.origin}/app` : "/app";
-    try {
-      const nav = typeof navigator !== "undefined" ? navigator : undefined;
-      if (nav?.share) {
-        await nav.share({ title: appMeta.name, url });
-        return;
-      }
-      if (nav?.clipboard?.writeText) {
-        await nav.clipboard.writeText(url);
-        alert("Link do aplicativo copiado!");
-        return;
-      }
-      alert(url);
-    } catch {
-    }
-  };
-
   const menuLinks = [
     { label: "Início", to: "/app", icon: HomeIcon },
-    { label: "Categorias", to: "/app#categorias", icon: Grid2x2 },
-    { label: "Favoritos", to: "/app/lista?favorites=1", icon: Heart },
+    { label: "Categorias", to: "/app/categorias", icon: Grid2x2 },
+    { label: "Favoritos", to: "/app/favoritos", icon: Heart },
     { label: "Mapa", to: "/app/mapa", icon: MapPinned },
-    { label: "Sobre o Aplicativo", to: "/about", icon: Info },
-    { label: "Política de Privacidade", to: "/politica-de-privacidade", icon: Info },
-    { label: "Termos de Uso", to: "/terms-of-use", icon: Info },
-    { label: "Contato do Desenvolvedor", to: "/developer-contacts", icon: Info },
+    { label: "Próximos", to: "/app/proximos", icon: LocateFixed },
   ];
+
+  const institutionalLinks = [
+    { label: "Sobre o Aplicativo", to: "/about" },
+    { label: "Política de Privacidade", to: "/politica-de-privacidade" },
+    { label: "Termos de Uso", to: "/terms-of-use" },
+    { label: "Contatos do Desenvolvedor", to: "/developer-contacts" },
+  ];
+
+  const isInstitutionalActive = institutionalLinks.some((item) => item.to === location.pathname);
+
+  useEffect(() => {
+    if (isInstitutionalActive) {
+      setInstitutionalOpen(true);
+    }
+  }, [isInstitutionalActive]);
 
   const bottomNavLinks = [
     { label: "Início", to: "/app", icon: HomeIcon, isActive: location.pathname === "/app" },
@@ -236,11 +231,18 @@ function UserAppLayout() {
             <nav className="mt-space-6 space-y-space-2">
               {menuLinks.map((item) => {
                 const Icon = item.icon;
+                const isActive =
+                  item.to === "/app"
+                    ? location.pathname === "/app"
+                    : location.pathname === item.to || (item.to === "/app/categorias" && location.pathname === "/app" && location.hash === "#categorias");
+
                 return (
                   <Link
                     key={item.label}
                     to={item.to}
-                    className="flex items-center gap-space-3 rounded-radius-xl px-space-3 py-space-3 text-text-base font-medium text-text-primary hover:bg-surface-subtle"
+                    className={`flex items-center gap-space-3 rounded-radius-xl px-space-3 py-space-3 text-text-base font-medium transition-colors ${
+                      isActive ? "bg-[#FFF4E7] text-[#8E5316]" : "text-text-primary hover:bg-surface-subtle"
+                    }`}
                   >
                     <Icon className="h-5 w-5 text-action-primary" />
                     <span>{item.label}</span>
@@ -249,30 +251,60 @@ function UserAppLayout() {
               })}
             </nav>
 
-            <div className="mt-space-6 border-t border-border-subtle pt-space-6">
-              <div className="mb-space-3 text-text-sm font-bold uppercase tracking-wide text-action-primary">Contatos do Desenvolvedor</div>
-              <div className="space-y-space-3 rounded-radius-2xl border border-border-subtle bg-surface-subtle/60 p-space-4">
-                <div className="text-text-sm font-semibold text-text-primary">{appMeta.developer.name}</div>
-                <a className="block text-text-sm text-action-primary hover:underline" href={`mailto:${appMeta.developer.email}`}>
-                  {appMeta.developer.email}
-                </a>
-                <a className="block text-text-sm text-action-primary hover:underline" href={`tel:${appMeta.developer.phoneHref}`}>
-                  {appMeta.developer.phoneLabel}
-                </a>
-                <Link to="/developer-contacts" className="inline-flex text-text-sm font-semibold text-action-primary hover:underline">
-                  Ver detalhes
-                </Link>
-              </div>
+            <div className="mt-space-5 rounded-radius-2xl border border-border-subtle bg-surface-subtle/50">
+              <button
+                type="button"
+                onClick={() => setInstitutionalOpen((prev) => !prev)}
+                className="flex w-full items-center justify-between gap-space-3 px-space-4 py-space-4 text-left"
+              >
+                <div>
+                  <div className="text-text-sm font-bold text-text-primary">Institucional</div>
+                  <div className="text-text-xs text-text-muted">Informações e canais oficiais</div>
+                </div>
+                <ChevronDown className={`h-5 w-5 text-action-primary transition-transform ${institutionalOpen ? "rotate-180" : ""}`} />
+              </button>
+
+              {institutionalOpen && (
+                <div className="border-t border-border-subtle px-space-3 py-space-3">
+                  <div className="space-y-space-1">
+                    {institutionalLinks.map((item) => (
+                      <Link
+                        key={item.label}
+                        to={item.to}
+                        className={`flex items-center rounded-radius-xl px-space-3 py-space-3 text-text-sm font-medium transition-colors ${
+                          item.to === location.pathname ? "bg-white text-[#8E5316]" : "text-text-primary hover:bg-white"
+                        }`}
+                      >
+                        {item.label}
+                      </Link>
+                    ))}
+                  </div>
+
+                  <div className="mt-space-3 rounded-radius-xl border border-border-subtle bg-white p-space-4">
+                    <div className="text-text-xs font-bold uppercase tracking-wide text-action-primary">Contatos do Desenvolvedor</div>
+                    <div className="mt-space-3 space-y-space-2">
+                      <div className="text-text-sm font-semibold text-text-primary">{appMeta.developer.name}</div>
+                      <a className="block text-text-sm text-action-primary hover:underline" href={`mailto:${appMeta.developer.email}`}>
+                        {appMeta.developer.email}
+                      </a>
+                      <a className="block text-text-sm text-action-primary hover:underline" href={`tel:${appMeta.developer.phoneHref}`}>
+                        {appMeta.developer.phoneLabel}
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
-            <button
-              type="button"
-              onClick={shareApp}
-              className="mt-space-6 flex w-full items-center justify-center gap-space-2 rounded-radius-xl bg-action-primary px-space-4 py-space-3 text-text-sm font-bold text-text-on-brand shadow-button-primary"
-            >
-              <Share2 className="h-4 w-4" />
-              Compartilhar Aplicativo
-            </button>
+            <div className="mt-space-6 border-t border-border-subtle pt-space-5">
+              <Link
+                to="/admin"
+                className="inline-flex items-center gap-space-2 rounded-radius-lg px-space-2 py-space-2 text-text-sm font-medium text-text-muted hover:text-action-primary"
+              >
+                <Shield className="h-4 w-4" />
+                Área Restrita
+              </Link>
+            </div>
           </aside>
         </div>
       )}
@@ -387,6 +419,8 @@ Ao utilizar o sistema, você concorda em fornecer dados verdadeiros e respeitar 
 
       <Route path="app" element={<UserAppLayout />}>
         <Route index element={<AppHome />} />
+        <Route path="categorias" element={<Navigate to="/app#categorias" replace />} />
+        <Route path="favoritos" element={<Navigate to="/app/lista?favorites=1" replace />} />
         <Route path="lista" element={<AppDirectory />} />
         <Route path="mapa" element={<Geolocation />} />
         <Route path="proximos" element={<AppNearby />} />
