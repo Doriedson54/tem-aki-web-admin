@@ -201,6 +201,22 @@ function AppAboutPage() {
   );
 }
 
+function FacebookIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5 fill-current">
+      <path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.099 4.388 23.094 10.125 24v-8.438H7.078v-3.49h3.047V9.412c0-3.031 1.792-4.707 4.533-4.707 1.313 0 2.686.236 2.686.236v2.977H15.83c-1.49 0-1.955.931-1.955 1.887v2.267h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.099 24 12.073Z" />
+    </svg>
+  );
+}
+
+function InstagramIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5 fill-current">
+      <path d="M7.75 2C4.574 2 2 4.574 2 7.75v8.5C2 19.426 4.574 22 7.75 22h8.5C19.426 22 22 19.426 22 16.25v-8.5C22 4.574 19.426 2 16.25 2h-8.5Zm0 1.8h8.5a3.95 3.95 0 0 1 3.95 3.95v8.5a3.95 3.95 0 0 1-3.95 3.95h-8.5a3.95 3.95 0 0 1-3.95-3.95v-8.5A3.95 3.95 0 0 1 7.75 3.8Zm9.2 1.35a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2ZM12 6.6A5.4 5.4 0 1 0 17.4 12 5.406 5.406 0 0 0 12 6.6Zm0 1.8A3.6 3.6 0 1 1 8.4 12 3.605 3.605 0 0 1 12 8.4Z" />
+    </svg>
+  );
+}
+
 function UserAppLayout() {
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -224,6 +240,19 @@ function UserAppLayout() {
     { label: "Política de Privacidade", to: "/app/politica-de-privacidade" },
     { label: "Termos de Uso", to: "/app/termos-de-uso" },
     { label: "Contatos do Desenvolvedor", to: "/app/contato-desenvolvedor" },
+  ];
+
+  const socialLinks = [
+    {
+      label: "Facebook",
+      href: "https://www.facebook.com/share/1G73y4p7yT/",
+      Icon: FacebookIcon,
+    },
+    {
+      label: "Instagram",
+      href: "https://www.instagram.com/temakinobairro/",
+      Icon: InstagramIcon,
+    },
   ];
 
   const isInstitutionalActive = institutionalLinks.some((item) => item.to === location.pathname);
@@ -370,15 +399,26 @@ function UserAppLayout() {
                   </div>
 
                   <div className="mt-space-3 rounded-radius-xl border border-border-subtle bg-white p-space-4">
-                    <div className="text-text-xs font-bold uppercase tracking-wide text-action-primary">Contatos do Desenvolvedor</div>
+                    <div className="text-text-xs font-bold uppercase tracking-wide text-action-primary">Redes Sociais</div>
                     <div className="mt-space-3 space-y-space-2">
-                      <div className="text-text-sm font-semibold text-text-primary">{appMeta.developer.name}</div>
-                      <a className="block text-text-sm text-action-primary hover:underline" href={`mailto:${appMeta.developer.email}`}>
-                        {appMeta.developer.email}
-                      </a>
-                      <a className="block text-text-sm text-action-primary hover:underline" href={`tel:${appMeta.developer.phoneHref}`}>
-                        {appMeta.developer.phoneLabel}
-                      </a>
+                      {socialLinks.map((item) => {
+                        const Icon = item.Icon;
+
+                        return (
+                          <a
+                            key={item.label}
+                            href={item.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-space-3 rounded-radius-lg border border-border-subtle px-space-3 py-space-3 text-text-sm font-medium text-text-primary transition-colors hover:border-[#E7C9A4] hover:bg-[#FFF8F1]"
+                          >
+                            <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#FFF1E2] text-[#B86A1A]">
+                              <Icon />
+                            </span>
+                            <span>{item.label}</span>
+                          </a>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
