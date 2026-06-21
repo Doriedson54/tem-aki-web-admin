@@ -10,6 +10,9 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+.keys/
+.tools/
+.bubblewrap/
 *.local
 .agent/
 build-output.txt
