@@ -11,7 +11,165 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
   <meta name="description"
     content="Tem Aki no Bairro: encontre comércios, serviços e estabelecimentos próximos a você." />
-  <meta name="theme-color" content="#ffffff" />
+  <meta name="theme-color" content="#f5efe6" />
+  <style>
+    :root {
+      color-scheme: light;
+      --splash-bg-top: #fff8f0;
+      --splash-bg-mid: #f5efe6;
+      --splash-bg-bottom: #efe6d8;
+      --splash-title: #3a2e25;
+      --splash-subtitle: #6a5a4b;
+      --splash-accent: rgba(184, 106, 26, 0.16);
+      --splash-glow: rgba(255, 243, 227, 0.94);
+    }
+
+    html,
+    body {
+      min-height: 100%;
+      margin: 0;
+      background: linear-gradient(180deg, var(--splash-bg-top) 0%, var(--splash-bg-mid) 52%, var(--splash-bg-bottom) 100%);
+    }
+
+    body {
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    #root {
+      min-height: 100vh;
+    }
+
+    .app-splash {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 50% 40%, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 34%),
+        linear-gradient(180deg, var(--splash-bg-top) 0%, var(--splash-bg-mid) 52%, var(--splash-bg-bottom) 100%);
+      transition: opacity 420ms ease, visibility 420ms ease;
+    }
+
+    .app-splash::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0) 26%, rgba(184, 106, 26, 0.05) 100%);
+      pointer-events: none;
+    }
+
+    .app-splash__glow {
+      position: absolute;
+      width: min(58vw, 420px);
+      height: min(58vw, 420px);
+      border-radius: 999px;
+      background: radial-gradient(circle, var(--splash-glow) 0%, rgba(255, 248, 240, 0.46) 42%, rgba(255, 248, 240, 0) 72%);
+      filter: blur(10px);
+      opacity: 0;
+      animation: splashFadeUp 0.66s ease forwards;
+    }
+
+    .app-splash__content {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: min(100%, 420px);
+      padding: 32px 24px 40px;
+      text-align: center;
+    }
+
+    .app-splash__logo-wrap,
+    .app-splash__title,
+    .app-splash__subtitle {
+      opacity: 0;
+      transform: translateY(10px);
+      animation: splashFadeUp 0.62s ease forwards;
+    }
+
+    .app-splash__logo-wrap {
+      animation-delay: 0.18s;
+    }
+
+    .app-splash__title {
+      margin-top: 24px;
+      animation-delay: 0.52s;
+      color: var(--splash-title);
+      font-size: clamp(1.75rem, 2vw + 1.25rem, 2.25rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.08;
+    }
+
+    .app-splash__subtitle {
+      margin-top: 14px;
+      animation-delay: 0.82s;
+      color: var(--splash-subtitle);
+      font-size: clamp(1rem, 1vw + 0.84rem, 1.12rem);
+      font-weight: 500;
+      line-height: 1.45;
+    }
+
+    .app-splash__logo-shell {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: clamp(160px, 34vw, 220px);
+      height: clamp(160px, 34vw, 220px);
+    }
+
+    .app-splash__logo-shell::before {
+      content: "";
+      position: absolute;
+      inset: 12%;
+      border-radius: 999px;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.96) 0%, rgba(255, 251, 246, 0.76) 48%, rgba(255, 248, 240, 0) 74%);
+      box-shadow: 0 18px 50px rgba(147, 99, 49, 0.08);
+    }
+
+    .app-splash__logo {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      filter: drop-shadow(0 10px 18px rgba(120, 88, 52, 0.08));
+    }
+
+    body.app-ready .app-splash {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    @keyframes splashFadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.985);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    @media (max-width: 400px) {
+      .app-splash__content {
+        padding: 28px 20px 36px;
+      }
+
+      .app-splash__title {
+        margin-top: 20px;
+      }
+    }
+  </style>
 
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Tem Aki no Bairro" />
@@ -29,6 +187,18 @@
 </head>
 
 <body>
+  <div id="app-splash" class="app-splash" aria-hidden="true">
+    <div class="app-splash__glow"></div>
+    <div class="app-splash__content">
+      <div class="app-splash__logo-wrap">
+        <div class="app-splash__logo-shell">
+          <img id="app-splash-logo" class="app-splash__logo" alt="Tem Aki no Bairro" />
+        </div>
+      </div>
+      <div class="app-splash__title">Tem Aki no Bairro</div>
+      <div class="app-splash__subtitle">Seu guia digital de<br />Negócios do Bairro</div>
+    </div>
+  </div>
   <div id="root"></div>
   <script type="module" src="/src/main.tsx"></script>
 </body>
