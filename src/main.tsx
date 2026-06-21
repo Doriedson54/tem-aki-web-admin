@@ -25,5 +25,5 @@ window.setTimeout(() => {
 
   window.setTimeout(() => {
     splashElement?.remove()
-  }, 520)
-}, 1450)
+  }, 980)
+}, 4020)

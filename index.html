@@ -50,7 +50,7 @@
       background:
         radial-gradient(circle at 50% 40%, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 34%),
         linear-gradient(180deg, var(--splash-bg-top) 0%, var(--splash-bg-mid) 52%, var(--splash-bg-bottom) 100%);
-      transition: opacity 420ms ease, visibility 420ms ease;
+      transition: opacity 980ms cubic-bezier(0.22, 1, 0.36, 1), visibility 980ms ease;
     }
 
     .app-splash::before {
@@ -69,7 +69,7 @@
       background: radial-gradient(circle, var(--splash-glow) 0%, rgba(255, 248, 240, 0.46) 42%, rgba(255, 248, 240, 0) 72%);
       filter: blur(10px);
       opacity: 0;
-      animation: splashFadeUp 0.66s ease forwards;
+      animation: splashGlow 5s ease-in-out forwards;
     }
 
     .app-splash__content {
@@ -89,16 +89,16 @@
     .app-splash__subtitle {
       opacity: 0;
       transform: translateY(10px);
-      animation: splashFadeUp 0.62s ease forwards;
+      animation: splashFadeUp 1.05s cubic-bezier(0.22, 1, 0.36, 1) forwards;
     }
 
     .app-splash__logo-wrap {
-      animation-delay: 0.18s;
+      animation-delay: 0.42s;
     }
 
     .app-splash__title {
       margin-top: 24px;
-      animation-delay: 0.52s;
+      animation-delay: 1.38s;
       color: var(--splash-title);
       font-size: clamp(1.75rem, 2vw + 1.25rem, 2.25rem);
       font-weight: 700;
@@ -108,7 +108,7 @@
 
     .app-splash__subtitle {
       margin-top: 14px;
-      animation-delay: 0.82s;
+      animation-delay: 2.14s;
       color: var(--splash-subtitle);
       font-size: clamp(1rem, 1vw + 0.84rem, 1.12rem);
       font-weight: 500;
@@ -151,12 +151,34 @@
     @keyframes splashFadeUp {
       from {
         opacity: 0;
-        transform: translateY(10px) scale(0.985);
+        transform: translateY(14px) scale(0.982);
       }
 
       to {
         opacity: 1;
         transform: translateY(0) scale(1);
+      }
+    }
+
+    @keyframes splashGlow {
+      0% {
+        opacity: 0;
+        transform: scale(0.86);
+      }
+
+      24% {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      76% {
+        opacity: 1;
+        transform: scale(1.04);
+      }
+
+      100% {
+        opacity: 0.92;
+        transform: scale(1.08);
       }
     }
 
