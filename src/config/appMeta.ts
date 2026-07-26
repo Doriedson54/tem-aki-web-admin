@@ -1,5 +1,6 @@
 export const appMeta = {
   name: "Tem Aki no Bairro",
+  version: __APP_VERSION__,
   favoritesStorageKey: "temaki-app-favorites",
   developer: {
     name: "Doriedson Serra",

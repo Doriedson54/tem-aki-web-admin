@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { BrowserRouter as Router, Routes, Route, useLocation, Outlet, Link, Navigate, useNavigate } from "react-router-dom";
-import { ArrowLeft, ChevronDown, Grid2x2, Heart, Home as HomeIcon, LocateFixed, MapPinned, Menu, X } from "lucide-react";
+import { ArrowLeft, CalendarDays, ChevronDown, CircleCheckBig, Copyright, Grid2x2, Heart, Home as HomeIcon, Info, LocateFixed, MapPinned, Menu, Rocket, ShieldCheck, Smartphone, Tag, UserRound, X } from "lucide-react";
 import { MainLayout } from "./layouts/MainLayout";
 import { Home } from "./pages/Home";
 import { Directory } from "./pages/Directory";
@@ -191,13 +191,179 @@ function AppDeveloperContactsPage() {
 }
 
 function AppAboutPage() {
+  const currentRelease = {
+    version: appMeta.version,
+    codename: "Atualização de Navegação",
+    date: "25/07/2026",
+    changes: [
+      "Compatibilidade com Android 16 (Target SDK 36);",
+      "Melhor legibilidade do Menu Hambúrguer;",
+      "Fundo semitransparente durante a navegação;",
+      "Nova apresentação da tela Sobre o Aplicativo;",
+      "Inclusão do Histórico de Versões;",
+      "Melhorias de estabilidade e desempenho.",
+    ],
+  };
+
+  const versionHistory = [currentRelease];
+
   return (
-    <div className="container mx-auto px-space-4 py-space-5 md:py-space-8">
-      <div className="mx-auto max-w-4xl space-y-space-4">
-        <AppBackButton />
-      </div>
-      <About />
-    </div>
+    <AppInstitutionalShell title="Sobre o Aplicativo">
+      <Card className="overflow-hidden border-border-subtle bg-white">
+        <div className="flex flex-col items-center gap-space-4 px-space-5 py-space-6 text-center md:px-space-8 md:py-space-8">
+          <img src={logo} alt="Tem Aki no Bairro" className="h-20 w-auto object-contain md:h-24" />
+          <p className="max-w-2xl text-text-sm leading-relaxed text-text-secondary md:text-text-base">
+            Tem Aki no Bairro é um aplicativo criado para aproximar moradores dos comércios, prestadores de serviços,
+            profissionais liberais e instituições da região, facilitando a busca por produtos e serviços próximos de
+            forma rápida, prática e organizada.
+          </p>
+        </div>
+      </Card>
+
+      <Card className="border-border-subtle bg-white">
+        <div className="space-y-space-4 p-space-5 md:p-space-6">
+          <div className="flex items-center gap-space-3">
+            <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[#FFF1E2] text-[#B86A1A]">
+              <Info className="h-5 w-5" />
+            </span>
+            <div>
+              <h2 className="text-text-lg font-bold text-text-primary md:text-text-xl">Informações da versão</h2>
+              <p className="text-text-sm text-text-muted">Detalhes da atualização atual do aplicativo</p>
+            </div>
+          </div>
+
+          <div className="grid gap-space-3 md:grid-cols-3">
+            <div className="rounded-radius-xl bg-surface-subtle/70 p-space-4">
+              <div className="flex items-center gap-space-2 text-text-sm font-semibold text-text-muted">
+                <Smartphone className="h-4 w-4 text-action-primary" />
+                <span>Versão</span>
+              </div>
+              <div className="mt-space-2 text-text-lg font-bold text-text-primary">{appMeta.version}</div>
+            </div>
+
+            <div className="rounded-radius-xl bg-surface-subtle/70 p-space-4">
+              <div className="flex items-center gap-space-2 text-text-sm font-semibold text-text-muted">
+                <Tag className="h-4 w-4 text-action-primary" />
+                <span>Codinome</span>
+              </div>
+              <div className="mt-space-2 text-text-lg font-bold text-text-primary">Atualização de Navegação</div>
+            </div>
+
+            <div className="rounded-radius-xl bg-surface-subtle/70 p-space-4">
+              <div className="flex items-center gap-space-2 text-text-sm font-semibold text-text-muted">
+                <CalendarDays className="h-4 w-4 text-action-primary" />
+                <span>Data da atualização</span>
+              </div>
+              <div className="mt-space-2 text-text-lg font-bold text-text-primary">25/07/2026</div>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      <Card className="border-border-subtle bg-white">
+        <div className="space-y-space-4 p-space-5 md:p-space-6">
+          <div className="flex items-center gap-space-3">
+            <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[#FFF1E2] text-[#B86A1A]">
+              <Rocket className="h-5 w-5" />
+            </span>
+            <div>
+              <h2 className="text-text-lg font-bold text-text-primary md:text-text-xl">Novidades desta versão</h2>
+              <p className="text-text-sm text-text-muted">Principais melhorias entregues nesta atualização</p>
+            </div>
+          </div>
+
+          <div className="space-y-space-3">
+            {currentRelease.changes.map((item) => (
+              <div key={item} className="flex items-start gap-space-3 rounded-radius-xl bg-surface-subtle/50 p-space-3">
+                <CircleCheckBig className="mt-0.5 h-5 w-5 shrink-0 text-[#2F8F53]" />
+                <span className="text-text-sm font-medium leading-relaxed text-text-primary md:text-text-base">{item}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Card>
+
+      <Card className="border-border-subtle bg-white">
+        <div className="space-y-space-4 p-space-5 md:p-space-6">
+          <div className="flex items-center gap-space-3">
+            <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[#FFF1E2] text-[#B86A1A]">
+              <Rocket className="h-5 w-5" />
+            </span>
+            <div>
+              <h2 className="text-text-lg font-bold text-text-primary md:text-text-xl">Histórico de versões</h2>
+              <p className="text-text-sm text-text-muted">Estrutura preparada para registrar futuras atualizações do aplicativo</p>
+            </div>
+          </div>
+
+          <div className="space-y-space-4">
+            {versionHistory.map((release) => (
+              <div key={`${release.version}-${release.date}`} className="rounded-radius-2xl border border-border-subtle bg-surface-subtle/40 p-space-4 md:p-space-5">
+                <div className="flex flex-col gap-space-3 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <div className="text-text-lg font-bold text-text-primary">Versão {release.version}</div>
+                    <div className="mt-space-1 text-text-sm font-medium text-text-secondary">{release.codename}</div>
+                  </div>
+                  <div className="inline-flex items-center gap-space-2 rounded-radius-full bg-white px-space-3 py-space-2 text-text-sm font-semibold text-text-muted">
+                    <CalendarDays className="h-4 w-4 text-action-primary" />
+                    <span>{release.date}</span>
+                  </div>
+                </div>
+
+                <div className="mt-space-4 space-y-space-3">
+                  {release.changes.map((item) => (
+                    <div key={`${release.version}-${item}`} className="flex items-start gap-space-3">
+                      <CircleCheckBig className="mt-0.5 h-5 w-5 shrink-0 text-[#2F8F53]" />
+                      <span className="text-text-sm leading-relaxed text-text-primary md:text-text-base">{item}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Card>
+
+      <Card className="border-border-subtle bg-white">
+        <div className="space-y-space-4 p-space-5 md:p-space-6">
+          <div className="flex items-center gap-space-3">
+            <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[#FFF1E2] text-[#B86A1A]">
+              <UserRound className="h-5 w-5" />
+            </span>
+            <div>
+              <h2 className="text-text-lg font-bold text-text-primary md:text-text-xl">Desenvolvimento</h2>
+              <p className="text-text-sm text-text-muted">Responsável pelo desenvolvimento do aplicativo</p>
+            </div>
+          </div>
+
+          <div className="rounded-radius-xl bg-surface-subtle/70 p-space-4">
+            <div className="text-text-sm font-semibold text-text-muted">Desenvolvido por</div>
+            <div className="mt-space-2 text-text-xl font-bold text-text-primary">{appMeta.developer.name}</div>
+          </div>
+        </div>
+      </Card>
+
+      <Card className="border-border-subtle bg-white">
+        <div className="space-y-space-4 p-space-5 md:p-space-6">
+          <div className="flex items-center gap-space-3">
+            <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[#FFF1E2] text-[#B86A1A]">
+              <ShieldCheck className="h-5 w-5" />
+            </span>
+            <div>
+              <h2 className="text-text-lg font-bold text-text-primary md:text-text-xl">Direitos</h2>
+              <p className="text-text-sm text-text-muted">Informações institucionais e de titularidade</p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-space-3 rounded-radius-xl bg-surface-subtle/70 p-space-4">
+            <Copyright className="mt-0.5 h-5 w-5 shrink-0 text-action-primary" />
+            <div className="space-y-space-1">
+              <div className="text-text-base font-bold text-text-primary">© 2026 {appMeta.name}</div>
+              <div className="text-text-sm text-text-secondary">Todos os direitos reservados.</div>
+            </div>
+          </div>
+        </div>
+      </Card>
+    </AppInstitutionalShell>
   );
 }
 
@@ -218,14 +384,29 @@ function InstagramIcon() {
 }
 
 function UserAppLayout() {
+  const menuTransitionMs = 220;
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuMounted, setMenuMounted] = useState(false);
   const [institutionalOpen, setInstitutionalOpen] = useState(false);
   const hideBottomNav = location.pathname.startsWith("/app/business/");
 
   useEffect(() => {
     setMenuOpen(false);
   }, [location.pathname, location.search, location.hash]);
+
+  useEffect(() => {
+    if (menuOpen) {
+      setMenuMounted(true);
+      return undefined;
+    }
+
+    const timer = window.setTimeout(() => {
+      setMenuMounted(false);
+    }, menuTransitionMs);
+
+    return () => window.clearTimeout(timer);
+  }, [menuOpen, menuTransitionMs]);
 
   const menuLinks = [
     { label: "Início", to: "/app", icon: HomeIcon },
@@ -319,15 +500,17 @@ function UserAppLayout() {
         </nav>
       )}
 
-      {menuOpen && (
-        <div className="fixed inset-0 z-[70]">
+      {menuMounted && (
+        <div className={`fixed inset-0 z-[70] ${menuOpen ? "" : "pointer-events-none"}`}>
           <button
             type="button"
-            className="absolute inset-0 bg-black/45"
+            className={`absolute inset-0 bg-black transition-opacity duration-200 ${menuOpen ? "opacity-40" : "opacity-0"}`}
             onClick={() => setMenuOpen(false)}
             aria-label="Fechar menu"
           />
-          <aside className="absolute right-0 top-0 h-full w-[88%] max-w-sm overflow-y-auto border-l border-border-subtle bg-surface-card p-space-5 shadow-2xl">
+          <aside
+            className={`absolute right-0 top-0 h-full w-[88%] max-w-sm overflow-y-auto border-l border-border-subtle bg-surface-card p-space-5 shadow-2xl transition-transform duration-200 ${menuOpen ? "translate-x-0" : "translate-x-full"}`}
+          >
             <div className="flex items-center justify-between gap-space-3">
               <div className="flex items-center gap-space-3">
                 <img src={logo} alt="Tem Aki no Bairro" className="h-11 w-auto max-w-[170px] object-contain" />
@@ -358,9 +541,8 @@ function UserAppLayout() {
                   <Link
                     key={item.label}
                     to={item.to}
-                    className={`flex items-center gap-space-3 rounded-radius-xl px-space-3 py-space-3 text-text-base font-medium transition-colors ${
-                      isActive ? "bg-[#FFF4E7] text-[#8E5316]" : "text-text-primary hover:bg-surface-subtle"
-                    }`}
+                    className={`flex items-center gap-space-3 rounded-radius-xl px-space-3 py-space-3 text-[1.125rem] font-medium leading-snug transition-colors ${isActive ? "bg-[#FFF4E7] text-[#8E5316]" : "text-text-primary hover:bg-surface-subtle"
+                      }`}
                   >
                     <Icon className="h-5 w-5 text-action-primary" />
                     <span>{item.label}</span>
@@ -376,7 +558,7 @@ function UserAppLayout() {
                 className="flex w-full items-center justify-between gap-space-3 px-space-4 py-space-4 text-left"
               >
                 <div>
-                  <div className="text-text-sm font-bold text-text-primary">Institucional</div>
+                  <div className="text-base font-bold text-text-primary">Institucional</div>
                   <div className="text-text-xs text-text-muted">Informações e canais oficiais</div>
                 </div>
                 <ChevronDown className={`h-5 w-5 text-action-primary transition-transform ${institutionalOpen ? "rotate-180" : ""}`} />
@@ -389,9 +571,8 @@ function UserAppLayout() {
                       <Link
                         key={item.label}
                         to={item.to}
-                        className={`flex items-center rounded-radius-xl px-space-3 py-space-3 text-text-sm font-medium transition-colors ${
-                          item.to === location.pathname ? "bg-white text-[#8E5316]" : "text-text-primary hover:bg-white"
-                        }`}
+                        className={`flex items-center rounded-radius-xl px-space-3 py-space-3 text-text-sm font-medium transition-colors ${item.to === location.pathname ? "bg-white text-[#8E5316]" : "text-text-primary hover:bg-white"
+                          }`}
                       >
                         {item.label}
                       </Link>
