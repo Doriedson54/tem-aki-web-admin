@@ -7,7 +7,19 @@
       "namespace": "android_app",
       "package_name": "br.com.temakinobairro.app",
       "sha256_cert_fingerprints": [
-          "99:69:DB:A6:AA:97:FE:09:D2:E5:16:B7:B0:C7:BC:DC:ED:E6:6A:88:3F:A8:3B:B7:3A:FA:EE:09:7F:3C:CE:09"
+        "E0:B1:46:B4:D1:33:32:74:89:73:A8:81:D1:DD:48:38:7F:6D:29:B9:95:AA:8A:7C:EA:8F:3B:73:31:D9:25:DD"
+      ]
+    }
+  },
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "br.com.temakinobairro.app",
+      "sha256_cert_fingerprints": [
+        "99:69:DB:A6:AA:97:FE:09:D2:E5:16:B7:B0:C7:BC:DC:ED:E6:6A:88:3F:A8:3B:B7:3A:FA:EE:09:7F:3C:CE:09"
       ]
     }
   }
