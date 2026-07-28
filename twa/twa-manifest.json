@@ -1,0 +1,37 @@
+        {
+          "packageId": "br.com.temakinobairro.app",
+          "host": "temakinobairro.com.br",
+          "name": "Tem Aki no Bairro",
+          "launcherName": "Tem Aki",
+          "display": "standalone",
+          "themeColor": "#F5EFE6",
+          "navigationColor": "#F5EFE6",
+          "backgroundColor": "#F5EFE6",
+          "enableNotifications": false,
+          "startUrl": "/app",
+          "iconUrl": "https://temakinobairro.com.br/android-chrome-512x512.png",
+          "maskableIconUrl": "https://temakinobairro.com.br/android-chrome-512x512-maskable.png",
+          "splashScreenFadeOutDuration": 300,
+          "signingKey": {
+            "path": "C:\\Projetos\\Tem_Aki_no_Bairro\\.keys\\temakinobairro-release.jks",
+            "alias": "temakinobairro-release"
+          },
+          "appVersionCode": 3,
+          "appVersion": "1.0.2",
+          "webManifestUrl": "https://temakinobairro.com.br/manifest.webmanifest",
+          "fallbackType": "customtabs",
+          "enableSiteSettingsShortcut": true,
+          "orientation": "default",
+          "fingerprints": [
+            {
+              "name": "release",
+              "value": "99:69:DB:A6:AA:97:FE:09:D2:E5:16:B7:B0:C7:BC:DC:ED:E6:6A:88:3F:A8:3B:B7:3A:FA:EE:09:7F:3C:CE:09"
+            },
+            {
+              "name": "play",
+              "value": "E0:B1:46:B4:D1:33:32:74:89:73:A8:81:D1:DD:48:38:7F:6D:29:B9:95:AA:8A:7C:EA:8F:3B:73:31:D9:25:DD"
+            }
+          ],
+          "additionalTrustedOrigins": [],
+          "retainedBundles": []
+        }

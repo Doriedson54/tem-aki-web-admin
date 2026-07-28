@@ -16,6 +16,13 @@ dist-ssr
 *.local
 .agent/
 build-output.txt
+.gradle-home/
+twa/.gradle/
+twa/build/
+twa/app/build/
+twa/local.properties
+twa/gradle-build.exitcode
+twa/manifest-checksum.txt
 
 # Editor directories and files
 .vscode/*
