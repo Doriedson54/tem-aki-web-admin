@@ -193,6 +193,18 @@ function AppDeveloperContactsPage() {
 function AppAboutPage() {
   const currentRelease = {
     version: appMeta.version,
+    codename: "Atualização do Menu e Redes Sociais",
+    date: "28/08/2026",
+    changes: [
+      "Redes Sociais movida para seção própria no Menu Hambúrguer, abaixo de Institucional e sempre visível;",
+      "Efeito 3D interativo nos botões de Facebook e Instagram (sensação de pressionar ao tocar);",
+      "Manutenção das cores temáticas dos ícones e botões de redes sociais;",
+      "Melhor organização visual das seções Institucional e Redes Sociais no menu lateral.",
+    ],
+  };
+
+  const previousRelease = {
+    version: "1.0.3",
     codename: "Atualização de Navegação",
     date: "25/07/2026",
     changes: [
@@ -205,7 +217,7 @@ function AppAboutPage() {
     ],
   };
 
-  const versionHistory = [currentRelease];
+  const versionHistory = [currentRelease, previousRelease];
 
   return (
     <AppInstitutionalShell title="Sobre o Aplicativo">
@@ -246,7 +258,7 @@ function AppAboutPage() {
                 <Tag className="h-4 w-4 text-action-primary" />
                 <span>Codinome</span>
               </div>
-              <div className="mt-space-2 text-text-lg font-bold text-text-primary">Atualização de Navegação</div>
+              <div className="mt-space-2 text-text-lg font-bold text-text-primary">Atualização do Menu e Redes Sociais</div>
             </div>
 
             <div className="rounded-radius-xl bg-surface-subtle/70 p-space-4">
@@ -254,7 +266,7 @@ function AppAboutPage() {
                 <CalendarDays className="h-4 w-4 text-action-primary" />
                 <span>Data da atualização</span>
               </div>
-              <div className="mt-space-2 text-text-lg font-bold text-text-primary">25/07/2026</div>
+              <div className="mt-space-2 text-text-lg font-bold text-text-primary">28/08/2026</div>
             </div>
           </div>
         </div>
@@ -291,7 +303,7 @@ function AppAboutPage() {
             </span>
             <div>
               <h2 className="text-text-lg font-bold text-text-primary md:text-text-xl">Histórico de versões</h2>
-              <p className="text-text-sm text-text-muted">Estrutura preparada para registrar futuras atualizações do aplicativo</p>
+              <p className="text-text-sm text-text-muted">Registro das últimas atualizações do aplicativo</p>
             </div>
           </div>
 
