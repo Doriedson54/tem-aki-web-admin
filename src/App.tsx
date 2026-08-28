@@ -559,7 +559,7 @@ function UserAppLayout() {
               >
                 <div>
                   <div className="text-base font-bold text-text-primary">Institucional</div>
-                  <div className="text-text-xs text-text-muted">Informações e canais oficiais</div>
+                  <div className="text-text-xs text-text-muted">Informações oficiais do app</div>
                 </div>
                 <ChevronDown className={`h-5 w-5 text-action-primary transition-transform ${institutionalOpen ? "rotate-180" : ""}`} />
               </button>
@@ -578,32 +578,32 @@ function UserAppLayout() {
                       </Link>
                     ))}
                   </div>
-
-                  <div className="mt-space-3 rounded-radius-xl border border-border-subtle bg-white p-space-4">
-                    <div className="text-text-xs font-bold uppercase tracking-wide text-action-primary">Redes Sociais</div>
-                    <div className="mt-space-3 space-y-space-2">
-                      {socialLinks.map((item) => {
-                        const Icon = item.Icon;
-
-                        return (
-                          <a
-                            key={item.label}
-                            href={item.href}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-space-3 rounded-radius-lg border border-border-subtle px-space-3 py-space-3 text-text-sm font-medium text-text-primary transition-colors hover:border-[#E7C9A4] hover:bg-[#FFF8F1]"
-                          >
-                            <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#FFF1E2] text-[#B86A1A]">
-                              <Icon />
-                            </span>
-                            <span>{item.label}</span>
-                          </a>
-                        );
-                      })}
-                    </div>
-                  </div>
                 </div>
               )}
+            </div>
+
+            <div className="mt-space-3 rounded-radius-2xl border border-border-subtle bg-surface-subtle/50 p-space-4">
+              <div className="text-text-xs font-bold uppercase tracking-wide text-action-primary">Redes Sociais</div>
+              <div className="mt-space-3 space-y-space-2">
+                {socialLinks.map((item) => {
+                  const Icon = item.Icon;
+
+                  return (
+                    <a
+                      key={item.label}
+                      href={item.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group flex items-center gap-space-3 rounded-radius-lg border border-border-subtle border-b-4 bg-white px-space-3 py-space-3 text-text-sm font-medium text-text-primary shadow-[0_4px_0_0_#DCC9B2] transition-all duration-150 hover:translate-y-[1px] hover:border-b-[3px] hover:shadow-[0_3px_0_0_#DCC9B2] active:translate-y-[3px] active:border-b-2 active:shadow-[0_1px_0_0_#DCC9B2]"
+                    >
+                      <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#FFF1E2] text-[#B86A1A] shadow-[0_3px_0_0_#E7C9A4] transition-all duration-150 group-hover:translate-y-[1px] group-hover:shadow-[0_2px_0_0_#E7C9A4] group-active:translate-y-[2px] group-active:shadow-[0_1px_0_0_#E7C9A4]">
+                        <Icon />
+                      </span>
+                      <span>{item.label}</span>
+                    </a>
+                  );
+                })}
+              </div>
             </div>
 
           </aside>
