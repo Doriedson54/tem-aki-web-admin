@@ -74,8 +74,8 @@ android {
         applicationId "br.com.temakinobairro.app"
         minSdkVersion 21
         targetSdkVersion 36
-        versionCode 5
-        versionName "1.0.4"
+        versionCode 6
+        versionName "1.0.5"
 
         // The name for the application
         resValue "string", "appName", twaManifest.name

@@ -193,6 +193,18 @@ function AppDeveloperContactsPage() {
 function AppAboutPage() {
   const currentRelease = {
     version: appMeta.version,
+    codename: "Atualização de Navegação e Localização",
+    date: "03/09/2026",
+    changes: [
+      "Botão 'Usar minha localização' na página Negócios Próximos renovado com cores temáticas do app para máxima legibilidade;",
+      "Efeito 3D interativo aplicado ao botão de localização (sensação de pressionar ao tocar), alinhado ao padrão dos botões de Redes Sociais;",
+      "Redes Sociais em seção própria no Menu Hambúrguer (fora de Institucional) e sempre visível, com organização visual aprimorada;",
+      "Melhorias na usabilidade mobile: altura do botão de localização aumentada e estados de hover/disabled refinados.",
+    ],
+  };
+
+  const previousRelease = {
+    version: "1.0.4",
     codename: "Atualização do Menu e Redes Sociais",
     date: "28/08/2026",
     changes: [
@@ -203,7 +215,7 @@ function AppAboutPage() {
     ],
   };
 
-  const previousRelease = {
+  const olderRelease = {
     version: "1.0.3",
     codename: "Atualização de Navegação",
     date: "25/07/2026",
@@ -217,7 +229,7 @@ function AppAboutPage() {
     ],
   };
 
-  const versionHistory = [currentRelease, previousRelease];
+  const versionHistory = [currentRelease, previousRelease, olderRelease];
 
   return (
     <AppInstitutionalShell title="Sobre o Aplicativo">
@@ -258,7 +270,7 @@ function AppAboutPage() {
                 <Tag className="h-4 w-4 text-action-primary" />
                 <span>Codinome</span>
               </div>
-              <div className="mt-space-2 text-text-lg font-bold text-text-primary">Atualização do Menu e Redes Sociais</div>
+              <div className="mt-space-2 text-text-lg font-bold text-text-primary">Atualização de Navegação e Localização</div>
             </div>
 
             <div className="rounded-radius-xl bg-surface-subtle/70 p-space-4">
@@ -266,7 +278,7 @@ function AppAboutPage() {
                 <CalendarDays className="h-4 w-4 text-action-primary" />
                 <span>Data da atualização</span>
               </div>
-              <div className="mt-space-2 text-text-lg font-bold text-text-primary">28/08/2026</div>
+              <div className="mt-space-2 text-text-lg font-bold text-text-primary">03/09/2026</div>
             </div>
           </div>
         </div>

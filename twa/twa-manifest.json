@@ -16,8 +16,8 @@
             "path": "C:\\Projetos\\Tem_Aki_no_Bairro\\.keys\\temakinobairro-release.jks",
             "alias": "temakinobairro-release"
           },
-          "appVersionCode": 5,
-          "appVersion": "1.0.4",
+          "appVersionCode": 6,
+          "appVersion": "1.0.5",
           "webManifestUrl": "https://temakinobairro.com.br/manifest.webmanifest",
           "fallbackType": "customtabs",
           "enableSiteSettingsShortcut": true,
