@@ -284,8 +284,15 @@ export function AppNearby() {
 
                 <Card className="border-border-subtle p-space-3">
                     <div className="flex flex-wrap items-center gap-space-2">
-                        <Button onClick={handleUseMyLocation} disabled={locating} className="h-9 gap-space-2 px-space-3 text-text-sm">
-                            <LocateFixed className="h-4 w-4" />
+                        <Button
+                            onClick={handleUseMyLocation}
+                            disabled={locating}
+                            variant="ghost"
+                            className="group h-10 gap-space-2 rounded-radius-md border border-border-subtle border-b-4 bg-[#FFF1E2] px-space-4 text-text-sm font-semibold text-[#B86A1A] shadow-[0_4px_0_0_#E7C9A4] transition-all duration-150 hover:translate-y-[1px] hover:border-b-[3px] hover:bg-[#FFE9D1] hover:shadow-[0_3px_0_0_#E7C9A4] active:translate-y-[3px] active:border-b-2 active:shadow-[0_1px_0_0_#E7C9A4] disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:border-b-4 disabled:hover:shadow-[0_4px_0_0_#E7C9A4]"
+                        >
+                            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white text-[#B86A1A] shadow-[0_2px_0_0_#DCC9B2] transition-all duration-150 group-hover:translate-y-[0.5px] group-hover:shadow-[0_1.5px_0_0_#DCC9B2] group-active:translate-y-[1px] group-active:shadow-[0_0.5px_0_0_#DCC9B2] group-disabled:shadow-[0_2px_0_0_#DCC9B2] group-disabled:group-hover:translate-y-0 group-disabled:group-hover:shadow-[0_2px_0_0_#DCC9B2]">
+                                <LocateFixed className="h-3.5 w-3.5" />
+                            </span>
                             {locating ? "Localizando..." : "Usar minha localização"}
                         </Button>
                         <Button
